@@ -131,7 +131,7 @@ const C = {
   /* Inline SVG sparkline card for sensor telemetry */
   sparkCard(label, value, unit, status, threshold, path, color, animate = false) {
     const strokeColor = color || '#ba1a1a';
-    return `<div class="p-space-sm bg-surface-container-low rounded flex flex-col gap-0.5 shadow-sm border border-outline-variant/30">
+    return `<div class="p-space-sm bg-surface-container-low rounded flex flex-col gap-0.5 shadow-sm border border-outline-variant/30 cursor-pointer hover:border-primary/50 transition-colors" onclick="Pages.openSensorModal('${F.esc(label)}', '${F.esc(value)}', '${F.esc(unit)}', '${F.esc(status)}', '${F.esc(threshold)}')">
       <div class="flex items-center justify-between">
         <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">${label}</span>
         <span class="font-telemetry-display text-[15px] font-bold" style="color:${strokeColor}">${value}${unit ? '<span class="text-[10px] ml-0.5">' + unit + '</span>' : ''}</span>
@@ -177,8 +177,8 @@ const C = {
       <td class="py-2 px-space-sm text-[11px] text-on-surface-variant max-w-[140px] truncate" title="${F.esc(x.recommended_action)}">${F.esc(x.recommended_action)}</td>
       <td class="py-2 px-space-sm text-right">
         <div class="flex items-center gap-1 justify-end">
-          <button class="px-2 py-1 bg-error text-on-error font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity" onclick="event.stopPropagation(); alert('Dispatching crew for maintenance on ${x.asset_id}')" type="button">Dispatch</button>
-          <button class="px-2 py-1 bg-surface-container text-on-surface font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high transition-colors" onclick="event.stopPropagation(); alert('Deferred maintenance for ${x.asset_id}')" type="button">Defer</button>
+          <button class="px-2 py-1 bg-error text-on-error font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity" onclick="event.stopPropagation(); Pages.dispatchMaint('${x.asset_id}', 'Dispatch')" type="button">Dispatch</button>
+          <button class="px-2 py-1 bg-surface-container text-on-surface font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high transition-colors" onclick="event.stopPropagation(); Pages.dispatchMaint('${x.asset_id}', 'Defer')" type="button">Defer</button>
         </div>
       </td>
     </tr>`;
@@ -201,7 +201,7 @@ const C = {
         <span class="font-semibold text-on-surface">MOVE:</span> ${F.esc(r.current_area)} → <span class="font-semibold text-primary">${F.esc(r.recommended_area)}</span>
       </div>
       <div class="font-body-sm text-[12px] text-on-surface-variant mb-space-sm">${F.esc(r.rationale)}</div>
-      <button onclick="alert('Pre-positioning order authorized for ${r.crew_id}')" class="w-full h-7 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
+      <button onclick="Pages.repositionCrew('${r.crew_id}', '${r.recommended_area}')" class="w-full h-7 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
         <span class="material-symbols-outlined text-[14px]">check_circle</span>Authorize Pre-Positioning Order
       </button>
     </div>`;

@@ -224,3 +224,17 @@ tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
 
 /* ── General table tweaks ───────────────────────────────────────── */
 table { border-collapse: collapse; }
+
+/* ── Print / PDF styling ────────────────────────────────────────── */
+@media print {
+  body { background: #ffffff !important; color: #000000 !important; }
+  aside.sidebar, header.topbar, button, .topbar-right, #sensor-modal-overlay { display: none !important; }
+  main.main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .bg-surface-container-lowest, .bg-surface-container-high, .bg-surface-container-low {
+    background: #ffffff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+  .view { padding: 0 !important; }
+}
+
