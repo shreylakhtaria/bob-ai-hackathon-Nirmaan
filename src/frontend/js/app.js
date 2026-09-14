@@ -487,7 +487,6 @@ const App = {
       set('hdr-latency', API.lastLatencyMs != null ? `${API.lastLatencyMs}ms` : '--');
       set('sidebar-feed', `${F.num(s.sensor_rows)} rows`);
       set('sidebar-outages', `${s.critical_assets ?? '--'} Active`);
-      set('breadcrumb-scope', `${s.assets || 0} assets · ${s.crews || 0} crews`);
 
       // "Telemetry lock" = share of assets that actually have a live prediction
       const lock = s.assets ? Math.min(100, (s.sensor_rows > 0 ? 100 : 0)) : 0;

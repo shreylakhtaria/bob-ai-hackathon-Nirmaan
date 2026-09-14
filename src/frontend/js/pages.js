@@ -91,14 +91,14 @@ Pages.overview = async () => {
 
   // Critical Now table
   const critRows = (s.top_assets || []).slice(0, 5).map(a => `<tr class="hover:bg-surface-container cursor-pointer transition-colors border-b border-surface-container" onclick="App.openAsset('${a.asset_id}')">
-    <td class="py-2 px-space-sm">
+    <td class="py-2.5 px-space-sm">
       <div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full" style="background:${F.riskColor(a.priority || a.risk_level)};flex-shrink:0"></span>
       <span class="font-telemetry-display text-label-md font-bold text-primary">${a.asset_id}</span></div>
       <div class="text-[10px] text-on-surface-variant font-mono">${F.esc(a.asset_type || '')}</div>
     </td>
-    <td class="py-2 px-space-sm text-[11px] text-on-surface-variant">${F.esc(a.area || a.geographic_area || '')}</td>
-    <td class="py-2 px-space-sm">${F.badge(a.priority || a.risk_level)}</td>
-    <td class="py-2 px-space-sm">
+    <td class="py-2.5 px-space-sm text-[11px] text-on-surface-variant">${F.esc(a.area || a.geographic_area || '')}</td>
+    <td class="py-2.5 px-space-sm">${F.badge(a.priority || a.risk_level)}</td>
+    <td class="py-2.5 px-space-sm">
       <div class="flex items-center gap-1">
         <div class="w-12 h-1.5 bg-surface-container-highest rounded overflow-hidden">
           <div class="h-full rounded" style="width:${F.pct(a.failure_probability)};background:${F.riskColor(a.priority || a.risk_level)}"></div>
@@ -106,8 +106,8 @@ Pages.overview = async () => {
         <span class="font-mono text-[11px] font-bold" style="color:${F.riskColor(a.priority || a.risk_level)}">${F.pct(a.failure_probability)}</span>
       </div>
     </td>
-    <td class="py-2 px-space-sm text-right font-mono text-[11px]">${F.num(a.customers_served)}</td>
-    <td class="py-2 px-space-sm">
+    <td class="py-2.5 px-space-sm text-right font-mono text-[11px]">${F.num(a.customers_served)}</td>
+    <td class="py-2.5 px-space-sm">
       <button class="px-2 py-0.5 bg-error-container text-on-error-container font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90" onclick="event.stopPropagation();App.openAsset('${a.asset_id}')" type="button">Inspect ▸</button>
     </td>
   </tr>`).join('');
@@ -124,12 +124,12 @@ Pages.overview = async () => {
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-          <th class="py-1.5 px-space-sm font-semibold">Asset ID</th>
-          <th class="py-1.5 px-space-sm font-semibold">Area/Substation</th>
-          <th class="py-1.5 px-space-sm font-semibold">Severity</th>
-          <th class="py-1.5 px-space-sm font-semibold">Failure Prob.</th>
-          <th class="py-1.5 px-space-sm text-right font-semibold">Customers</th>
-          <th class="py-1.5 px-space-sm font-semibold">Action</th>
+          <th class="py-2 px-space-sm font-semibold">Asset ID</th>
+          <th class="py-2 px-space-sm font-semibold">Area/Substation</th>
+          <th class="py-2 px-space-sm font-semibold">Severity</th>
+          <th class="py-2 px-space-sm font-semibold">Failure Prob.</th>
+          <th class="py-2 px-space-sm text-right font-semibold">Customers</th>
+          <th class="py-2 px-space-sm font-semibold">Action</th>
         </tr></thead>
         <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">${critRows || '<tr><td colspan="6" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No critical assets</td></tr>'}</tbody>
       </table>
@@ -138,11 +138,11 @@ Pages.overview = async () => {
 
   // Area Risk Matrix
   const areaRows = (areas || []).map(a => `<tr class="hover:bg-surface-container cursor-pointer transition-colors border-b border-surface-container">
-    <td class="py-2 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${F.esc(a.area_id)}</td>
-    <td class="py-2 px-space-sm">${F.badge(a.risk_level)}</td>
-    <td class="py-2 px-space-sm text-right font-mono text-[11px] font-semibold">${a.high_risk_assets || 0}</td>
-    <td class="py-2 px-space-sm text-right font-mono text-[11px]">${F.num(a.expected_customers_affected)}</td>
-    <td class="py-2 px-space-sm text-[11px] text-on-surface-variant">${(a.contributing_factors || []).slice(0, 2).join(', ')}</td>
+    <td class="py-2.5 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${F.esc(a.area_id)}</td>
+    <td class="py-2.5 px-space-sm">${F.badge(a.risk_level)}</td>
+    <td class="py-2.5 px-space-sm text-right font-mono text-[11px] font-semibold">${a.high_risk_assets || 0}</td>
+    <td class="py-2.5 px-space-sm text-right font-mono text-[11px]">${F.num(a.expected_customers_affected)}</td>
+    <td class="py-2.5 px-space-sm text-[11px] text-on-surface-variant">${(a.contributing_factors || []).slice(0, 2).join(', ')}</td>
   </tr>`).join('');
 
   const areaTable = `<div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden mb-space-md">
@@ -151,16 +151,15 @@ Pages.overview = async () => {
         <span class="material-symbols-outlined text-primary text-[16px]">public</span>
         <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Regional Risk Exposure</span>
       </div>
-      <span class="font-mono text-[10px] text-on-surface-variant">GET /api/areas/risk</span>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-          <th class="py-1.5 px-space-sm font-semibold">Area</th>
-          <th class="py-1.5 px-space-sm font-semibold">Risk</th>
-          <th class="py-1.5 px-space-sm text-right font-semibold">High-Risk</th>
-          <th class="py-1.5 px-space-sm text-right font-semibold">Cust. Exp.</th>
-          <th class="py-1.5 px-space-sm font-semibold">Weather Drivers</th>
+          <th class="py-2 px-space-sm font-semibold">Area</th>
+          <th class="py-2 px-space-sm font-semibold">Risk</th>
+          <th class="py-2 px-space-sm text-right font-semibold">High-Risk</th>
+          <th class="py-2 px-space-sm text-right font-semibold">Cust. Exp.</th>
+          <th class="py-2 px-space-sm font-semibold">Weather Drivers</th>
         </tr></thead>
         <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">${areaRows || '<tr><td colspan="5" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No area data</td></tr>'}</tbody>
       </table>
@@ -325,11 +324,11 @@ Pages.assets = async (preSelectArg) => {
             <thead class="sticky top-0 z-10">
               <tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
                 <th class="py-2 px-space-md font-semibold">Asset Identifier</th>
-                <th class="py-2 px-space-sm font-semibold">Type &amp; Substation</th>
-                <th class="py-2 px-space-sm font-semibold">Risk Index</th>
-                <th class="py-2 px-space-sm font-semibold">P(Failure)</th>
-                <th class="py-2 px-space-sm text-right font-semibold">Impact</th>
-                <th class="py-2 px-space-sm font-semibold">Status</th>
+                <th class="py-2.5 px-space-sm font-semibold">Type &amp; Substation</th>
+                <th class="py-2.5 px-space-sm font-semibold">Risk Index</th>
+                <th class="py-2.5 px-space-sm font-semibold">P(Failure)</th>
+                <th class="py-2.5 px-space-sm text-right font-semibold">Impact</th>
+                <th class="py-2.5 px-space-sm font-semibold">Status</th>
                 <th class="py-2 px-space-md text-right font-semibold">Action</th>
               </tr>
             </thead>
@@ -386,12 +385,12 @@ Pages.assets = async (preSelectArg) => {
             ${lvl === 'CRITICAL' ? '<span class="material-symbols-outlined text-[13px] text-error">priority_high</span>' : ''}
           </div>
         </td>
-        <td class="py-2.5 px-space-sm">
+        <td class="py-3 px-space-sm">
           <div class="font-semibold text-on-surface text-[12px] leading-tight">${F.esc(a.asset_type || '')}</div>
           <div class="text-[11px] text-on-surface-variant font-mono">${F.esc(a.geographic_area || '')}</div>
         </td>
-        <td class="py-2.5 px-space-sm">${F.badge(lvl)}</td>
-        <td class="py-2.5 px-space-sm">
+        <td class="py-3 px-space-sm">${F.badge(lvl)}</td>
+        <td class="py-3 px-space-sm">
           <div class="flex items-center gap-2">
             <div class="w-14 h-1.5 bg-surface-container-highest rounded overflow-hidden">
               <div class="h-full rounded" style="width:${barW}%;background:${barCol}"></div>
@@ -399,8 +398,8 @@ Pages.assets = async (preSelectArg) => {
             <span class="font-telemetry-display text-label-sm font-bold" style="color:${barCol}">${F.pct(p)}</span>
           </div>
         </td>
-        <td class="py-2.5 px-space-sm text-right font-telemetry-display text-label-sm font-semibold">${F.score(a.grid_impact_score)}</td>
-        <td class="py-2.5 px-space-sm">
+        <td class="py-3 px-space-sm text-right font-telemetry-display text-label-sm font-semibold">${F.score(a.grid_impact_score)}</td>
+        <td class="py-3 px-space-sm">
           <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] uppercase bg-surface-container text-on-surface-variant font-bold">${F.esc(a.current_status || '--')}</span>
         </td>
         <td class="py-2.5 px-space-md text-right">
@@ -611,7 +610,7 @@ Pages.selectAsset = async (id) => {
               ${sensorCards}
             </div>
             <div class="mt-space-xs font-label-sm text-[10px] text-on-surface-variant font-mono">
-              ${sensors.length} telemetry samples · GET /api/assets/${a.asset_id}/sensors?hours=${hours}
+              ${sensors.length} telemetry samples
             </div>
           </div>
           <!-- Work orders raised on this asset -->
@@ -899,26 +898,25 @@ Pages.maintenance = async () => {
           <span class="material-symbols-outlined text-primary text-[16px]">assignment</span>
           <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Work Orders Raised</span>
         </div>
-        <span class="font-mono text-[10px] text-on-surface-variant">GET /api/work-orders</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left">
           <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-            <th class="py-1.5 px-space-sm font-semibold">WO ID</th>
-            <th class="py-1.5 px-space-sm font-semibold">Type</th>
-            <th class="py-1.5 px-space-sm font-semibold">Asset</th>
-            <th class="py-1.5 px-space-sm font-semibold">Crew</th>
-            <th class="py-1.5 px-space-sm font-semibold">ETA / Scheduled</th>
-            <th class="py-1.5 px-space-sm font-semibold">Status</th>
+            <th class="py-2 px-space-sm font-semibold">WO ID</th>
+            <th class="py-2 px-space-sm font-semibold">Type</th>
+            <th class="py-2 px-space-sm font-semibold">Asset</th>
+            <th class="py-2 px-space-sm font-semibold">Crew</th>
+            <th class="py-2 px-space-sm font-semibold">ETA / Scheduled</th>
+            <th class="py-2 px-space-sm font-semibold">Status</th>
           </tr></thead>
           <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
             ${workOrders.map(w => `<tr class="hover:bg-surface-container transition-colors">
-              <td class="py-2 px-space-sm font-mono text-[11px] font-bold text-primary">${w.wo_id}</td>
-              <td class="py-2 px-space-sm text-[11px]">${F.esc(w.wo_type)}</td>
-              <td class="py-2 px-space-sm font-mono text-[11px] ${w.asset_id ? 'cursor-pointer hover:underline' : ''}" ${w.asset_id ? `onclick="App.openAsset('${w.asset_id}')"` : ''}>${F.esc(w.asset_id || w.area_id || '--')}</td>
-              <td class="py-2 px-space-sm font-mono text-[11px]">${F.esc(w.crew_id || '--')}</td>
-              <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">${w.eta_min != null ? w.eta_min.toFixed(0) + ' min' : (w.scheduled_for ? F.date(w.scheduled_for) : '--')}</td>
-              <td class="py-2 px-space-sm"><span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${w.status === 'OPEN' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant'}">${F.esc(w.status)}</span></td>
+              <td class="py-2.5 px-space-sm font-mono text-[11px] font-bold text-primary">${w.wo_id}</td>
+              <td class="py-2.5 px-space-sm text-[11px]">${F.esc(w.wo_type)}</td>
+              <td class="py-2.5 px-space-sm font-mono text-[11px] ${w.asset_id ? 'cursor-pointer hover:underline' : ''}" ${w.asset_id ? `onclick="App.openAsset('${w.asset_id}')"` : ''}>${F.esc(w.asset_id || w.area_id || '--')}</td>
+              <td class="py-2.5 px-space-sm font-mono text-[11px]">${F.esc(w.crew_id || '--')}</td>
+              <td class="py-2.5 px-space-sm font-mono text-[11px] text-on-surface-variant">${w.eta_min != null ? w.eta_min.toFixed(0) + ' min' : (w.scheduled_for ? F.date(w.scheduled_for) : '--')}</td>
+              <td class="py-2.5 px-space-sm"><span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${w.status === 'OPEN' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant'}">${F.esc(w.status)}</span></td>
             </tr>`).join('') || '<tr><td colspan="6" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No work orders yet — dispatch or schedule one from the queue below.</td></tr>'}
           </tbody>
         </table>
@@ -937,14 +935,14 @@ Pages.maintenance = async () => {
       <div class="overflow-x-auto">
         <table class="w-full text-left">
           <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-            <th class="py-1.5 px-space-sm font-semibold">Rank/Priority</th>
-            <th class="py-1.5 px-space-sm font-semibold">Asset / Substation</th>
-            <th class="py-1.5 px-space-sm font-semibold">Type</th>
-            <th class="py-1.5 px-space-sm font-semibold">Failure Prob (ML)</th>
-            <th class="py-1.5 px-space-sm text-right font-semibold">Customers Risk</th>
-            <th class="py-1.5 px-space-sm text-right font-semibold">Grid Impact</th>
-            <th class="py-1.5 px-space-sm font-semibold">Recommended Action</th>
-            <th class="py-1.5 px-space-sm font-semibold">Intervention</th>
+            <th class="py-2 px-space-sm font-semibold">Rank/Priority</th>
+            <th class="py-2 px-space-sm font-semibold">Asset / Substation</th>
+            <th class="py-2 px-space-sm font-semibold">Type</th>
+            <th class="py-2 px-space-sm font-semibold">Failure Prob (ML)</th>
+            <th class="py-2 px-space-sm text-right font-semibold">Customers Risk</th>
+            <th class="py-2 px-space-sm text-right font-semibold">Grid Impact</th>
+            <th class="py-2 px-space-sm font-semibold">Recommended Action</th>
+            <th class="py-2 px-space-sm font-semibold">Intervention</th>
           </tr></thead>
           <tbody id="mq-body" class="divide-y divide-surface-container"></tbody>
         </table>
@@ -972,21 +970,21 @@ Pages.maintenance = async () => {
         <div class="overflow-x-auto">
           <table class="w-full text-left">
             <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-              <th class="py-1.5 px-space-sm font-semibold">Crew ID</th>
-              <th class="py-1.5 px-space-sm font-semibold">Base Substation</th>
-              <th class="py-1.5 px-space-sm font-semibold">Capability / Spec</th>
-              <th class="py-1.5 px-space-sm font-semibold">Status</th>
-              <th class="py-1.5 px-space-sm font-semibold">Assignment / Response</th>
+              <th class="py-2 px-space-sm font-semibold">Crew ID</th>
+              <th class="py-2 px-space-sm font-semibold">Base Substation</th>
+              <th class="py-2 px-space-sm font-semibold">Capability / Spec</th>
+              <th class="py-2 px-space-sm font-semibold">Status</th>
+              <th class="py-2 px-space-sm font-semibold">Assignment / Response</th>
             </tr></thead>
             <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
               ${crewsList.map(c => `<tr class="hover:bg-surface-container transition-colors">
-                <td class="py-2 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${c.crew_id}</td>
-                <td class="py-2 px-space-sm text-[12px] text-on-surface-variant">${c.current_area || '--'}</td>
-                <td class="py-2 px-space-sm text-[12px]">${c.skill_type || '--'}<br/><span class="text-[10px] text-on-surface-variant">${c.equipment_capability || ''}</span></td>
-                <td class="py-2 px-space-sm">
+                <td class="py-2.5 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${c.crew_id}</td>
+                <td class="py-2.5 px-space-sm text-[12px] text-on-surface-variant">${c.current_area || '--'}</td>
+                <td class="py-2.5 px-space-sm text-[12px]">${c.skill_type || '--'}<br/><span class="text-[10px] text-on-surface-variant">${c.equipment_capability || ''}</span></td>
+                <td class="py-2.5 px-space-sm">
                   <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${c.availability === 'AVAILABLE' ? 'bg-secondary-container text-on-secondary-container' : c.availability === 'ON_JOB' ? 'bg-surface-container-high text-on-surface' : 'bg-error-container text-on-error-container'}">${c.availability || '--'}</span>
                 </td>
-                <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">
+                <td class="py-2.5 px-space-sm font-mono text-[11px] text-on-surface-variant">
                   ${c.active_assignment
                     ? `<span class="cursor-pointer hover:underline text-primary" onclick="App.openAsset('${c.active_assignment}')">${c.active_assignment}</span> · <button onclick="Actions.release('${c.crew_id}', this)" class="px-1 py-0.5 bg-surface-container rounded text-[10px] font-bold uppercase hover:bg-surface-container-high" type="button">Release</button>`
                     : `base ${c.base_response_min != null ? Math.round(c.base_response_min) + ' min' : '--'}`}
@@ -1102,23 +1100,23 @@ Pages.crews = async () => {
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-                <th class="py-1.5 px-space-sm font-semibold">Crew ID</th>
-                <th class="py-1.5 px-space-sm font-semibold">Location</th>
-                <th class="py-1.5 px-space-sm font-semibold">Skill Type</th>
-                <th class="py-1.5 px-space-sm font-semibold">Equipment</th>
-                <th class="py-1.5 px-space-sm font-semibold">Status</th>
-                <th class="py-1.5 px-space-sm font-semibold">Assignment</th>
+                <th class="py-2 px-space-sm font-semibold">Crew ID</th>
+                <th class="py-2 px-space-sm font-semibold">Location</th>
+                <th class="py-2 px-space-sm font-semibold">Skill Type</th>
+                <th class="py-2 px-space-sm font-semibold">Equipment</th>
+                <th class="py-2 px-space-sm font-semibold">Status</th>
+                <th class="py-2 px-space-sm font-semibold">Assignment</th>
               </tr></thead>
               <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
                 ${allCrews.map(c => `<tr class="hover:bg-surface-container transition-colors">
-                  <td class="py-2 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${c.crew_id}</td>
-                  <td class="py-2 px-space-sm text-[12px] text-on-surface-variant">${c.current_area || '--'}</td>
-                  <td class="py-2 px-space-sm text-[12px]">${c.skill_type || '--'}</td>
-                  <td class="py-2 px-space-sm text-[12px] text-on-surface-variant">${c.equipment_capability || '--'}</td>
-                  <td class="py-2 px-space-sm">
+                  <td class="py-2.5 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${c.crew_id}</td>
+                  <td class="py-2.5 px-space-sm text-[12px] text-on-surface-variant">${c.current_area || '--'}</td>
+                  <td class="py-2.5 px-space-sm text-[12px]">${c.skill_type || '--'}</td>
+                  <td class="py-2.5 px-space-sm text-[12px] text-on-surface-variant">${c.equipment_capability || '--'}</td>
+                  <td class="py-2.5 px-space-sm">
                     <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${c.availability==='AVAILABLE' ? 'bg-secondary-container text-on-secondary-container' : c.availability==='ON_JOB' ? 'bg-surface-container-high text-on-surface' : 'bg-error-container text-on-error-container'}">${c.availability || '--'}</span>
                   </td>
-                  <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">
+                  <td class="py-2.5 px-space-sm font-mono text-[11px] text-on-surface-variant">
                     ${c.active_assignment
                       ? `<span class="cursor-pointer hover:underline text-primary" onclick="App.openAsset('${c.active_assignment}')">${c.active_assignment}</span> · <button onclick="Actions.release('${c.crew_id}', this)" class="px-1 py-0.5 bg-surface-container rounded text-[10px] font-bold uppercase hover:bg-surface-container-high" type="button">Release</button>`
                       : `base ${c.base_response_min != null ? Math.round(c.base_response_min) + ' min' : '--'}`}
@@ -1174,7 +1172,6 @@ Pages.simulation = async (preAsset) => {
 
   App.render(`<div class="flex flex-col w-full">
     <div class="mb-space-md">
-      <div class="font-label-sm text-[10px] text-on-surface-variant uppercase font-semibold tracking-wider mb-0.5">Operational Decision Support / Concurrent Engine Sessions: Active</div>
       <div class="flex items-center justify-between">
         <div>
           <h1 class="font-headline-xl text-headline-xl text-on-surface font-bold">Grid Outage Simulation &amp; Operational Copilot</h1>
@@ -1195,7 +1192,6 @@ Pages.simulation = async (preAsset) => {
           <div class="px-space-md py-2.5 bg-surface-container-high flex items-center gap-2 border-b border-outline-variant/50">
             <span class="material-symbols-outlined text-primary text-[16px]">science</span>
             <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">What-If Contingency &amp; Stress Simulation Engine</span>
-            <span class="font-mono text-[10px] text-on-surface-variant ml-auto">POST /api/simulation</span>
           </div>
           <div class="p-space-md">
             <!-- Tabs -->
@@ -1268,7 +1264,6 @@ Pages.simulation = async (preAsset) => {
           <span class="material-symbols-outlined text-primary text-[16px]">receipt_long</span>
           <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Engine &amp; Operator Runs Log</span>
         </div>
-        <span class="font-mono text-[10px] text-on-surface-variant">GET /api/audit</span>
       </div>
       <div id="runs-log-body" class="p-space-md scroll-panel" style="max-height:320px"></div>
     </div>
@@ -1359,17 +1354,17 @@ Pages._renderSimResult = (r) => {
       <div class="overflow-x-auto mb-space-md">
         <table class="w-full text-left font-body-sm text-body-sm">
           <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
-            <th class="py-1.5 px-space-sm font-semibold">Parameter Metric</th>
-            <th class="py-1.5 px-space-sm font-semibold">Current Steady State</th>
-            <th class="py-1.5 px-space-sm font-semibold">Simulated Failure State</th>
-            <th class="py-1.5 px-space-sm font-semibold">Delta / Operational Impact</th>
+            <th class="py-2 px-space-sm font-semibold">Parameter Metric</th>
+            <th class="py-2 px-space-sm font-semibold">Current Steady State</th>
+            <th class="py-2 px-space-sm font-semibold">Simulated Failure State</th>
+            <th class="py-2 px-space-sm font-semibold">Delta / Operational Impact</th>
           </tr></thead>
           <tbody class="divide-y divide-surface-container">
             ${rows.map(([metric, current, simulated]) => `<tr>
-              <td class="py-2 px-space-sm font-semibold text-on-surface">${metric}</td>
-              <td class="py-2 px-space-sm text-on-surface-variant font-mono text-[12px]">${current}</td>
-              <td class="py-2 px-space-sm font-mono text-[12px] text-error font-bold">${simulated}</td>
-              <td class="py-2 px-space-sm font-mono text-[12px] font-bold" style="color:${F.riskColor(r.severity)}">${F.esc(r.severity || '--')}</td>
+              <td class="py-2.5 px-space-sm font-semibold text-on-surface">${metric}</td>
+              <td class="py-2.5 px-space-sm text-on-surface-variant font-mono text-[12px]">${current}</td>
+              <td class="py-2.5 px-space-sm font-mono text-[12px] text-error font-bold">${simulated}</td>
+              <td class="py-2.5 px-space-sm font-mono text-[12px] font-bold" style="color:${F.riskColor(r.severity)}">${F.esc(r.severity || '--')}</td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -1455,7 +1450,6 @@ Pages._copilotPanel = () => `<div class="bg-surface-container-lowest rounded sha
       <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Grid Operations Copilot</span>
       <span class="inline-flex items-center gap-1 bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold px-1.5 py-0.5 rounded"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>ONLINE</span>
     </div>
-    <span class="font-mono text-[10px] text-on-surface-variant">POST /api/copilot/query</span>
   </div>
   <div class="p-space-md flex flex-col flex-1">
     <div class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold mb-space-xs">Operator Natural Language Query Console</div>
@@ -1528,9 +1522,9 @@ Pages._renderAdvisorMatrix = (r) => {
       : (res && typeof res === 'object') ? `${Object.keys(res).length} fields` : String(res ?? '--');
     const args = Object.keys(e.args || {}).length ? JSON.stringify(e.args) : '—';
     return `<tr>
-      <td class="py-1.5 px-space-sm font-mono text-[11px] text-primary font-bold">${F.esc(e.tool)}</td>
-      <td class="py-1.5 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(args)}</td>
-      <td class="py-1.5 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(size)}</td>
+      <td class="py-2 px-space-sm font-mono text-[11px] text-primary font-bold">${F.esc(e.tool)}</td>
+      <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(args)}</td>
+      <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(size)}</td>
     </tr>`;
   }).join('');
 
@@ -1551,7 +1545,7 @@ Pages._renderAdvisorMatrix = (r) => {
       <div class="uppercase font-bold text-secondary font-label-sm text-label-sm mb-1">Section 2 — Tool Evidence (${(r.evidence || []).length} calls)</div>
       ${evidenceRows ? `<table class="w-full text-left">
         <thead><tr class="text-on-surface-variant font-label-sm text-[10px] uppercase">
-          <th class="py-1 px-space-sm">Tool</th><th class="py-1 px-space-sm">Args</th><th class="py-1 px-space-sm">Result</th>
+          <th class="py-1.5 px-space-sm">Tool</th><th class="py-1.5 px-space-sm">Args</th><th class="py-1.5 px-space-sm">Result</th>
         </tr></thead>
         <tbody class="divide-y divide-surface-container-low">${evidenceRows}</tbody>
       </table>` : '<div class="font-body-sm text-[12px] text-on-surface-variant">No tools were called for this query.</div>'}
