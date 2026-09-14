@@ -1,6 +1,4 @@
-# 🚀 [Your Project Title Here]
-
-> ⚠️ **Replace everything in `[ ]` brackets with your actual content before submission.**
+# 🚀 Power Outage Prediction & Grid Equipment Failure Advisor
 
 ---
 
@@ -8,36 +6,28 @@
 
 | Field | Value |
 |---|---|
-| **Team Name** | [Your Team Name] |
-| **Track** | [AI / DevOps / Sustainability / Open] |
-| **Team Lead** | [Name] — [email@ibm.com] |
-| **Members** | [Name 1], [Name 2], [Name 3] |
+| **Team Name** | nirman |
+| **Track** | AI / Sustainability |
+| **Team Lead** | Kathan modh — 23cs046@charusat.edu.in |
+| **Members** | Aaleya boxwala, FarhaanAli Vohra, Shrey lakhataria |
 
 ---
 
 ## 🎯 Problem Statement
 
-> In 2–3 sentences: What problem does your project solve? Who experiences this problem?
-
-[Describe the real-world problem your project addresses. Be specific about who the user is and what pain point they face.]
+Power transformer and substation failures cause blackouts costing utilities $1M+/hour and affecting millions of people. Most utilities still use calendar-based maintenance, while sensors already measuring temperature, vibration, partial discharge, and oil quality show failure signatures weeks in advance. Weather events compound the risk - but sensor data and weather forecasts are never combined in time to act.
 
 ---
 
 ## 💡 Solution
 
-> In 2–3 sentences: What did you build? How does it solve the problem above?
-
-[Describe your solution clearly. Explain the core mechanism — what makes it work.]
+*To be added.*
 
 ---
 
 ## ✨ Key Features
 
-- **Feature 1:** [Brief description — e.g., "Real-time anomaly detection using watsonx.ai"]
-- **Feature 2:** [Brief description]
-- **Feature 3:** [Brief description]
-- **Feature 4:** [Optional]
-- **Feature 5:** [Optional]
+*To be added.*
 
 ---
 
@@ -45,11 +35,13 @@
 
 | Category | Technologies |
 |---|---|
-| **Languages** | [e.g., Python, TypeScript] |
-| **Frameworks** | [e.g., FastAPI, React] |
-| **IBM Technologies** | [e.g., watsonx.ai, IBM Bob, IBM Cloud] |
-| **Databases** | [e.g., PostgreSQL, Redis] |
-| **Other** | [e.g., Docker, GitHub Actions] |
+| **Languages** | Python, TypeScript, SQL |
+| **Frameworks** | Next.js, React, FastAPI |
+| **IBM Technologies** | IBM watsonx / IBM Bob (LLM tool calling) |
+| **Databases** | PostgreSQL + TimescaleDB, Redis |
+| **Frontend & UI** | Tailwind CSS, shadcn/ui, ECharts, Mapbox / Leaflet |
+| **AI / ML** | Python, Pandas, NumPy, Scikit-learn, XGBoost / LightGBM, Isolation Forest, SHAP |
+| **Optimization** | Google OR-Tools |
 
 ---
 
@@ -81,14 +73,14 @@ git clone https://github.com/[your-repo].git
 cd [your-repo]
 
 # 2. Install dependencies
-[your install command here]
+npm ci
 
 # 3. Configure environment
 cp .env.example .env
 # Edit .env with your values
 
 # 4. Run the project
-[your run command here]
+npm run dev
 ```
 
 ---
@@ -106,8 +98,6 @@ cp .env.example .env
 
 ## ⚠️ Known Limitations
 
-> Be honest — judges appreciate transparency over overclaiming.
-
 - [Limitation 1: e.g., "Authentication is mocked — not production-ready"]
 - [Limitation 2: e.g., "Only tested on Chrome"]
 - [Limitation 3: e.g., "Feature X is scaffolded but not fully implemented"]
@@ -117,5 +107,3 @@ cp .env.example .env
 ## 🏅 What We're Most Proud Of
 
 [Tell the judges what part of your submission is strongest and worth paying close attention to.]
-
----
