@@ -150,8 +150,8 @@ const App = {
     };
     pill.textContent = `GRID STATUS: ${labels[lvl] || lvl || 'UNKNOWN'}`;
     pill.className = lvl === 'CRITICAL' || lvl === 'HIGH' || lvl === 'ELEVATED'
-      ? 'inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30 font-label-sm text-label-sm'
-      : 'inline-flex items-center gap-1.5 text-secondary font-semibold bg-secondary-container/40 px-2 py-0.5 rounded border border-secondary/30 font-label-sm text-label-sm';
+      ? 'inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30 font-label-sm text-label-sm whitespace-nowrap'
+      : 'inline-flex items-center gap-1.5 text-secondary font-semibold bg-secondary-container/40 px-2 py-0.5 rounded border border-secondary/30 font-label-sm text-label-sm whitespace-nowrap';
     // Re-add the pulse dot
     pill.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-error animate-pulse"></span>${pill.textContent}`;
   },

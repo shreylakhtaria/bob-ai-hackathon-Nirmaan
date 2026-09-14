@@ -6,12 +6,17 @@ const C = {
     const accent = {
       CRITICAL: '#ba1a1a', HIGH: '#376757', MEDIUM: '#707971', LOW: '#0f5132'
     }[level] || '#707971';
-    return `<div class="bg-surface-container-lowest rounded shadow-sm p-space-md flex gap-space-sm border border-outline-variant/60">
+    // This tile sits 5-up on a fixed grid at desktop width, so its own padding
+    // stays on the tighter, un-tokenized Tailwind scale (p-3, not p-space-md)
+    // deliberately — bumping it to match the roomier page-wide spacing scale
+    // narrows the available text width just enough to wrap "OVERALL GRID RISK"
+    // -style uppercase labels onto two lines inside their column.
+    return `<div class="bg-surface-container-lowest rounded shadow-sm p-3 flex gap-2.5 border border-outline-variant/60">
       <div class="kpi-accent" style="background:${accent}"></div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 mb-0.5">
           <span class="material-symbols-outlined text-[16px] text-on-surface-variant">${icon}</span>
-          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">${label}</span>
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold whitespace-nowrap">${label}</span>
         </div>
         <div class="font-telemetry-display text-[22px] font-bold text-on-surface leading-none">${value}</div>
         <div class="font-label-sm text-[11px] text-on-surface-variant mt-0.5">${sub || ''}</div>
