@@ -1504,7 +1504,12 @@ Pages.copilotAsk = async (preset) => {
     const provider = r.provider ? `${r.mode}:${r.provider}` : r.mode;
     const ev = r.evidence?.length
       ? `<div class="chat-evidence">Evidence: ${r.evidence.map(e => `<code>${e.tool}</code>`).join(' ')} · mode: ${provider}</div>` : '';
-    document.getElementById(tid).outerHTML = `<div class="chat-msg bot">${F.md(r.answer)}${ev}</div>`;
+    // Surface why the LLM provider (e.g. IBM Bob / watsonx) fell back to the
+    // grounded router, instead of silently hiding it — this is the only place
+    // that error reaches a human.
+    const err = r.llm_error
+      ? `<div class="chat-evidence" style="color:#ba1a1a">LLM fell back to grounded mode: ${F.esc(r.llm_error)}</div>` : '';
+    document.getElementById(tid).outerHTML = `<div class="chat-msg bot">${F.md(r.answer)}${ev}${err}</div>`;
     Pages._renderAdvisorMatrix(r);
   } catch (e) {
     document.getElementById(tid).outerHTML = `<div class="chat-msg bot"><span style="color:#ba1a1a">⚠ ${F.esc(e.message)}</span></div>`;
