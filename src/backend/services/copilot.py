@@ -272,10 +272,44 @@ SYSTEM_PROMPT = (
     "say so. Be concise and operational. All data is clearly-labelled SIMULATION data.")
 
 
+_bob_model_cache = {"model": None}
+
+
+def _bob_default_model():
+    """Discover a usable model id from IBM Bob's catalog when BOB_MODEL isn't
+    pinned via env. Cached for the process lifetime."""
+    if config.BOB_MODEL:
+        return config.BOB_MODEL
+    if _bob_model_cache["model"]:
+        return _bob_model_cache["model"]
+    import httpx
+    r = httpx.get(f"{config.BOB_BASE_URL}/model/info",
+                  headers={"Authorization": f"Bearer {config.BOB_API_KEY}"}, timeout=15)
+    r.raise_for_status()
+    body = r.json()
+    catalog = body.get("data") or body.get("models") or (body if isinstance(body, list) else [])
+    if not catalog:
+        raise RuntimeError("IBM Bob model catalog is empty; set BOB_MODEL explicitly")
+    first = catalog[0]
+    model_id = first.get("id") or first.get("model") if isinstance(first, dict) else first
+    if not model_id:
+        raise RuntimeError("Could not parse a model id from IBM Bob /model/info response")
+    _bob_model_cache["model"] = model_id
+    return model_id
+
+
+def _make_bob_client():
+    from openai import OpenAI
+    return OpenAI(api_key=config.BOB_API_KEY, base_url=config.BOB_BASE_URL), \
+        _bob_default_model(), "ibm-bob"
+
+
 def _make_openai_client():
     """Return (openai.OpenAI client, model_name, provider_label) for whichever
     provider is configured."""
     from openai import OpenAI, AzureOpenAI
+    if config.BOB_ENABLED:
+        return _make_bob_client()
     if config.NEBIUS_API_KEY:
         return OpenAI(
             api_key=config.NEBIUS_API_KEY,
@@ -393,6 +427,13 @@ def _answer_llm(query: str):
 
 def answer(query: str):
     db.audit("copilot", "query", {"query": query, "llm": config.LLM_ENABLED})
+    if config.BOB_ENABLED:
+        try:
+            return _answer_llm(query)  # _make_openai_client() prefers IBM Bob
+        except Exception as e:
+            out = _answer_grounded(query)
+            out["llm_error"] = str(e)
+            return out
     if config.WATSONX_ENABLED:
         try:
             return _answer_watsonx(query)
