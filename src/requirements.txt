@@ -1,19 +1,17 @@
 # Core API
-fastapi==0.136.3
-uvicorn[standard]==0.35.0
-pydantic==2.12.5
-httpx==0.28.1
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+httpx>=0.27.0
 
 # Data / ML
-pandas==2.2.2
-numpy==1.26.4
-scikit-learn==1.5.1
-lightgbm==4.6.0
-shap==0.49.1
-joblib==1.6.0
+pandas>=2.2.3
+numpy>=2.1.0
+scikit-learn>=1.5.2
+lightgbm>=4.5.0
+shap>=0.46.0
+joblib>=1.4.0
 
 # Tests
-pytest==8.3.2
+pytest>=8.0.0
 
-# NOTE: sqlite3 ships with the Python stdlib (no install needed).
-# To use PostgreSQL instead, add:  psycopg[binary]==3.2.1   and see README.

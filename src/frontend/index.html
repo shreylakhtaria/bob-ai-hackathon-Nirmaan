@@ -1,55 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grid Risk Command Center</title>
-  <link rel="preconnect" href="https://unpkg.com" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/css/style.css" />
-</head>
-<body>
-  <div id="app">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">⚡</div>
-        <div>
-          <div class="brand-title">GRID RISK</div>
-          <div class="brand-sub">Command Center</div>
-        </div>
-      </div>
-      <nav id="nav" class="nav"></nav>
-      <div class="sim-badge" title="All data is synthetic simulation data">
-        <span class="dot"></span> SIMULATION DATA
-      </div>
-    </aside>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Grid Equipment Failure &amp; Outage Advisor</title>
+  <meta name="description" content="Grid Risk Command Center — SCADA/ML-powered asset health, failure prediction and operational decision support for power utilities."/>
 
-    <!-- Main -->
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <div id="page-title" class="page-title">Operations Overview</div>
-          <div id="page-sub" class="page-sub"></div>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Base resets -->
+  <style>
+    @layer base { html,body{margin:0;padding:0;} body{overscroll-behavior:none;} }
+    ::-webkit-scrollbar{width:5px;height:5px;}
+    ::-webkit-scrollbar-thumb{background:#c0c9c0;border-radius:3px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+  </style>
+
+  <!-- Tailwind CDN with custom design tokens -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface":"#f8f9ff","surface-bright":"#f8f9ff","background":"#f8f9ff",
+            "surface-dim":"#cbdbf5","surface-container-lowest":"#ffffff",
+            "surface-container-low":"#eff4ff","surface-container":"#e5eeff",
+            "surface-container-high":"#dce9ff","surface-container-highest":"#d3e4fe",
+            "surface-variant":"#d3e4fe","surface-tint":"#2d6a48",
+            "on-surface":"#0b1c30","on-surface-variant":"#404942",
+            "on-background":"#0b1c30",
+            "primary":"#003820","primary-container":"#0f5132",
+            "primary-fixed":"#b0f1c7","primary-fixed-dim":"#95d4ac",
+            "on-primary":"#ffffff","on-primary-container":"#84c39b",
+            "on-primary-fixed":"#002111","on-primary-fixed-variant":"#0f5132",
+            "inverse-primary":"#95d4ac",
+            "secondary":"#376757","secondary-container":"#baeed9",
+            "secondary-fixed":"#baeed9","secondary-fixed-dim":"#9ed1bd",
+            "on-secondary":"#ffffff","on-secondary-container":"#3d6d5d",
+            "on-secondary-fixed":"#002117","on-secondary-fixed-variant":"#1d4f40",
+            "tertiary":"#233144","tertiary-container":"#39475b",
+            "tertiary-fixed":"#d5e3fd","tertiary-fixed-dim":"#b9c7e0",
+            "on-tertiary":"#ffffff","on-tertiary-container":"#a7b5cd",
+            "on-tertiary-fixed":"#0d1c2f","on-tertiary-fixed-variant":"#3a485c",
+            "error":"#ba1a1a","error-container":"#ffdad6",
+            "on-error":"#ffffff","on-error-container":"#93000a",
+            "outline":"#707971","outline-variant":"#c0c9c0",
+            "inverse-surface":"#213145","inverse-on-surface":"#eaf1ff"
+          },
+          borderRadius: {
+            "DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"
+          },
+          spacing: {
+            "space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem",
+            "space-lg":"1rem","space-xl":"1.5rem",
+            "gutter":"0.75rem","gutter-mobile":"0.5rem",
+            "margin":"1rem","margin-mobile":"0.75rem"
+          },
+          fontFamily: {
+            "telemetry-display":["JetBrains Mono","monospace"],
+            "label-sm":["JetBrains Mono","monospace"],
+            "label-md":["JetBrains Mono","monospace"],
+            "label-lg":["JetBrains Mono","monospace"],
+            "body-sm":["IBM Plex Sans","sans-serif"],
+            "body-md":["IBM Plex Sans","sans-serif"],
+            "body-lg":["IBM Plex Sans","sans-serif"],
+            "headline-md":["IBM Plex Sans","sans-serif"],
+            "headline-lg":["IBM Plex Sans","sans-serif"],
+            "headline-xl":["IBM Plex Sans","sans-serif"],
+            "headline-xl-mobile":["IBM Plex Sans","sans-serif"],
+            "telemetry-unit":["IBM Plex Sans","sans-serif"]
+          },
+          fontSize: {
+            "telemetry-display":["24px",{lineHeight:"28px",letterSpacing:"-0.02em",fontWeight:"600"}],
+            "body-sm":["12px",{lineHeight:"16px",fontWeight:"400"}],
+            "body-lg":["15px",{lineHeight:"22px",fontWeight:"400"}],
+            "label-lg":["14px",{lineHeight:"20px",fontWeight:"500"}],
+            "headline-lg":["20px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],
+            "headline-xl-mobile":["22px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],
+            "body-md":["13px",{lineHeight:"18px",fontWeight:"400"}],
+            "telemetry-unit":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"500"}],
+            "headline-md":["16px",{lineHeight:"24px",fontWeight:"600"}],
+            "label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.02em",fontWeight:"500"}],
+            "headline-xl":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],
+            "label-md":["12px",{lineHeight:"16px",fontWeight:"500"}]
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased">
+
+<!-- ═══════════════════════ FIXED TOP HEADER ═══════════════════════ -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
+  <div class="h-16 w-full px-gutter flex items-center justify-between gap-space-md">
+
+    <!-- Brand & Status -->
+    <div class="flex items-center gap-space-md min-w-fit">
+      <div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center flex-shrink-0">
+        <span class="material-symbols-outlined text-on-primary text-[20px]" style="font-variation-settings:'FILL' 1">electric_bolt</span>
+      </div>
+      <div class="flex flex-col">
+        <div class="flex items-center gap-space-sm">
+          <span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface uppercase">Grid Equipment Failure &amp; Outage Advisor</span>
+          <span class="font-label-sm text-label-sm px-1.5 py-0.5 bg-surface-container-high text-on-surface-variant rounded border border-outline-variant font-medium tracking-wide uppercase">SCADA / ML-EMS SYNCED</span>
         </div>
-        <div class="topbar-right">
-          <div id="grid-risk-pill" class="risk-pill">--</div>
-          <div class="clock">
-            <div class="clock-label">GRID TIME</div>
-            <div id="clock" class="clock-val">--</div>
-          </div>
-          <button class="btn ghost" onclick="App.refresh()">↻ Refresh</button>
+        <div class="flex items-center gap-space-sm font-label-sm text-label-sm text-on-surface-variant font-medium">
+          <span id="grid-status-pill" class="inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30">
+            <span class="inline-block w-2 h-2 rounded-full bg-error animate-pulse"></span>
+            GRID STATUS: ELEVATED RISK
+          </span>
+          <span class="text-outline-variant">|</span>
+          <span class="font-telemetry-display text-[11px] leading-tight text-on-surface-variant">
+            API 200 OK &bull; Model v4.2.1 &bull; ROC-AUC 0.942 &bull; Grid Time: <span id="clock">--:--:--</span>
+          </span>
         </div>
-      </header>
-      <section id="view" class="view"><div class="loading">Loading…</div></section>
-    </main>
+      </div>
+    </div>
+
+    <!-- Global Search -->
+    <div class="flex-1 max-w-md mx-space-sm">
+      <div class="relative flex items-center">
+        <span class="material-symbols-outlined absolute left-2.5 text-outline text-[18px]">search</span>
+        <input id="global-search" class="w-full h-8 pl-8 pr-3 bg-surface text-on-surface font-body-sm text-body-sm rounded border border-outline-variant focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:text-outline" placeholder="Search Asset ID, Substation, Area, or Crew…" type="text"/>
+      </div>
+    </div>
+
+    <!-- Action Buttons & Profile -->
+    <div class="flex items-center gap-space-sm min-w-fit">
+      <button id="btn-emergency" onclick="alert('Emergency Dispatch workflow initiated.')" class="h-8 px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider" type="button">
+        <span class="material-symbols-outlined text-[16px]">warning</span>Emergency Dispatch
+      </button>
+      <button onclick="alert('Downloading grid operations log PDF...')" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
+        <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
+      </button>
+      <div class="relative ml-1">
+        <button onclick="alert('Opening notifications panel...')" class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface transition-colors" type="button">
+          <span class="material-symbols-outlined text-[18px]">notifications</span>
+          <span id="notif-badge" class="absolute -top-1 -right-1 bg-error text-on-error font-label-sm text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">4</span>
+        </button>
+      </div>
+      <div class="h-6 w-px bg-outline-variant mx-1"></div>
+      <div class="flex items-center gap-space-sm pl-1">
+        <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center border border-outline-variant flex-shrink-0">
+          <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+        </div>
+        <div class="flex flex-col text-left">
+          <span class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight">M. O'Connell</span>
+          <span class="font-label-sm text-[11px] text-on-surface-variant leading-tight">Lead Dispatcher - RC4</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════ FIXED LEFT SIDEBAR ═══════════════════════ -->
+<aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between overflow-y-auto">
+  <div class="py-space-sm">
+    <div class="px-space-md pb-space-xs font-label-sm text-label-sm uppercase font-semibold text-on-surface-variant tracking-wider">Operational Navigation</div>
+    <nav class="space-y-0.5 px-space-xs" id="nav"></nav>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/components.js"></script>
-  <script src="/js/pages.js"></script>
-  <script src="/js/app.js"></script>
+  <!-- Bottom SCADA Widget -->
+  <div class="p-space-md border-t border-outline-variant bg-surface">
+    <div class="bg-surface-container-lowest border border-outline-variant p-space-sm rounded space-y-space-xs">
+      <div class="flex items-center justify-between font-label-sm text-[11px]">
+        <span class="text-on-surface-variant uppercase">SCADA Feed</span>
+        <span class="font-mono font-semibold text-primary">4.8 kHz Live</span>
+      </div>
+      <div class="flex items-center justify-between font-label-sm text-[11px]">
+        <span class="text-on-surface-variant uppercase">Predicted Outages</span>
+        <span id="sidebar-outages" class="font-mono font-semibold text-error">-- Active</span>
+      </div>
+    </div>
+    <div class="mt-space-xs text-center">
+      <span class="inline-flex items-center gap-1 bg-surface-container px-2 py-0.5 rounded border border-outline-variant font-label-sm text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse inline-block"></span>SIMULATION DATA
+      </span>
+    </div>
+    <button onclick="alert('Opening Metrics & Health Drawer...')" class="w-full mt-space-xs h-7 bg-surface-container border border-outline-variant hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm rounded flex items-center justify-center gap-1.5 transition-colors" type="button">
+      <span class="material-symbols-outlined text-[15px]">monitoring</span>Metrics &amp; Health Drawer
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+<div class="pl-64 flex flex-col min-h-screen">
+
+  <!-- Breadcrumb sub-bar (fixed below header) -->
+  <div class="fixed top-16 left-64 right-0 z-30 bg-surface border-b border-outline-variant h-8 px-gutter flex items-center justify-between">
+    <div class="flex items-center gap-space-xs font-label-sm text-label-sm">
+      <span class="text-on-surface-variant uppercase">GridOps Regional Node</span>
+      <span class="text-outline-variant">/</span>
+      <span class="text-on-surface font-semibold uppercase">North Central Feeder Ring 12</span>
+      <span class="text-outline-variant">/</span>
+      <span class="text-primary font-mono" id="breadcrumb-page">Overview</span>
+    </div>
+    <div class="flex items-center gap-space-md font-label-sm text-label-sm">
+      <span class="flex items-center gap-1 text-on-surface-variant">
+        <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Telemetry Lock: 99.98%
+      </span>
+      <span class="text-outline-variant">|</span>
+      <span class="font-mono text-on-surface-variant">LATENCY: 14ms</span>
+    </div>
+  </div>
+
+  <!-- Page content (pt-24 = 64px header + 32px breadcrumb) -->
+  <main class="w-full pt-24 px-gutter pb-space-xl bg-surface flex-1" id="view">
+    <div class="flex items-center justify-center h-64">
+      <div class="flex flex-col items-center gap-space-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-[36px] text-outline animate-pulse">electrical_services</span>
+        <span class="font-label-sm text-label-sm uppercase tracking-widest">Loading Grid Data…</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/components.js"></script>
+<script src="/js/pages.js"></script>
+<script src="/js/app.js"></script>
 </body>
 </html>
