@@ -164,6 +164,17 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+
+-- Operator accounts. Minimal role model: 'operator' (default) or 'admin' —
+-- the app has no per-page permission matrix, so a single role flag is enough
+-- to distinguish normal operators from admins in the audit log / future gating.
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'operator',
+    created_at    TEXT NOT NULL
+);
 """
 
 

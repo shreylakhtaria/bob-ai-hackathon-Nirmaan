@@ -134,3 +134,11 @@ LLM_ENABLED = bool(
 
 API_TITLE = "Grid Risk Command Center API"
 API_VERSION = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+# Used to sign session tokens (see services/auth.py). Override in production —
+# the default is fine for the demo/local-run case only.
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "dev-insecure-secret-change-me")
+AUTH_TOKEN_TTL_HOURS = int(os.getenv("AUTH_TOKEN_TTL_HOURS", "24"))
