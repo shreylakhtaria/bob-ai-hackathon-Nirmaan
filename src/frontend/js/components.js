@@ -138,7 +138,7 @@ const C = {
   /* Inline SVG sparkline card for sensor telemetry */
   sparkCard(label, value, unit, status, threshold, path, color, animate = false) {
     const strokeColor = color || '#ba1a1a';
-    return `<div class="p-space-sm bg-surface-container-low rounded flex flex-col gap-0.5 shadow-sm border border-outline-variant/30">
+    return `<div class="p-space-sm bg-surface-container-low rounded flex flex-col gap-0.5 shadow-sm border border-outline-variant/30 cursor-pointer hover:border-primary/50 transition-colors" onclick="Pages.openSensorModal('${F.esc(label)}', '${F.esc(value)}', '${F.esc(unit)}', '${F.esc(status)}', '${F.esc(threshold)}')">
       <div class="flex items-center justify-between">
         <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">${label}</span>
         <span class="font-telemetry-display text-[15px] font-bold" style="color:${strokeColor}">${value}${unit ? '<span class="text-[10px] ml-0.5">' + unit + '</span>' : ''}</span>

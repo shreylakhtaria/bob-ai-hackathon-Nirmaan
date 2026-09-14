@@ -435,7 +435,7 @@ Pages.assets = async (preSelectId) => {
     Pages._renderAssetTable();
   };
   ['f-area','f-type','f-pri'].forEach(id => { const e = el(id); if (e) e.onchange = applyFilter; });
-  const fq = el('f-q'); if (fq) fq.oninput = applyFilter;
+  const fq = el('f-q'); if (fq) fq.oninput = F.debounce(applyFilter, 250);
 
   // Pre-select asset
   const toSelect = preSelectId || (assets[0] || {}).asset_id;
@@ -462,9 +462,14 @@ Pages.selectAsset = async (id) => {
     const incidents = (d.incidents || []).slice(0, 2);
 
     /* Every sensor card below is built from a real sensor_data column over the
-       selected window — value, trend and range are computed, never hardcoded. */
+       selected window — value, trend and range are computed, never hardcoded.
+       The full series is cached by label so the click-through modal can chart
+       the same real readings instead of fabricating a trend. */
+    Pages._sensorSeries = {};
     const sensorCard = (label, key, unit, decimals = 1, higherIsWorse = true) => {
       const vals = sensors.map(s => s[key]).filter(x => x != null);
+      const times = sensors.filter(s => s[key] != null).map(s => s.timestamp);
+      Pages._sensorSeries[label] = { vals, times, unit, decimals, hours };
       if (!vals.length) {
         return C.sparkCard(label, '--', unit, 'no feed', `No ${hours}h telemetry`,
           toSparkPath([0, 0]), '#707971');
@@ -1116,6 +1121,12 @@ Pages.gridMap = async () => {
         <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm" style="background:#0f5132"></span>Crew</span>
       </div>
     </div>
+    <div class="mb-space-sm flex items-center gap-space-md bg-surface-container-lowest p-space-sm rounded border border-outline-variant/50 font-label-sm text-label-sm">
+      <span class="font-bold text-on-surface uppercase">Filter Map Layers:</span>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-crit" class="accent-primary" onchange="GridMap.filter('crit', this.checked)"/> Critical Assets Only</label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-wx" class="accent-primary" checked onchange="GridMap.filter('wx', this.checked)"/> Weather Risk Circles</label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-crew" class="accent-primary" checked onchange="GridMap.filter('crew', this.checked)"/> Field Crews</label>
+    </div>
     <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden">
       <div id="map" style="height:600px"></div>
     </div>
@@ -1670,3 +1681,55 @@ Pages.operatorBrief = async () => {
     </div>
   </div>`);
 };
+
+/* ─── Sensor history modal (charts the same real series as the card) ─── */
+Pages.openSensorModal = (label, value, unit, status, threshold) => {
+  const series = (Pages._sensorSeries || {})[label] || { vals: [], times: [], hours: 24 };
+  let existing = document.getElementById('sensor-modal-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'sensor-modal-overlay';
+  overlay.className = 'fixed inset-0 z-50 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center p-4';
+  overlay.innerHTML = `
+    <div class="bg-surface-container-lowest rounded-lg shadow-xl border border-outline-variant max-w-2xl w-full p-space-lg relative slide-in">
+      <div class="flex items-center justify-between border-b border-outline-variant pb-space-sm mb-space-md">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[24px]">analytics</span>
+          <div>
+            <h3 class="font-headline-md text-headline-md font-bold text-on-surface">${F.esc(label)} Historical Telemetry</h3>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">${series.hours}h SCADA Trend • ${series.vals.length} real samples • ${F.esc(threshold)}</p>
+          </div>
+        </div>
+        <button class="p-1 rounded hover:bg-surface-container text-on-surface-variant cursor-pointer" onclick="document.getElementById('sensor-modal-overlay').remove()">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-space-sm mb-space-md">
+        <div class="p-space-sm bg-surface-container-low rounded">
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">Latest Reading</span>
+          <div class="font-telemetry-display text-[20px] font-bold text-primary">${F.esc(value)} ${F.esc(unit)}</div>
+        </div>
+        <div class="p-space-sm bg-surface-container-low rounded">
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">Telemetry Status</span>
+          <div class="font-telemetry-display text-[15px] font-bold text-error">${F.esc(status)}</div>
+        </div>
+      </div>
+      <div class="w-full h-64 bg-surface-container-lowest rounded p-space-sm">
+        <canvas id="sensor-modal-chart"></canvas>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const ctx = document.getElementById('sensor-modal-chart');
+  if (ctx && series.vals.length) {
+    mkLine(ctx, series.times.map(t => F.date(t)), [{
+      label: `${label} (${series.unit || ''})`.trim(),
+      data: series.vals,
+      borderColor: '#ba1a1a',
+      backgroundColor: 'rgba(186, 26, 26, 0.1)',
+      fill: true
+    }]);
+  } else if (ctx) {
+    ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-on-surface-variant font-label-sm text-label-sm">No telemetry samples in the selected window</div>';
+  }
+};
+

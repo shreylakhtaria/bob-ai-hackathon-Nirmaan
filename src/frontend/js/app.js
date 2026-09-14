@@ -15,28 +15,33 @@ const NAV = [
 /* ─── Leaflet map singleton ─── */
 const GridMap = {
   _map: null,
+  _layers: { wx: [], assets: [], crews: [] },
+  _data: null,
 
   async render(elId, opts = {}) {
     const data = await API.map();
+    this._data = data;
     if (this._map) { try { this._map.remove(); } catch (e) {} this._map = null; }
     const el = document.getElementById(elId);
     if (!el) return;
 
     const map = L.map(elId, { zoomControl: true, attributionControl: false }).setView([23.05, 72.58], 11);
     this._map = map;
+    this._layers = { wx: [], assets: [], crews: [] };
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
     // Area weather circles
     (data.areas || []).forEach(a => {
       if (a.lat == null) return;
-      L.circle([a.lat, a.lon], {
+      const l = L.circle([a.lat, a.lon], {
         radius: 1200 + (a.outage_probability || 0) * 3000,
         color: F.riskColor(a.risk_level), weight: 1.5, opacity: 0.7,
         fillColor: F.riskColor(a.risk_level), fillOpacity: 0.08
       }).addTo(map).bindPopup(
         `<b>${a.area_id}</b><br>Outage ${((a.outage_probability || 0) * 100).toFixed(0)}% · ${a.risk_level}<br>Weather ${Math.round(a.weather_risk || 0)}/100 · ${a.high_risk_assets} high-risk`
       );
+      this._layers.wx.push(l);
     });
 
     // Assets
@@ -54,29 +59,52 @@ const GridMap = {
          ${F.num(a.customers_served)} customers<br>
          <a href="#" onclick="App.openAsset('${a.asset_id}');return false;" style="color:#003820;font-weight:600">Open detail →</a>`
       );
+      m._assetPriority = lvl;
+      this._layers.assets.push(m);
       if (lvl === 'CRITICAL') {
-        L.circleMarker([a.latitude, a.longitude], {
+        const ring = L.circleMarker([a.latitude, a.longitude], {
           radius: 14, color: F.riskColor(lvl), weight: 1, fillOpacity: 0,
           className: 'leaflet-pulse-ring'
         }).addTo(map);
+        ring._assetPriority = lvl;
+        this._layers.assets.push(ring);
       }
     });
 
     // Crews
     (data.crews || []).forEach(c => {
       if (c.latitude == null) return;
-      L.marker([c.latitude, c.longitude], {
+      const m = L.marker([c.latitude, c.longitude], {
         icon: L.divIcon({
           className: '',
           html: `<div style="background:#0f5132;color:#fff;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;border:1px solid #003820;font-family:'JetBrains Mono',monospace">⛑ ${c.crew_id}</div>`,
           iconSize: [52, 18]
         })
       }).addTo(map).bindPopup(`<b>${c.crew_id}</b><br>${c.skill_type} · ${c.availability}<br>${c.current_area}`);
+      this._layers.crews.push(m);
     });
 
     setTimeout(() => map.invalidateSize(), 120);
+  },
+
+  filter(layerType, enabled) {
+    if (!this._map) return;
+    if (layerType === 'wx') {
+      this._layers.wx.forEach(l => enabled ? l.addTo(this._map) : this._map.removeLayer(l));
+    } else if (layerType === 'crew') {
+      this._layers.crews.forEach(l => enabled ? l.addTo(this._map) : this._map.removeLayer(l));
+    } else if (layerType === 'crit') {
+      this._layers.assets.forEach(l => {
+        if (!enabled && l._assetPriority !== 'CRITICAL') {
+          this._map.removeLayer(l);
+        } else {
+          l.addTo(this._map);
+        }
+      });
+    }
   }
 };
+
 
 /* ─── App controller ─── */
 const App = {

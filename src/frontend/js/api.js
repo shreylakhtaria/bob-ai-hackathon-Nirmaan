@@ -111,6 +111,13 @@ function downloadFile(url, filename) {
 
 /* ─── Shared formatting utilities ─── */
 const F = {
+  debounce: (fn, delay = 300) => {
+    let timer = null;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  },
   pct:   v  => v == null ? '--' : (v * 100).toFixed(0) + '%',
   pct1:  v  => v == null ? '--' : (v * 100).toFixed(1) + '%',
   num:   v  => v == null ? '--' : Number(v).toLocaleString(),

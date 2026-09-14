@@ -253,6 +253,12 @@ def crew_recommendations():
     return crew_svc.recommend_crews()
 
 
+# Note: crew dispatch and pre-positioning are handled by the work-orders API
+# below (ops_svc.dispatch_crew / ops_svc.reposition_crew), which checks crew
+# availability, computes a real travel-time ETA, and updates lat/lon — not
+# just a free-text label.
+
+
 # ---------------------------------------------------------------------------
 # Map data
 # ---------------------------------------------------------------------------

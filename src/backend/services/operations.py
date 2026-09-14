@@ -161,11 +161,37 @@ def reposition_crew(crew_id, area_id):
             "message": f"{crew_id} pre-positioned {crew['current_area']} → {area_id}"}
 
 
+def triage_score(candidate):
+    """Rank CRITICAL assets when there are fewer crews than emergencies.
+
+    `candidate` has: grid_impact_score (0-100), failure_probability (0-1),
+    customers_served (int), travel_min (float, minutes to the nearest available
+    crew) and downstream_assets (int).
+
+    Higher score = staff this asset first.
+    """
+    # TODO(human): decide how to triage when crews are scarce.
+    return candidate["grid_impact_score"]
+
+
 def emergency_dispatch(limit=5):
-    """Bulk-dispatch available crews to the highest grid-impact CRITICAL assets."""
-    targets = db.query(
-        """SELECT p.asset_id FROM predictions p JOIN assets a ON a.asset_id=p.asset_id
-           WHERE p.priority='CRITICAL' ORDER BY p.grid_impact_score DESC LIMIT ?""", (limit,))
+    """Bulk-dispatch available crews to the most urgent CRITICAL assets.
+
+    Crews are almost always scarcer than critical assets, so the ordering here
+    decides who gets help first — see triage_score().
+    """
+    rows = db.query(
+        """SELECT p.asset_id, p.grid_impact_score, p.failure_probability,
+                  a.customers_served, a.downstream_assets, a.latitude, a.longitude
+           FROM predictions p JOIN assets a ON a.asset_id=p.asset_id
+           WHERE p.priority='CRITICAL'""")
+    free = db.query("SELECT latitude, longitude FROM crews WHERE availability='AVAILABLE'")
+    for r in rows:
+        r["travel_min"] = min(
+            (_travel_min(c["latitude"], c["longitude"], r["latitude"], r["longitude"])
+             for c in free), default=float("inf"))
+    targets = sorted(rows, key=triage_score, reverse=True)[:limit]
+
     dispatched, skipped = [], []
     for t in targets:
         r = dispatch_crew(t["asset_id"])
