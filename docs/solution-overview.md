@@ -98,20 +98,55 @@ failure or a storm before it happens, and the AI copilot answers natural-
 language questions by citing the exact tool calls and data behind each
 answer.
 
-## IBM / LLM Copilot Integration
+## IBM watsonx.ai Integration
 
-The copilot's optional LLM mode talks to any **OpenAI-compatible chat
-completions API** (OpenAI or Azure OpenAI) using true function/tool calling
-over the same fixed set of grounded tools the local router uses — set
-`OPENAI_API_KEY` (or the Azure equivalent) and it upgrades automatically,
-with no code changes and no possibility of ungrounded answers, since the
-model can only call the allow-listed tools.
+The copilot runs its LLM mode **natively on IBM watsonx.ai**, using the
+platform's own chat + tool-calling API rather than a generic OpenAI client:
 
-**Honest limitation:** this repository currently wires the LLM mode to the
-OpenAI/Azure OpenAI chat-completions contract, not directly to IBM
-watsonx.ai / IBM Bob's API surface. Because the tool-calling loop in
-`backend/services/copilot.py` is already isolated behind one HTTP call and a
-fixed `TOOLS` registry, pointing it at watsonx.ai would mean swapping that
-one request/response adapter — the tool definitions, grounding guarantees,
-and evidence trail do not need to change. See `known_limitations` in
-[`submission.yaml`](../submission.yaml) for the same note.
+- **Auth** — the IBM Cloud IAM API key is exchanged for a short-lived bearer
+  token at `https://iam.cloud.ibm.com/identity/token`, cached in-process and
+  refreshed a minute before expiry (`_get_watsonx_token` in
+  `backend/services/copilot.py`).
+- **Inference** — `POST {WATSONX_URL}/ml/v1/text/chat?version=2024-10-07`
+  with `model_id`, `project_id`, `messages`, `tools` and
+  `tool_choice_option: "auto"`. The default model is
+  `ibm/granite-3-8b-instruct`; any tool-calling watsonx chat model works.
+- **Tool loop** — watsonx returns `choices[0].message.tool_calls`; the backend
+  executes each call against the fixed `TOOLS` registry (10 read/simulate
+  functions), appends the result as a `role: "tool"` message, and loops up to
+  five round-trips until the model produces its final answer.
+- **Grounding** — the model can *only* call allow-listed tools that read real
+  model outputs and database rows. Every response carries the `evidence` list
+  (tool, arguments, result) that produced it, which the UI renders as an
+  evidence table. The model cannot invent an asset id or a probability.
+
+Provider precedence is **watsonx.ai → Nebius → OpenAI → Azure OpenAI**, so
+setting `WATSONX_API_KEY` + `WATSONX_PROJECT_ID` is all that's needed to run
+on IBM. If watsonx is unreachable or a credential is wrong, `answer()` catches
+the failure and degrades to the deterministic grounded router, returning the
+same tool-backed answer with an `llm_error` field attached — a bad key can
+never take the demo down.
+
+**Honest scope note:** the integration targets watsonx.ai's chat/tool-calling
+API. It does not wrap the system as an MCP server for an external agent to
+drive; the same `TOOLS` registry is what such a server would expose, so that
+remains a contained follow-up rather than a rewrite.
+
+## Closed-Loop Operator Actions
+
+The dashboard is not read-only. Dispatching a crew, scheduling or deferring a
+job, authorising a pre-positioning move, acknowledging an alert and exporting
+data all hit real endpoints in `backend/services/operations.py`:
+
+| Action | Real effect |
+|---|---|
+| Dispatch crew | Picks the nearest AVAILABLE crew with a skill-match penalty (same cost model as the optimiser), writes a `work_orders` row, flips the crew to `ON_JOB` with an `active_assignment`, returns a computed ETA |
+| Schedule job | Creates a scheduled work order in the horizon implied by the asset's priority band (CRITICAL 4h → LOW 168h) |
+| Defer job | Records a `DEFERRED` work order with the operator's reason |
+| Pre-position crew | Moves the crew's `current_area` and lat/lon to the target area centroid |
+| Emergency dispatch | Bulk-dispatches available crews to the top CRITICAL assets by grid impact, reporting which could not be staffed |
+| Acknowledge alert | Flags the alert row and clears it from the header badge |
+| Export | Streams a real CSV built from the live tables |
+
+Every one is written to an `audit_log` table that the Runs Log view reads
+back, so an operator (or a judge) can see exactly what the system did and why.

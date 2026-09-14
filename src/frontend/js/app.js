@@ -449,6 +449,157 @@ const App = {
 
   openAsset(id) { this.go('assets', id); },
 
+  /* ─── Live header/sidebar chrome (replaces hardcoded telemetry) ─── */
+  async refreshChrome() {
+    try {
+      const s = await API.stats();
+      this._stats = s;
+      const set = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+
+      set('hdr-api', `API ${API.lastStatus || '--'} ${API.lastStatus === 200 ? 'OK' : ''}`.trim());
+      set('hdr-model', `Model ${s.model || '--'}`);
+      set('hdr-auc', s.roc_auc != null ? `ROC-AUC ${s.roc_auc.toFixed(3)}` : 'ROC-AUC --');
+      set('hdr-latency', API.lastLatencyMs != null ? `${API.lastLatencyMs}ms` : '--');
+      set('sidebar-feed', `${F.num(s.sensor_rows)} rows`);
+      set('sidebar-outages', `${s.critical_assets ?? '--'} Active`);
+      set('breadcrumb-scope', `${s.assets || 0} assets · ${s.crews || 0} crews`);
+
+      // "Telemetry lock" = share of assets that actually have a live prediction
+      const lock = s.assets ? Math.min(100, (s.sensor_rows > 0 ? 100 : 0)) : 0;
+      set('hdr-lock', s.last_sensor_ts ? `${lock.toFixed(2)}%` : 'NO FEED');
+
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        badge.textContent = s.unacked_alerts ?? 0;
+        badge.style.display = (s.unacked_alerts ?? 0) > 0 ? 'flex' : 'none';
+      }
+    } catch (e) { /* server offline — leave placeholders */ }
+  },
+
+  /* ─── Export menu ─── */
+  toggleExportMenu() {
+    document.getElementById('export-menu')?.classList.toggle('hidden');
+  },
+  exportCsv(kind) {
+    document.getElementById('export-menu')?.classList.add('hidden');
+    downloadFile(API.exportUrl(kind));
+    Toast.ok(`Exporting ${kind.replace('_', ' ')} as CSV…`);
+  },
+
+  /* ─── Notifications ─── */
+  async toggleNotifications() {
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) await this.loadNotifications();
+  },
+  async loadNotifications() {
+    const list = document.getElementById('notif-list');
+    const count = document.getElementById('notif-count');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center py-4 font-label-sm text-label-sm text-on-surface-variant">Loading…</div>';
+    try {
+      const alerts = (await API.alerts()).filter(a => !a.acknowledged);
+      if (count) count.textContent = `${alerts.length} open`;
+      list.innerHTML = alerts.slice(0, 20).map(a => `
+        <div class="flex gap-2 p-space-sm border-b border-surface-container last:border-0">
+          <div style="width:3px;border-radius:3px;background:${F.riskColor(a.priority)};flex-shrink:0"></div>
+          <div class="flex-1 min-w-0">
+            <div class="font-body-sm text-[12px] font-semibold text-on-surface">${F.esc(a.title)}</div>
+            <div class="font-body-sm text-[11px] text-on-surface-variant mt-0.5">${F.esc(a.reason)}</div>
+            <div class="flex gap-1 mt-1">
+              ${a.asset_id ? `<button onclick="App.openAsset('${a.asset_id}');App.toggleNotifications()" class="px-1.5 py-0.5 bg-surface-container font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high" type="button">Open</button>` : ''}
+              <button onclick="App.ackAlert('${a.alert_id}')" class="px-1.5 py-0.5 bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90" type="button">Acknowledge</button>
+            </div>
+          </div>
+        </div>`).join('') ||
+        '<div class="text-center py-4 font-label-sm text-label-sm text-on-surface-variant">All alerts acknowledged</div>';
+    } catch (e) {
+      list.innerHTML = `<div class="text-error font-label-sm text-label-sm p-space-sm">${F.esc(e.message)}</div>`;
+    }
+  },
+  async ackAlert(id) {
+    try {
+      const r = await API.ackAlert(id);
+      Toast.ok(r.message);
+      await this.loadNotifications();
+      await this.refreshChrome();
+    } catch (e) { Toast.err(e.message); }
+  },
+
+  /* ─── Metrics & health drawer ─── */
+  async toggleMetricsDrawer() {
+    const d = document.getElementById('metrics-drawer');
+    if (!d) return;
+    d.classList.toggle('hidden');
+    if (!d.classList.contains('hidden')) await this.loadMetricsDrawer();
+  },
+  async loadMetricsDrawer() {
+    const body = document.getElementById('metrics-drawer-body');
+    if (!body) return;
+    body.innerHTML = '<div class="text-center py-4 font-label-sm text-label-sm text-on-surface-variant">Loading metrics…</div>';
+    try {
+      const [stats, metrics, wos] = await Promise.all([API.stats(), API.metrics(), API.workOrders('?limit=5')]);
+      const tile = (label, value, sub) => `<div class="bg-surface-container-low rounded border border-outline-variant/50 p-space-sm">
+        <div class="font-label-sm text-[10px] uppercase text-on-surface-variant tracking-wider">${label}</div>
+        <div class="font-telemetry-display text-[18px] font-bold text-on-surface">${value}</div>
+        <div class="font-label-sm text-[10px] text-on-surface-variant">${sub || ''}</div>
+      </div>`;
+      const m = metrics || {};
+      const fmt = x => (x == null ? '--' : (typeof x === 'number' ? x.toFixed(3) : x));
+      body.innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-space-sm mb-space-md">
+          ${tile('ROC-AUC', fmt(m.roc_auc), 'held-out test set')}
+          ${tile('PR-AUC', fmt(m.pr_auc), 'precision/recall')}
+          ${tile('Precision', fmt(m.precision), 'positive predictive value')}
+          ${tile('Recall', fmt(m.recall), 'sensitivity')}
+          ${tile('F1', fmt(m.f1), 'harmonic mean')}
+          ${tile('Model', m.model || '--', m.trained_at ? F.date(m.trained_at) : '')}
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-space-sm mb-space-md">
+          ${tile('Assets', F.num(stats.assets), `${stats.critical_assets} critical`)}
+          ${tile('Telemetry rows', F.num(stats.sensor_rows), `${stats.telemetry_rows_per_hour}/h`)}
+          ${tile('Weather rows', F.num(stats.weather_rows), 'forecast + history')}
+          ${tile('Incidents', F.num(stats.incidents), 'historical failures')}
+          ${tile('Crews', `${stats.crews_available}/${stats.crews}`, 'available / total')}
+          ${tile('Open work orders', stats.open_work_orders, `${stats.unacked_alerts} unacked alerts`)}
+        </div>
+        <div class="flex flex-wrap items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+          <span>DB: <span class="font-mono text-on-surface">${stats.db_size_mb ?? '--'} MB</span></span>
+          <span>Data as-of: <span class="font-mono text-on-surface">${F.date(stats.as_of)}</span></span>
+          <span>LLM copilot: <span class="font-mono text-on-surface">${stats.llm_enabled ? 'ENABLED' : 'grounded local mode'}</span></span>
+          <span>Latest work orders: <span class="font-mono text-on-surface">${wos.map(w => w.wo_id).join(', ') || 'none yet'}</span></span>
+        </div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="text-error font-label-sm text-label-sm">${F.esc(e.message)}</div>`;
+    }
+  },
+
+  /* ─── Emergency bulk dispatch ─── */
+  async emergencyDispatch() {
+    const btn = document.getElementById('btn-emergency');
+    if (btn) btn.disabled = true;
+    Toast.warn('Dispatching crews to highest-impact critical assets…');
+    try {
+      const r = await API.emergency(5);
+      Toast.ok(r.message);
+      (r.skipped || []).slice(0, 2).forEach(s => Toast.warn(`${s.asset_id}: ${s.reason}`));
+      await this.refreshChrome();
+      if (['crews', 'maintenance', 'overview'].includes(this.current)) this.refresh();
+    } catch (e) { Toast.err(e.message); }
+    if (btn) btn.disabled = false;
+  },
+
+  /* ─── Global search ─── */
+  searchSubmit(value) {
+    const q = (value || '').trim().toUpperCase();
+    if (!q) return;
+    const area = (this._areaIds || []).find(a => a === q);
+    if (area) return this.go('risk-areas');
+    if (/^C-\d+/.test(q)) return this.go('crews');
+    this.go('assets', q);
+  },
+
   async simAsset(id) {
     await this.go('simulation');
     const sel = document.getElementById('sim-asset');
@@ -488,14 +639,33 @@ python -m scripts.seed</pre>
         </div>`);
         return;
       }
-      // Pull predicted outages count for sidebar
       try {
         const s = await API.summary();
-        const el = document.getElementById('sidebar-outages');
-        if (el) el.textContent = (s.predicted_failures || '--') + ' Active';
         this.setGridRisk(s.overall_grid_risk);
+        this._areaIds = (s.areas || []).map(a => a.area_id);
       } catch (_) {}
+      await this.refreshChrome();
+      setInterval(() => this.refreshChrome(), 20000);
     } catch (e) { /* server offline */ }
+
+    // Global search
+    const search = document.getElementById('global-search');
+    if (search) {
+      search.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { this.searchSubmit(search.value); search.blur(); }
+      });
+    }
+
+    // Dismiss dropdowns on outside click
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#export-menu') && !e.target.closest('button[onclick*="toggleExportMenu"]')) {
+        document.getElementById('export-menu')?.classList.add('hidden');
+      }
+      if (!e.target.closest('#notif-panel') && !e.target.closest('button[onclick*="toggleNotifications"]')) {
+        document.getElementById('notif-panel')?.classList.add('hidden');
+      }
+    });
+
     this.go('overview');
   }
 };

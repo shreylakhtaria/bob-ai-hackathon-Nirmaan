@@ -74,11 +74,15 @@ Pages.overview = async () => {
       </div>
     </div>
     <div class="flex gap-space-xs flex-shrink-0">
-      <button onclick="App.simAsset('${(s.top_assets[0] || {}).asset_id || ''}')"
+      <button onclick="Actions.dispatch('${(s.top_assets[0] || {}).asset_id || ''}', this)"
         class="h-8 px-space-md bg-error text-on-error font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
-        <span class="material-symbols-outlined text-[15px]">send</span>Execute Pre-Position Dispatch
+        <span class="material-symbols-outlined text-[15px]">send</span>Dispatch Crew Now
       </button>
-      <button onclick="App.go('assets')"
+      <button onclick="App.simAsset('${(s.top_assets[0] || {}).asset_id || ''}')"
+        class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
+        <span class="material-symbols-outlined text-[15px]">model_training</span>Simulate Failure
+      </button>
+      <button onclick="App.openAsset('${(s.top_assets[0] || {}).asset_id || ''}')"
         class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
         <span class="material-symbols-outlined text-[15px]">monitoring</span>Review Telemetry
       </button>
@@ -325,7 +329,7 @@ Pages.assets = async (preSelectId) => {
                 <th class="py-2 px-space-sm font-semibold">Risk Index</th>
                 <th class="py-2 px-space-sm font-semibold">P(Failure)</th>
                 <th class="py-2 px-space-sm text-right font-semibold">Impact</th>
-                <th class="py-2 px-space-sm font-semibold">Priority</th>
+                <th class="py-2 px-space-sm font-semibold">Status</th>
                 <th class="py-2 px-space-md text-right font-semibold">Action</th>
               </tr>
             </thead>
@@ -397,7 +401,7 @@ Pages.assets = async (preSelectId) => {
         </td>
         <td class="py-2.5 px-space-sm text-right font-telemetry-display text-label-sm font-semibold">${F.score(a.grid_impact_score)}</td>
         <td class="py-2.5 px-space-sm">
-          <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] uppercase bg-surface-container text-on-surface-variant font-bold">${a.recommended_action ? 'Active' : 'In-Service'}</span>
+          <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] uppercase bg-surface-container text-on-surface-variant font-bold">${F.esc(a.current_status || '--')}</span>
         </td>
         <td class="py-2.5 px-space-md text-right">
           <button class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors" type="button">
@@ -446,47 +450,61 @@ Pages.selectAsset = async (id) => {
   if (!drawer) return;
   drawer.innerHTML = `<div class="p-space-lg text-center text-on-surface-variant"><span class="material-symbols-outlined text-[28px] animate-pulse">sensors</span><div class="font-label-sm text-label-sm uppercase mt-1">Loading telemetry…</div></div>`;
 
+  const hours = Pages._sensorHours || 24;
   try {
-    const [d, sensors] = await Promise.all([API.asset(id), API.sensors(id, 24)]);
+    const [d, sensors, workOrders] = await Promise.all([
+      API.asset(id), API.sensors(id, hours), API.workOrders(`?asset_id=${id}&limit=5`)
+    ]);
     const a = d.asset || {}, p = d.prediction || {};
     const lvl = p.priority || 'LOW';
     const fp  = (p.failure_probability || 0) * 100;
     const maint = (d.maintenance || []).slice(0, 3);
     const incidents = (d.incidents || []).slice(0, 2);
 
-    // Build sparkline paths from real sensor data
-    const temps = sensors.map(s => s.temperature).filter(x => x != null);
-    const vibs  = sensors.map(s => s.vibration).filter(x => x != null);
-    const pds   = sensors.map(s => s.partial_discharge).filter(x => x != null);
-    const oils  = sensors.map(s => s.oil_temperature || s.temperature).filter(x => x != null);
+    /* Every sensor card below is built from a real sensor_data column over the
+       selected window — value, trend and range are computed, never hardcoded.
+       The full series is cached by label so the click-through modal can chart
+       the same real readings instead of fabricating a trend. */
+    Pages._sensorSeries = {};
+    const sensorCard = (label, key, unit, decimals = 1, higherIsWorse = true) => {
+      const vals = sensors.map(s => s[key]).filter(x => x != null);
+      const times = sensors.filter(s => s[key] != null).map(s => s.timestamp);
+      Pages._sensorSeries[label] = { vals, times, unit, decimals, hours };
+      if (!vals.length) {
+        return C.sparkCard(label, '--', unit, 'no feed', `No ${hours}h telemetry`,
+          toSparkPath([0, 0]), '#707971');
+      }
+      const last = vals[vals.length - 1];
+      const half = Math.max(1, Math.floor(vals.length / 2));
+      const early = vals.slice(0, half).reduce((x, y) => x + y, 0) / half;
+      const late  = vals.slice(half).reduce((x, y) => x + y, 0) / Math.max(1, vals.length - half);
+      const change = early ? ((late - early) / Math.abs(early)) * 100 : 0;
+      const rising = change > 2, falling = change < -2;
+      const status = rising ? `▲ +${change.toFixed(1)}%` : falling ? `▼ ${change.toFixed(1)}%` : '● stable';
+      const worsening = higherIsWorse ? rising : falling;
+      const color = worsening ? (lvl === 'CRITICAL' ? '#ba1a1a' : '#376757') : '#0f5132';
+      const lo = Math.min(...vals), hi = Math.max(...vals);
+      return C.sparkCard(label, last.toFixed(decimals), unit, status,
+        `${hours}h range ${lo.toFixed(decimals)}–${hi.toFixed(decimals)}`,
+        toSparkPath(vals), color, worsening && lvl === 'CRITICAL');
+    };
 
-    const latTemp = temps.slice(-1)[0];
-    const latVib  = vibs.slice(-1)[0];
-    const latPd   = pds.slice(-1)[0];
-    const latOil  = oils.slice(-1)[0];
+    const sensorCards = [
+      sensorCard('Top-Oil Temp', 'oil_temperature', '°C', 1),
+      sensorCard('Winding Temp', 'temperature', '°C', 1),
+      sensorCard('Vibration RMS', 'vibration', ' mm/s', 2),
+      sensorCard('Partial Discharge', 'partial_discharge', ' pC', 0),
+      sensorCard('Oil Quality Index', 'oil_quality', '', 1, false),
+      sensorCard('Load', 'load_percentage', '%', 1),
+    ].join('');
 
-    const sparkTemp = C.sparkCard('Top-Oil Temp', latTemp != null ? latTemp.toFixed(1) : '--', '°C',
-      lvl === 'CRITICAL' ? '▲ Rising fast' : 'Nominal', 'Trip: 110°C | Warn: 95°C',
-      toSparkPath(temps.length ? temps : [80,82,85,89,95,102,latTemp||106]),
-      lvl === 'CRITICAL' ? '#ba1a1a' : '#376757', true);
-
-    const sparkVib = C.sparkCard('Vibration RMS', latVib != null ? latVib.toFixed(2) : '--', ' mm/s',
-      lvl === 'CRITICAL' ? 'Harmonic @ 120Hz' : 'Nominal',
-      'Nominal: < 2.0 mm/s',
-      toSparkPath(vibs.length ? vibs : [1.1,1.2,1.4,1.8,2.5,3.8,latVib||4.8]),
-      lvl === 'CRITICAL' ? '#ba1a1a' : '#376757');
-
-    const sparkPd = C.sparkCard('Partial Discharge', latPd != null ? Math.round(latPd) : '--', ' pC',
-      lvl === 'CRITICAL' ? 'Severe Dielectric Fail' : 'Nominal',
-      'Threshold: < 150 pC',
-      toSparkPath(pds.length ? pds : [50,60,80,120,200,400,latPd||840]),
-      lvl === 'CRITICAL' ? '#ba1a1a' : '#707971');
-
-    const sparkOil = C.sparkCard('DGA Acetylene C₂H₂', latOil != null ? latOil.toFixed(1) : '--', ' ppm',
-      lvl === 'CRITICAL' ? 'Thermal Fault >700°C' : 'Nominal',
-      'Hydrogen: ~340 ppm',
-      toSparkPath(oils.length ? oils : [1,2,3,4,7,11,latOil||14]),
-      lvl === 'CRITICAL' ? '#ba1a1a' : '#707971');
+    const woRows = (workOrders || []).map(w => `<div class="flex items-center justify-between py-1.5 border-b border-surface-container-low last:border-0 font-body-sm text-[12px]">
+      <div>
+        <span class="font-mono font-bold text-primary">${w.wo_id}</span>
+        <span class="text-on-surface-variant"> · ${F.esc(w.wo_type)}${w.crew_id ? ' · ' + w.crew_id : ''}</span>
+      </div>
+      <span class="font-label-sm text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${w.status === 'OPEN' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant'}">${F.esc(w.status)}</span>
+    </div>`).join('');
 
     const riskFactors = (p.top_risk_factors || []).slice(0, 4).map(C.factor).join('') ||
       '<div class="text-on-surface-variant font-label-sm text-label-sm text-center py-3">Nominal — no dominant risk drivers</div>';
@@ -528,10 +546,10 @@ Pages.selectAsset = async (id) => {
         </div>
         <!-- Action ribbon -->
         <div class="grid grid-cols-3 gap-1.5">
-          <button class="h-8 bg-error text-on-error font-label-sm text-label-sm font-semibold rounded flex items-center justify-center gap-1 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
+          <button onclick="Pages.assetAction('dispatch','${a.asset_id}',this)" class="h-8 bg-error text-on-error font-label-sm text-label-sm font-semibold rounded flex items-center justify-center gap-1 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
             <span class="material-symbols-outlined text-[14px]">send</span>Dispatch Crew
           </button>
-          <button class="h-8 bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold rounded flex items-center justify-center gap-1 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
+          <button onclick="Pages.assetAction('schedule','${a.asset_id}',this)" class="h-8 bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold rounded flex items-center justify-center gap-1 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
             <span class="material-symbols-outlined text-[14px]">event_note</span>Schedule Job
           </button>
           <button onclick="App.simAsset('${a.asset_id}')" class="h-8 bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold rounded flex items-center justify-center gap-1 uppercase tracking-wider hover:bg-surface-container-high transition-colors" type="button">
@@ -557,15 +575,26 @@ Pages.selectAsset = async (id) => {
                 <span class="font-headline-md text-headline-md text-on-surface font-bold">Real-Time Sensor Feeds</span>
               </div>
               <div class="inline-flex bg-surface-container rounded p-0.5 font-mono text-[10px] text-on-surface-variant">
-                <button class="px-1.5 py-0.5 hover:text-on-surface rounded" type="button">1h</button>
-                <button class="px-1.5 py-0.5 hover:text-on-surface rounded" type="button">6h</button>
-                <button class="px-1.5 py-0.5 bg-primary-container text-on-primary font-bold rounded shadow-sm" type="button">24h</button>
-                <button class="px-1.5 py-0.5 hover:text-on-surface rounded" type="button">7d</button>
+                ${[['1h', 1], ['6h', 6], ['24h', 24], ['7d', 168]].map(([lbl, h]) =>
+                  `<button onclick="Pages.setSensorRange(${h})" class="px-1.5 py-0.5 rounded ${hours === h ? 'bg-primary-container text-on-primary font-bold shadow-sm' : 'hover:text-on-surface'}" type="button">${lbl}</button>`
+                ).join('')}
               </div>
             </div>
             <div class="grid grid-cols-2 gap-space-sm">
-              ${sparkTemp}${sparkVib}${sparkPd}${sparkOil}
+              ${sensorCards}
             </div>
+            <div class="mt-space-xs font-label-sm text-[10px] text-on-surface-variant font-mono">
+              ${sensors.length} telemetry samples · GET /api/assets/${a.asset_id}/sensors?hours=${hours}
+            </div>
+          </div>
+          <!-- Work orders raised on this asset -->
+          <div class="p-space-md bg-surface-container-low rounded border border-outline-variant/50">
+            <div class="flex items-center gap-2 mb-space-xs">
+              <span class="material-symbols-outlined text-primary text-[18px]">assignment_turned_in</span>
+              <span class="font-headline-md text-headline-md text-on-surface font-bold">Work Orders</span>
+              <span class="font-mono text-[10px] text-on-surface-variant ml-auto">${(workOrders || []).length} on this asset</span>
+            </div>
+            ${woRows || '<div class="text-on-surface-variant font-label-sm text-label-sm py-1">No work orders yet — use Dispatch Crew or Schedule Job above.</div>'}
           </div>
           <!-- Failure projection -->
           <div class="p-space-md bg-surface-container rounded border border-outline-variant/50">
@@ -618,10 +647,10 @@ Pages.selectAsset = async (id) => {
           <div>
             <div class="flex items-center justify-between mb-space-xs">
               <span class="font-headline-md text-headline-md text-on-surface font-bold">Maintenance &amp; Event History</span>
-              <button class="text-primary font-label-sm text-label-sm font-semibold hover:underline" type="button">View Full Log</button>
+              <button onclick="Pages.drawerTab('maint')" class="text-primary font-label-sm text-label-sm font-semibold hover:underline" type="button">View Full Log</button>
             </div>
             ${maintLog}
-            <div class="mt-space-xs font-label-sm text-[11px] text-on-surface-variant font-mono">SN: ${F.esc(a.asset_id)}-${F.esc(a.substation_id || 'XFRM-01')} &bull; Installed: ${a.installation_year || '--'} &bull; Last maint: ${F.day(a.last_maintenance_date)}</div>
+            <div class="mt-space-xs font-label-sm text-[11px] text-on-surface-variant font-mono">Substation: ${F.esc(a.substation_id || '--')} &bull; ${F.esc(a.manufacturer || '--')} &bull; Installed: ${a.installation_year || '--'} &bull; Last maint: ${F.day(a.last_maintenance_date)}</div>
           </div>
         </div>
         <!-- Risk tab (hidden) -->
@@ -662,6 +691,20 @@ Pages.selectAsset = async (id) => {
   } catch (e) {
     if (drawer) drawer.innerHTML = `<div class="p-space-lg text-center"><div class="text-error font-label-sm text-label-sm">${F.esc(e.message)}</div></div>`;
   }
+};
+
+/* Re-fetch the drawer's telemetry over a different window */
+Pages.setSensorRange = async (hours) => {
+  Pages._sensorHours = hours;
+  if (_selectedAssetId) await Pages.selectAsset(_selectedAssetId);
+};
+
+/* Dispatch / schedule from the asset drawer, then re-render it with the new work order */
+Pages.assetAction = async (kind, assetId, btn) => {
+  const r = kind === 'dispatch'
+    ? await Actions.dispatch(assetId, btn)
+    : await Actions.schedule(assetId, btn);
+  if (r) await Pages.selectAsset(assetId);
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -747,14 +790,24 @@ Pages.riskAreas = async () => {
    MAINTENANCE
    ══════════════════════════════════════════════════════════════ */
 Pages.maintenance = async () => {
-  const [q, crews, crewRoster] = await Promise.all([
+  const [q, crews, crewRoster, areas, workOrders] = await Promise.all([
     API.maintenance('?limit=100'),
     API.crewRecommendations(),
-    API.crews()
+    API.crews(),
+    API.areas(),
+    API.workOrders('?limit=50')
   ]);
   const pending   = q.length;
-  const crewsList = crewRoster?.crews || crewRoster || [];
+  const crewsList = Array.isArray(crewRoster) ? crewRoster : (crewRoster?.crews || []);
   const fieldCnt  = crewsList.filter(c => c.availability === 'ON_JOB').length;
+  const assetTypes = [...new Set(q.map(x => x.asset_type).filter(Boolean))];
+  const areaIds    = (areas || []).map(a => a.area_id);
+
+  // Real response-window numbers from the optimiser, not placeholders
+  const recs = crews.recommendations || [];
+  const avgCurrent   = recs.length ? recs.reduce((s, r) => s + (r.current_response_min || 0), 0) / recs.length : null;
+  const avgProjected = recs.length ? recs.reduce((s, r) => s + (r.projected_response_min || 0), 0) / recs.length : null;
+  const worstWx = (areas || []).slice().sort((a, b) => (b.weather_risk || 0) - (a.weather_risk || 0))[0];
 
   App.render(`<div class="flex flex-col w-full">
     <!-- Header banner -->
@@ -765,10 +818,10 @@ Pages.maintenance = async () => {
         <p class="font-body-md text-body-md text-on-surface-variant">Automated work-order risk ranking, crew assignment status, and ML-optimized pre-positioning.</p>
       </div>
       <div class="flex gap-space-sm">
-        <button class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
-          <span class="material-symbols-outlined text-[15px]">sync</span>Sync Maximo / SAP PM
+        <button onclick="Pages.toggleWorkOrders()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
+          <span class="material-symbols-outlined text-[15px]">assignment</span>Work Orders (${workOrders.length})
         </button>
-        <button class="h-8 px-space-md bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
+        <button onclick="App.emergencyDispatch()" class="h-8 px-space-md bg-primary-container text-on-primary font-label-sm text-label-sm font-semibold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
           <span class="material-symbols-outlined text-[15px]">send</span>Bulk Dispatch Work-Orders
         </button>
       </div>
@@ -777,32 +830,72 @@ Pages.maintenance = async () => {
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-sm mb-space-md">
       ${C.kpi('assignment', 'Pending Priority WOs', `${pending} Active`, 'Impact-ranked queue', 'CRITICAL')}
       ${C.kpi('local_shipping', 'Field Crews Deployed', `${fieldCnt} In Field / ${crewsList.length} Total`, 'Active crew status', 'HIGH')}
-      ${C.kpi('smart_toy', 'ML Pre-Position Directives', `${(crews.recommendations || []).length} Urgent Recs`, 'AI-optimised staging', 'MEDIUM')}
-      ${C.kpi('schedule', 'Avg Emergency Window', `${crews.avg_response_min || 42} min`, '(16 min via ML)', 'LOW')}
+      ${C.kpi('smart_toy', 'ML Pre-Position Directives', `${recs.length} Urgent Recs`, 'AI-optimised staging', 'MEDIUM')}
+      ${C.kpi('schedule', 'Avg Response Window',
+        avgCurrent != null ? `${avgCurrent.toFixed(0)} min` : '--',
+        avgProjected != null ? `${avgProjected.toFixed(0)} min after repositioning` : 'no recommendations', 'LOW')}
     </div>
     <!-- Filters -->
     <div class="bg-surface-container-lowest border border-outline-variant/50 rounded p-space-sm mb-space-md flex flex-wrap items-center gap-space-sm font-label-sm text-label-sm">
       <label class="flex items-center gap-1.5"><span class="text-on-surface-variant uppercase">AREA:</span>
         <select id="mf-area" class="h-7 px-2 bg-surface-container-low rounded font-body-sm text-body-sm border-none focus:outline-none">
           <option value="">All Areas</option>
+          ${areaIds.map(a => `<option value="${a}">${a}</option>`).join('')}
         </select>
       </label>
       <label class="flex items-center gap-1.5"><span class="text-on-surface-variant uppercase">ASSET:</span>
         <select id="mf-type" class="h-7 px-2 bg-surface-container-low rounded font-body-sm text-body-sm border-none focus:outline-none">
           <option value="">All Types</option>
+          ${assetTypes.map(t => `<option value="${t}">${t}</option>`).join('')}
         </select>
       </label>
       <label class="flex items-center gap-1.5">
-        <input type="checkbox" class="accent-primary" id="mf-high" checked/>
+        <input type="checkbox" class="accent-primary" id="mf-high"/>
         <span>RISK &gt;60%</span>
       </label>
       <label class="flex items-center gap-1.5">
-        <input type="checkbox" class="accent-primary" id="mf-cust" checked/>
+        <input type="checkbox" class="accent-primary" id="mf-cust"/>
         <span>CUST EXPOSED &gt;10K</span>
       </label>
-      <button onclick="App.exportMaintenanceSchedule()" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
-        <span class="material-symbols-outlined text-[15px]">download</span>Export Schedule
+      <span id="mf-count" class="font-mono text-[11px] text-on-surface-variant"></span>
+      <button onclick="App.exportCsv('maintenance')" class="h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
+        <span class="material-symbols-outlined text-[15px]">table_view</span>CSV
       </button>
+      <button onclick="App.exportMaintenanceSchedule()" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
+        <span class="material-symbols-outlined text-[15px]">download</span>Export Schedule (PDF)
+      </button>
+    </div>
+    <!-- Work orders panel (real persisted operator actions) -->
+    <div id="wo-panel" class="hidden bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden mb-space-md">
+      <div class="px-space-md py-2.5 bg-surface-container-high flex items-center justify-between border-b border-outline-variant/50">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[16px]">assignment</span>
+          <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Work Orders Raised</span>
+        </div>
+        <span class="font-mono text-[10px] text-on-surface-variant">GET /api/work-orders</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead><tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-[10px] uppercase tracking-wider">
+            <th class="py-1.5 px-space-sm font-semibold">WO ID</th>
+            <th class="py-1.5 px-space-sm font-semibold">Type</th>
+            <th class="py-1.5 px-space-sm font-semibold">Asset</th>
+            <th class="py-1.5 px-space-sm font-semibold">Crew</th>
+            <th class="py-1.5 px-space-sm font-semibold">ETA / Scheduled</th>
+            <th class="py-1.5 px-space-sm font-semibold">Status</th>
+          </tr></thead>
+          <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
+            ${workOrders.map(w => `<tr class="hover:bg-surface-container transition-colors">
+              <td class="py-2 px-space-sm font-mono text-[11px] font-bold text-primary">${w.wo_id}</td>
+              <td class="py-2 px-space-sm text-[11px]">${F.esc(w.wo_type)}</td>
+              <td class="py-2 px-space-sm font-mono text-[11px] ${w.asset_id ? 'cursor-pointer hover:underline' : ''}" ${w.asset_id ? `onclick="App.openAsset('${w.asset_id}')"` : ''}>${F.esc(w.asset_id || w.area_id || '--')}</td>
+              <td class="py-2 px-space-sm font-mono text-[11px]">${F.esc(w.crew_id || '--')}</td>
+              <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">${w.eta_min != null ? w.eta_min.toFixed(0) + ' min' : (w.scheduled_for ? F.date(w.scheduled_for) : '--')}</td>
+              <td class="py-2 px-space-sm"><span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${w.status === 'OPEN' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant'}">${F.esc(w.status)}</span></td>
+            </tr>`).join('') || '<tr><td colspan="6" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No work orders yet — dispatch or schedule one from the queue below.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     </div>
     <!-- Maintenance queue table -->
     <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden mb-space-md">
@@ -810,9 +903,9 @@ Pages.maintenance = async () => {
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-primary text-[16px]">table_chart</span>
           <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Ranked Maintenance Queue</span>
-          <span class="inline-flex items-center gap-1 bg-error text-on-error font-label-sm text-[10px] font-bold px-1.5 py-0.5 rounded">${q.filter(x => x.priority === 'CRITICAL').length} Critical Interventions Pending</span>
+          <span id="mq-critical" class="inline-flex items-center gap-1 bg-error text-on-error font-label-sm text-[10px] font-bold px-1.5 py-0.5 rounded">${q.filter(x => x.priority === 'CRITICAL').length} Critical Interventions Pending</span>
         </div>
-        <span class="font-label-sm text-[11px] text-on-surface-variant">Sort Rule: Severity × Failure Prob × MVA Cascade Risk</span>
+        <span class="font-label-sm text-[11px] text-on-surface-variant">Ranked by Grid Impact Score, then failure probability</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left">
@@ -826,17 +919,15 @@ Pages.maintenance = async () => {
             <th class="py-1.5 px-space-sm font-semibold">Recommended Action</th>
             <th class="py-1.5 px-space-sm font-semibold">Intervention</th>
           </tr></thead>
-          <tbody class="divide-y divide-surface-container">
-            ${q.slice(0, 14).map((x, i) => C.maintRow(x, i)).join('')}
-          </tbody>
+          <tbody id="mq-body" class="divide-y divide-surface-container"></tbody>
         </table>
       </div>
       <div class="px-space-md py-2 bg-surface-container-low flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant border-t border-outline-variant/50">
-        <span>Showing 1–${Math.min(14, q.length)} of ${q.length} Ranked Outage Candidates · Confidence Model: Bayesian Risk Network v4.2</span>
+        <span id="mq-info">--</span>
         <div class="flex gap-1">
-          <button class="px-2 py-1 bg-surface-container-lowest rounded shadow-sm hover:bg-surface-container font-label-sm text-label-sm" type="button">Previous</button>
-          <span class="px-2 font-bold text-on-surface font-mono">Page 1 of ${Math.ceil(q.length / 14)}</span>
-          <button class="px-2 py-1 bg-surface-container-lowest rounded shadow-sm hover:bg-surface-container font-label-sm text-label-sm" type="button">Next</button>
+          <button onclick="Pages.maintPage(-1)" class="px-2 py-1 bg-surface-container-lowest rounded shadow-sm hover:bg-surface-container font-label-sm text-label-sm" type="button">Previous</button>
+          <span id="mq-page" class="px-2 font-bold text-on-surface font-mono">Page 1</span>
+          <button onclick="Pages.maintPage(1)" class="px-2 py-1 bg-surface-container-lowest rounded shadow-sm hover:bg-surface-container font-label-sm text-label-sm" type="button">Next</button>
         </div>
       </div>
     </div>
@@ -858,7 +949,7 @@ Pages.maintenance = async () => {
               <th class="py-1.5 px-space-sm font-semibold">Base Substation</th>
               <th class="py-1.5 px-space-sm font-semibold">Capability / Spec</th>
               <th class="py-1.5 px-space-sm font-semibold">Status</th>
-              <th class="py-1.5 px-space-sm font-semibold">Shift ETA</th>
+              <th class="py-1.5 px-space-sm font-semibold">Assignment / Response</th>
             </tr></thead>
             <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
               ${crewsList.map(c => `<tr class="hover:bg-surface-container transition-colors">
@@ -868,7 +959,11 @@ Pages.maintenance = async () => {
                 <td class="py-2 px-space-sm">
                   <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${c.availability === 'AVAILABLE' ? 'bg-secondary-container text-on-secondary-container' : c.availability === 'ON_JOB' ? 'bg-surface-container-high text-on-surface' : 'bg-error-container text-on-error-container'}">${c.availability || '--'}</span>
                 </td>
-                <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">Shift: ${c.next_shift || '--'}</td>
+                <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">
+                  ${c.active_assignment
+                    ? `<span class="cursor-pointer hover:underline text-primary" onclick="App.openAsset('${c.active_assignment}')">${c.active_assignment}</span> · <button onclick="Actions.release('${c.crew_id}', this)" class="px-1 py-0.5 bg-surface-container rounded text-[10px] font-bold uppercase hover:bg-surface-container-high" type="button">Release</button>`
+                    : `base ${c.base_response_min != null ? Math.round(c.base_response_min) + ' min' : '--'}`}
+                </td>
               </tr>`).join('') || '<tr><td colspan="5" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No crews data</td></tr>'}
             </tbody>
           </table>
@@ -883,16 +978,67 @@ Pages.maintenance = async () => {
               <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">ML Recommended Pre-Positioning</span>
             </div>
             <div class="flex items-center gap-1 bg-error-container text-on-error-container font-label-sm text-[10px] font-bold px-1.5 py-0.5 rounded">
-              STORM FRONT ARRIVAL: ~45 MIN
+              ${worstWx ? `PEAK WEATHER RISK: ${F.esc(worstWx.area_id)} ${Math.round(worstWx.weather_risk || 0)}/100` : 'WEATHER RISK: NOMINAL'}
             </div>
           </div>
           <div class="p-space-md space-y-space-sm scroll-panel" style="max-height:420px">
-            ${(crews.recommendations || []).slice(0, 4).map(C.crewCard).join('') || '<div class="text-center text-on-surface-variant font-label-sm text-label-sm py-4">No repositioning needed</div>'}
+            ${recs.slice(0, 4).map(C.crewCard).join('') || '<div class="text-center text-on-surface-variant font-label-sm text-label-sm py-4">No repositioning needed</div>'}
           </div>
         </div>
       </div>
     </div>
   </div>`);
+
+  /* ── Queue state: filters hit the real API, pagination is client-side ── */
+  Pages._mq = { rows: q, page: 0, size: 14 };
+
+  Pages._renderQueue = () => {
+    const { rows, page, size } = Pages._mq;
+    const start = page * size;
+    const slice = rows.slice(start, start + size);
+    const body = el('mq-body');
+    if (!body) return;
+    body.innerHTML = slice.map((x, i) => C.maintRow(x, start + i)).join('') ||
+      '<tr><td colspan="8" class="py-6 text-center text-on-surface-variant font-label-sm text-label-sm">No work orders match these filters</td></tr>';
+    const pages = Math.max(1, Math.ceil(rows.length / size));
+    const info = el('mq-info'), pageEl = el('mq-page'), count = el('mf-count'), crit = el('mq-critical');
+    if (info) info.textContent = rows.length
+      ? `Showing ${start + 1}–${Math.min(start + size, rows.length)} of ${rows.length} ranked candidates`
+      : 'No candidates for the current filters';
+    if (pageEl) pageEl.textContent = `Page ${page + 1} of ${pages}`;
+    if (count) count.textContent = `${rows.length} match`;
+    if (crit) crit.textContent = `${rows.filter(r => r.priority === 'CRITICAL').length} Critical Interventions Pending`;
+  };
+
+  Pages.maintPage = (dir) => {
+    const pages = Math.max(1, Math.ceil(Pages._mq.rows.length / Pages._mq.size));
+    Pages._mq.page = Math.max(0, Math.min(pages - 1, Pages._mq.page + dir));
+    Pages._renderQueue();
+  };
+
+  Pages.applyMaintFilters = async () => {
+    const params = new URLSearchParams({ limit: '100' });
+    const area = v('mf-area'), type = v('mf-type');
+    if (area) params.set('area', area);
+    if (type) params.set('asset_type', type);
+    if (el('mf-high')?.checked) params.set('min_prob', '0.6');
+    if (el('mf-cust')?.checked) params.set('min_customers', '10000');
+    const body = el('mq-body');
+    if (body) body.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-on-surface-variant font-label-sm text-label-sm">Querying…</td></tr>';
+    try {
+      Pages._mq.rows = await API.maintenance('?' + params.toString());
+      Pages._mq.page = 0;
+      Pages._renderQueue();
+    } catch (e) { Toast.err(e.message); }
+  };
+
+  Pages.toggleWorkOrders = () => el('wo-panel')?.classList.toggle('hidden');
+
+  ['mf-area', 'mf-type', 'mf-high', 'mf-cust'].forEach(id => {
+    const node = el(id);
+    if (node) node.onchange = () => Pages.applyMaintFilters();
+  });
+  Pages._renderQueue();
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -900,6 +1046,8 @@ Pages.maintenance = async () => {
    ══════════════════════════════════════════════════════════════ */
 Pages.crews = async () => {
   const [crewRoster, r] = await Promise.all([API.crews(), API.crewRecommendations()]);
+  // /api/crews returns a bare array; /api/crews/recommendations wraps one in .crews
+  const allCrews = Array.isArray(crewRoster) ? crewRoster : (crewRoster?.crews || []);
   const maxSaved = Math.max(0, ...(r.recommendations || []).map(x => x.response_reduction_min || 0));
 
   App.render(`<div class="flex flex-col w-full">
@@ -908,7 +1056,7 @@ Pages.crews = async () => {
       <p class="font-body-md text-body-md text-on-surface-variant">Assignment status, skill-weighted pre-positioning recommendations, and response time optimisation.</p>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-sm mb-space-md">
-      ${C.kpi('check_circle', 'Available Crews', r.available_crews || 0, `of ${(crewRoster.crews || []).length} total`, 'LOW')}
+      ${C.kpi('check_circle', 'Available Crews', r.available_crews || 0, `of ${allCrews.length} total`, 'LOW')}
       ${C.kpi('warning', 'Demand Areas', r.demand_areas || 0, 'high/critical clusters', 'HIGH')}
       ${C.kpi('swap_horiz', 'Repositions Rec.', (r.recommendations||[]).length, 'recommended moves', 'MEDIUM')}
       ${C.kpi('schedule', 'Max Time Saved', `${maxSaved} min`, 'best response gain', 'LOW')}
@@ -932,9 +1080,10 @@ Pages.crews = async () => {
                 <th class="py-1.5 px-space-sm font-semibold">Skill Type</th>
                 <th class="py-1.5 px-space-sm font-semibold">Equipment</th>
                 <th class="py-1.5 px-space-sm font-semibold">Status</th>
+                <th class="py-1.5 px-space-sm font-semibold">Assignment</th>
               </tr></thead>
               <tbody class="divide-y divide-surface-container font-body-sm text-on-surface">
-                ${(crewRoster.crews || []).map(c => `<tr class="hover:bg-surface-container transition-colors">
+                ${allCrews.map(c => `<tr class="hover:bg-surface-container transition-colors">
                   <td class="py-2 px-space-sm font-telemetry-display text-label-md font-bold text-primary">${c.crew_id}</td>
                   <td class="py-2 px-space-sm text-[12px] text-on-surface-variant">${c.current_area || '--'}</td>
                   <td class="py-2 px-space-sm text-[12px]">${c.skill_type || '--'}</td>
@@ -942,7 +1091,12 @@ Pages.crews = async () => {
                   <td class="py-2 px-space-sm">
                     <span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase ${c.availability==='AVAILABLE' ? 'bg-secondary-container text-on-secondary-container' : c.availability==='ON_JOB' ? 'bg-surface-container-high text-on-surface' : 'bg-error-container text-on-error-container'}">${c.availability || '--'}</span>
                   </td>
-                </tr>`).join('') || '<tr><td colspan="5" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No crew data</td></tr>'}
+                  <td class="py-2 px-space-sm font-mono text-[11px] text-on-surface-variant">
+                    ${c.active_assignment
+                      ? `<span class="cursor-pointer hover:underline text-primary" onclick="App.openAsset('${c.active_assignment}')">${c.active_assignment}</span> · <button onclick="Actions.release('${c.crew_id}', this)" class="px-1 py-0.5 bg-surface-container rounded text-[10px] font-bold uppercase hover:bg-surface-container-high" type="button">Release</button>`
+                      : `base ${c.base_response_min != null ? Math.round(c.base_response_min) + ' min' : '--'}`}
+                  </td>
+                </tr>`).join('') || '<tr><td colspan="6" class="py-4 text-center text-on-surface-variant font-label-sm text-label-sm">No crew data</td></tr>'}
               </tbody>
             </table>
           </div>
@@ -1000,7 +1154,7 @@ Pages.simulation = async (preAsset) => {
           <p class="font-body-md text-body-md text-on-surface-variant">Scenario contingency modelling, weather impact stress-testing, and AI decision-support advisor.</p>
         </div>
         <div class="flex items-center gap-space-sm">
-          <button class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
+          <button onclick="Pages.toggleRunsLog()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
             <span class="material-symbols-outlined text-[15px]">receipt_long</span>Runs Log
           </button>
         </div>
@@ -1036,16 +1190,15 @@ Pages.simulation = async (preAsset) => {
                   </select>
                 </div>
                 <div>
-                  <div class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold mb-1">Ambient Overload</div>
-                  <div class="flex items-center gap-1 bg-surface-container-low rounded h-8 px-2 border border-outline-variant">
-                    <input type="checkbox" class="accent-primary" checked id="sim-n11"/>
-                    <span class="font-body-sm text-body-sm text-on-surface">N-1-1 Contingency (BRK-4412 Trip)</span>
+                  <div class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold mb-1">Cascade Model</div>
+                  <div class="flex items-center gap-1 bg-surface-container-low rounded h-8 px-2 border border-outline-variant font-body-sm text-body-sm text-on-surface">
+                    Same-substation downstream fan-out
                   </div>
                 </div>
               </div>
               <div class="flex items-center gap-space-sm mb-space-sm font-label-sm text-[11px] text-on-surface-variant font-mono">
-                <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>CONVERGENCE TOLERANCE: 0.001 MW</span>
-                <span>Iteration 4 / Run Time: 182ms</span>
+                <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>ENGINE READY</span>
+                <span id="sim-runtime">Last run: --</span>
               </div>
               <button onclick="Pages.runSim()" class="w-full h-9 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-2 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
                 <span class="material-symbols-outlined text-[16px]">play_circle</span>Run Grid Contingency Simulation
@@ -1081,6 +1234,17 @@ Pages.simulation = async (preAsset) => {
         ${Pages._copilotPanel()}
       </div>
     </div>
+    <!-- Runs log (real audit trail) -->
+    <div id="runs-log" class="hidden mt-space-md bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden">
+      <div class="px-space-md py-2.5 bg-surface-container-high flex items-center justify-between border-b border-outline-variant/50">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[16px]">receipt_long</span>
+          <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Engine &amp; Operator Runs Log</span>
+        </div>
+        <span class="font-mono text-[10px] text-on-surface-variant">GET /api/audit</span>
+      </div>
+      <div id="runs-log-body" class="p-space-md scroll-panel" style="max-height:320px"></div>
+    </div>
   </div>`);
 
   Pages.simSwitchTab = (tab) => {
@@ -1090,14 +1254,21 @@ Pages.simulation = async (preAsset) => {
     });
   };
 
+  const markRuntime = (t0) => {
+    const rt = el('sim-runtime');
+    if (rt) rt.textContent = `Last run: ${Math.round(performance.now() - t0)}ms · ${new Date().toLocaleTimeString()}`;
+  };
+
   Pages.runSim = async () => {
     const assetId = v('sim-asset');
     if (!assetId) return;
     const out = el('sim-results');
     out.innerHTML = `<div class="bg-surface-container-lowest rounded border border-outline-variant/50 p-space-md text-center text-on-surface-variant font-label-sm text-label-sm"><span class="material-symbols-outlined text-[24px] animate-pulse block mb-1">hourglass_empty</span>Simulating asset failure…</div>`;
+    const t0 = performance.now();
     try {
       const r = await API.simulate({ type: 'asset_failure', asset_id: assetId });
       out.innerHTML = Pages._renderSimResult(r);
+      markRuntime(t0);
     } catch (e) { out.innerHTML = `<div class="text-error p-space-md font-label-sm text-label-sm">${F.esc(e.message)}</div>`; }
   };
 
@@ -1105,10 +1276,30 @@ Pages.simulation = async (preAsset) => {
     const area = v('sim-area'), sev = v('sim-sev');
     const out = el('sim-results');
     out.innerHTML = `<div class="bg-surface-container-lowest rounded border border-outline-variant/50 p-space-md text-center text-on-surface-variant font-label-sm text-label-sm"><span class="material-symbols-outlined text-[24px] animate-pulse block mb-1">thunderstorm</span>Simulating weather event…</div>`;
+    const t0 = performance.now();
     try {
       const r = await API.simulate({ type: 'weather_event', area_id: area, event: sev });
       out.innerHTML = Pages._renderWeatherSimResult(r);
+      markRuntime(t0);
     } catch (e) { out.innerHTML = `<div class="text-error p-space-md font-label-sm text-label-sm">${F.esc(e.message)}</div>`; }
+  };
+
+  Pages.toggleRunsLog = async () => {
+    const panel = el('runs-log');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+    if (panel.classList.contains('hidden')) return;
+    const body = el('runs-log-body');
+    body.innerHTML = '<div class="text-center font-label-sm text-label-sm text-on-surface-variant py-2">Loading…</div>';
+    try {
+      const rows = await API.audit(40);
+      body.innerHTML = rows.map(r => `<div class="flex items-start gap-space-sm py-1.5 border-b border-surface-container-low last:border-0 font-body-sm text-[12px]">
+        <span class="font-mono text-[10px] text-on-surface-variant whitespace-nowrap">${F.date(r.ts)}</span>
+        <span class="font-label-sm text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant whitespace-nowrap">${F.esc(r.actor)}</span>
+        <span class="font-semibold text-on-surface whitespace-nowrap">${F.esc(r.action)}</span>
+        <span class="font-mono text-[11px] text-on-surface-variant truncate">${F.esc(JSON.stringify(r.detail))}</span>
+      </div>`).join('') || '<div class="text-center font-label-sm text-label-sm text-on-surface-variant py-2">No runs recorded yet</div>';
+    } catch (e) { body.innerHTML = `<div class="text-error font-label-sm text-label-sm">${F.esc(e.message)}</div>`; }
   };
 
   // Auto-run if preselected
@@ -1119,13 +1310,18 @@ Pages.simulation = async (preAsset) => {
 };
 
 Pages._renderSimResult = (r) => {
+  /* Every row below is a field returned by POST /api/simulation — no synthetic
+     power-flow numbers are invented in the browser. */
   const rows = [
-    ['Unserved Energy (MWh)', '0.0 MWh', `+${F.num(Math.round((r.estimated_outage_minutes||0)/60 * (r.direct_customers||0) * 0.0008))} MWh (Severe Deficit)`],
-    ['Customers Experiencing Outage', '0 Meters', `${F.num(r.total_customers_affected)} (Islanded Feeders)`],
-    ['Overloaded Corridors', '0 lines > 90%', `${r.affected_areas?.length || 0} Lines at 114% Cap`],
-    ['Backup Redundancy Failover', 'Normal N-1 Secure', 'Zero N-1 Margin'],
+    ['Customers served directly', '0 affected', `${F.num(r.direct_customers)} affected`],
+    ['Downstream customers (cascade)', '0 affected', `${F.num(r.downstream_customers)} affected`],
+    ['Total customers out', '0 affected', `${F.num(r.total_customers_affected)} affected`],
+    ['Areas impacted', 'None', `${(r.affected_areas || []).length}: ${(r.affected_areas || []).join(', ') || '--'}`],
+    ['Downstream assets on substation', '0', `${(r.downstream_assets || []).length}`],
+    ['Estimated outage duration', 'In service', `${Math.round(r.estimated_outage_minutes || 0)} min (historical mean for ${F.esc(r.asset_type || 'type')})`],
+    ['Severity band', 'NOMINAL', F.esc(r.severity || '--')],
   ];
-  const mitSteps = (r.recommended_mitigation || []).slice(0, 3);
+  const mitSteps = (r.recommended_mitigation || []).slice(0, 4);
   return `<div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden slide-in">
     <div class="px-space-md py-2.5 bg-error-container/30 flex items-center gap-2 border-b border-outline-variant/50">
       <span class="material-symbols-outlined text-error text-[16px]">crisis_alert</span>
@@ -1146,7 +1342,7 @@ Pages._renderSimResult = (r) => {
               <td class="py-2 px-space-sm font-semibold text-on-surface">${metric}</td>
               <td class="py-2 px-space-sm text-on-surface-variant font-mono text-[12px]">${current}</td>
               <td class="py-2 px-space-sm font-mono text-[12px] text-error font-bold">${simulated}</td>
-              <td class="py-2 px-space-sm font-mono text-[12px] text-error font-bold">▲ Critical</td>
+              <td class="py-2 px-space-sm font-mono text-[12px] font-bold" style="color:${F.riskColor(r.severity)}">${F.esc(r.severity || '--')}</td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -1154,7 +1350,7 @@ Pages._renderSimResult = (r) => {
       <div class="flex items-center gap-2 mb-space-sm">
         <span class="material-symbols-outlined text-secondary text-[16px]">play_lesson</span>
         <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Automated Mitigation Playbook</span>
-        <span class="font-label-sm text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold uppercase">System Suggested: Dynamic Dispatch Solver (DCOPF)</span>
+        <span class="font-label-sm text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold uppercase">Required skill: ${F.esc(r.required_skill || 'General')}</span>
       </div>
       <div class="space-y-space-xs">
         ${mitSteps.map((m, i) => `<div class="miti-step">
@@ -1178,6 +1374,17 @@ Pages._renderSimResult = (r) => {
           <div class="font-mono font-bold text-on-surface text-[16px]">${r.nearest_crew ? r.nearest_crew.response_min + ' min' : '--'}</div>
         </div>
       </div>
+      <div class="mt-space-md flex gap-space-xs">
+        <button onclick="Actions.dispatch('${r.asset_id}', this)" class="flex-1 h-8 bg-error text-on-error font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
+          <span class="material-symbols-outlined text-[15px]">send</span>Dispatch ${r.nearest_crew ? r.nearest_crew.crew_id : 'nearest crew'} now
+        </button>
+        <button onclick="Actions.schedule('${r.asset_id}', this)" class="flex-1 h-8 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
+          <span class="material-symbols-outlined text-[15px]">event_note</span>Schedule preventive job
+        </button>
+        <button onclick="App.openAsset('${r.asset_id}')" class="h-8 px-space-md bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold rounded flex items-center gap-1.5 hover:bg-surface-container-high transition-colors" type="button">
+          <span class="material-symbols-outlined text-[15px]">open_in_new</span>Open asset
+        </button>
+      </div>
     </div>
   </div>`;
 };
@@ -1198,6 +1405,9 @@ Pages._renderWeatherSimResult = (r) => {
     <div class="mt-space-sm space-y-1">
       ${(r.recommended_actions||[]).map(a => `<div class="text-[12px] text-primary">▸ ${F.esc(a)}</div>`).join('')}
     </div>
+    <button onclick="Actions.prepositionArea('${r.area_id}', this)" class="w-full mt-space-sm h-8 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
+      <span class="material-symbols-outlined text-[15px]">local_shipping</span>Pre-position crew to ${F.esc(r.area_id)}
+    </button>
   </div>`;
 };
 
@@ -1258,15 +1468,100 @@ Pages.copilotAsk = async (preset) => {
   const tid = 'msg-' + Date.now();
   log.insertAdjacentHTML('beforeend', `<div class="chat-msg bot typing" id="${tid}">Analyzing grid data…</div>`);
   log.scrollTop = log.scrollHeight;
+  const t0 = performance.now();
   try {
     const r = await API.copilot(q);
+    r._query = q;
+    r._ms = Math.round(performance.now() - t0);
+    Pages._lastCopilot = r;
+    const provider = r.provider ? `${r.mode}:${r.provider}` : r.mode;
     const ev = r.evidence?.length
-      ? `<div class="chat-evidence">Evidence: ${r.evidence.map(e => `<code>${e.tool}</code>`).join(' ')} · mode: ${r.mode}</div>` : '';
+      ? `<div class="chat-evidence">Evidence: ${r.evidence.map(e => `<code>${e.tool}</code>`).join(' ')} · mode: ${provider}</div>` : '';
     document.getElementById(tid).outerHTML = `<div class="chat-msg bot">${F.md(r.answer)}${ev}</div>`;
+    Pages._renderAdvisorMatrix(r);
   } catch (e) {
     document.getElementById(tid).outerHTML = `<div class="chat-msg bot"><span style="color:#ba1a1a">⚠ ${F.esc(e.message)}</span></div>`;
   }
   log.scrollTop = log.scrollHeight;
+};
+
+/* Fill the Advisor Response Matrix from the real copilot payload */
+Pages._renderAdvisorMatrix = (r) => {
+  const host = el('advisor-matrix');
+  if (!host || !r) return;
+
+  const evidenceRows = (r.evidence || []).map(e => {
+    const res = e.result;
+    const size = Array.isArray(res) ? `${res.length} rows`
+      : (res && typeof res === 'object') ? `${Object.keys(res).length} fields` : String(res ?? '--');
+    const args = Object.keys(e.args || {}).length ? JSON.stringify(e.args) : '—';
+    return `<tr>
+      <td class="py-1.5 px-space-sm font-mono text-[11px] text-primary font-bold">${F.esc(e.tool)}</td>
+      <td class="py-1.5 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(args)}</td>
+      <td class="py-1.5 px-space-sm font-mono text-[11px] text-on-surface-variant">${F.esc(size)}</td>
+    </tr>`;
+  }).join('');
+
+  // Pull any asset id the copilot actually grounded its answer in
+  const asset = (r.evidence || []).map(e => e.args?.asset_id).find(Boolean)
+    || (r.answer.match(/\b([A-Z]{1,3}-\d{3,5})\b/) || [])[1] || null;
+  Pages._lastCopilotAsset = asset;
+
+  host.innerHTML = `
+    <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30 mb-space-xs">
+      <div class="flex items-center justify-between mb-1">
+        <span class="uppercase font-bold text-error font-label-sm text-label-sm">Section 1 — Executive Diagnostic</span>
+        <span class="font-mono text-[10px] text-on-surface-variant">${r._ms}ms · ${F.esc(r.provider ? r.mode + ':' + r.provider : r.mode)}</span>
+      </div>
+      <div class="font-body-sm text-[12px] text-on-surface">${F.md(r.answer)}</div>
+    </div>
+    <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30 mb-space-xs">
+      <div class="uppercase font-bold text-secondary font-label-sm text-label-sm mb-1">Section 2 — Tool Evidence (${(r.evidence || []).length} calls)</div>
+      ${evidenceRows ? `<table class="w-full text-left">
+        <thead><tr class="text-on-surface-variant font-label-sm text-[10px] uppercase">
+          <th class="py-1 px-space-sm">Tool</th><th class="py-1 px-space-sm">Args</th><th class="py-1 px-space-sm">Result</th>
+        </tr></thead>
+        <tbody class="divide-y divide-surface-container-low">${evidenceRows}</tbody>
+      </table>` : '<div class="font-body-sm text-[12px] text-on-surface-variant">No tools were called for this query.</div>'}
+    </div>
+    <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30">
+      <div class="uppercase font-bold text-primary font-label-sm text-label-sm mb-1">Section 3 — Actionable Target</div>
+      <div class="font-body-sm text-[12px] text-on-surface-variant">
+        ${asset ? `Grounded on <span class="font-mono font-bold text-primary">${F.esc(asset)}</span> — approving will raise a real dispatch work order.`
+                : 'No single asset identified in this answer; ask about a specific asset to enable dispatch.'}
+      </div>
+    </div>`;
+
+  const approve = el('cop-approve');
+  if (approve) {
+    approve.disabled = !asset;
+    approve.style.opacity = asset ? '' : '0.5';
+    approve.innerHTML = `<span class="material-symbols-outlined text-[15px]">check_circle</span>${asset ? `Approve — dispatch to ${asset}` : 'Approve Response Order'}`;
+  }
+};
+
+Pages.copilotCopy = async () => {
+  const r = Pages._lastCopilot;
+  if (!r) return Toast.warn('Run a query first');
+  const text = [
+    `QUERY: ${r._query}`, '', r.answer, '',
+    `MODE: ${r.provider ? r.mode + ':' + r.provider : r.mode}  (${r._ms}ms)`,
+    'EVIDENCE:',
+    ...(r.evidence || []).map(e => `  - ${e.tool}(${JSON.stringify(e.args)})`),
+    'SOURCE: Grid Risk Command Center — SIMULATION DATA',
+  ].join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    Toast.ok('Diagnostics copied to clipboard');
+  } catch (e) {
+    Toast.err('Clipboard blocked by browser');
+  }
+};
+
+Pages.copilotApprove = async (btn) => {
+  const asset = Pages._lastCopilotAsset;
+  if (!asset) return Toast.warn('No asset identified in the last answer');
+  await Actions.dispatch(asset, btn);
 };
 
 Pages.copilot = async () => {
@@ -1300,26 +1595,16 @@ Pages.copilot = async () => {
           <div class="font-headline-md text-headline-md font-bold text-on-surface mb-space-sm flex items-center gap-2">
             <span class="material-symbols-outlined text-secondary text-[18px]">psychology</span>Advisor Response Matrix
           </div>
-          <div class="font-body-sm text-body-sm text-on-surface-variant mb-space-sm">After submitting a query, the structured advisor response will appear here with evidence citations, telemetry data, and recommended tactical actions.</div>
-          <div class="space-y-space-xs font-label-sm text-label-sm text-on-surface-variant">
-            <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30">
-              <span class="uppercase font-bold text-error">Section 1: Executive Diagnostic</span>
-              <div class="text-[12px] mt-0.5">Risk imminence assessment and primary sensor anomalies</div>
-            </div>
-            <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30">
-              <span class="uppercase font-bold text-secondary">Section 2: Telemetry Evidence Table</span>
-              <div class="text-[12px] mt-0.5">IEEE C57.104 DGA standard match — sensor vs baseline vs anomaly</div>
-            </div>
-            <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30">
-              <span class="uppercase font-bold text-primary">Section 3: Recommended Tactical Actions</span>
-              <div class="text-[12px] mt-0.5">Sequential execution steps with crew and operational directives</div>
+          <div id="advisor-matrix" class="space-y-space-xs font-label-sm text-label-sm text-on-surface-variant">
+            <div class="p-space-sm bg-surface-container rounded border border-outline-variant/30 font-body-sm text-body-sm">
+              Ask a question on the left — the structured diagnostic, the exact tool calls behind it, and the dispatchable target will appear here.
             </div>
           </div>
           <div class="mt-space-md flex gap-space-xs">
-            <button class="flex-1 h-8 bg-surface-container-low text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center justify-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
+            <button onclick="Pages.copilotCopy()" class="flex-1 h-8 bg-surface-container-low text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center justify-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
               <span class="material-symbols-outlined text-[15px]">content_copy</span>Copy Diagnostics
             </button>
-            <button class="flex-1 h-8 bg-secondary-container text-on-secondary-container border border-outline-variant rounded font-label-sm text-label-sm font-bold flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" type="button">
+            <button id="cop-approve" onclick="Pages.copilotApprove(this)" disabled style="opacity:0.5" class="flex-1 h-8 bg-secondary-container text-on-secondary-container border border-outline-variant rounded font-label-sm text-label-sm font-bold flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity" type="button">
               <span class="material-symbols-outlined text-[15px]">check_circle</span>Approve Response Order
             </button>
           </div>
@@ -1388,28 +1673,9 @@ Pages.operatorBrief = async () => {
   </div>`);
 };
 
-/* ─── Action Dispatch & Modal Helpers ─── */
-Pages.dispatchMaint = async (asset_id, action) => {
-  try {
-    const res = await API.dispatchMaintenance({ asset_id, action });
-    alert(`✅ ${res.message}`);
-    App.refresh();
-  } catch (e) {
-    alert(`❌ Action failed: ${e.message}`);
-  }
-};
-
-Pages.repositionCrew = async (crew_id, target_area) => {
-  try {
-    const res = await API.repositionCrew({ crew_id, target_area });
-    alert(`✅ ${res.message}`);
-    App.refresh();
-  } catch (e) {
-    alert(`❌ Repositioning failed: ${e.message}`);
-  }
-};
-
+/* ─── Sensor history modal (charts the same real series as the card) ─── */
 Pages.openSensorModal = (label, value, unit, status, threshold) => {
+  const series = (Pages._sensorSeries || {})[label] || { vals: [], times: [], hours: 24 };
   let existing = document.getElementById('sensor-modal-overlay');
   if (existing) existing.remove();
   const overlay = document.createElement('div');
@@ -1422,7 +1688,7 @@ Pages.openSensorModal = (label, value, unit, status, threshold) => {
           <span class="material-symbols-outlined text-primary text-[24px]">analytics</span>
           <div>
             <h3 class="font-headline-md text-headline-md font-bold text-on-surface">${F.esc(label)} Historical Telemetry</h3>
-            <p class="font-label-sm text-label-sm text-on-surface-variant">24-Hour SCADA Trend • Threshold: ${F.esc(threshold)}</p>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">${series.hours}h SCADA Trend • ${series.vals.length} real samples • ${F.esc(threshold)}</p>
           </div>
         </div>
         <button class="p-1 rounded hover:bg-surface-container text-on-surface-variant cursor-pointer" onclick="document.getElementById('sensor-modal-overlay').remove()">
@@ -1445,17 +1711,16 @@ Pages.openSensorModal = (label, value, unit, status, threshold) => {
     </div>`;
   document.body.appendChild(overlay);
   const ctx = document.getElementById('sensor-modal-chart');
-  if (ctx) {
-    const labels = Array.from({length: 24}, (_, i) => `${24 - i}h ago`).reverse();
-    const base = parseFloat(value) || 50;
-    const mockData = labels.map((_, i) => Math.max(0, base * (0.85 + 0.3 * Math.sin(i / 3) + (Math.random() - 0.5) * 0.1)));
-    mkLine(ctx, labels, [{
-      label: label,
-      data: mockData,
+  if (ctx && series.vals.length) {
+    mkLine(ctx, series.times.map(t => F.date(t)), [{
+      label: `${label} (${series.unit || ''})`.trim(),
+      data: series.vals,
       borderColor: '#ba1a1a',
       backgroundColor: 'rgba(186, 26, 26, 0.1)',
       fill: true
     }]);
+  } else if (ctx) {
+    ctx.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-on-surface-variant font-label-sm text-label-sm">No telemetry samples in the selected window</div>';
   }
 };
 

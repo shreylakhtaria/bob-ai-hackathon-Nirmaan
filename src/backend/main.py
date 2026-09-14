@@ -9,16 +9,20 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 from . import config, db
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
-                       briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc)
+                       briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
+                       operations as ops_svc)
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
+
+# Keep the schema current (adds work_orders / alert-ack columns to older databases).
+db.init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -37,13 +41,22 @@ class CopilotRequest(BaseModel):
 
 class DispatchRequest(BaseModel):
     asset_id: str
-    action: str = "Dispatch"
-    technician: Optional[str] = "Control Room Desk"
+    crew_id: Optional[str] = None
 
 
-class CrewRepositionRequest(BaseModel):
+class ScheduleRequest(BaseModel):
+    asset_id: str
+    hours: Optional[int] = None
+
+
+class DeferRequest(BaseModel):
+    asset_id: str
+    reason: Optional[str] = None
+
+
+class RepositionRequest(BaseModel):
     crew_id: str
-    target_area: str
+    area_id: str
 
 
 def _require_seeded():
@@ -240,38 +253,10 @@ def crew_recommendations():
     return crew_svc.recommend_crews()
 
 
-@app.post("/api/maintenance/dispatch")
-def maintenance_dispatch(req: DispatchRequest):
-    _require_seeded()
-    asset = db.query_one("SELECT * FROM assets WHERE asset_id=?", (req.asset_id,))
-    if not asset:
-        raise HTTPException(404, f"Asset {req.asset_id} not found")
-    with db.session() as conn:
-        conn.execute("UPDATE predictions SET recommended_action=? WHERE asset_id=?",
-                     (f"{req.action.capitalize()}ed: Work order logged", req.asset_id))
-    db.audit("operator", f"maintenance_{req.action.lower()}", {
-        "asset_id": req.asset_id, "action": req.action, "technician": req.technician
-    })
-    return {"status": "ok", "message": f"{req.action.capitalize()} order recorded for {req.asset_id}",
-            "asset_id": req.asset_id, "action": req.action}
-
-
-@app.post("/api/crews/reposition")
-def crew_reposition(req: CrewRepositionRequest):
-    _require_seeded()
-    crew = db.query_one("SELECT * FROM crews WHERE crew_id=?", (req.crew_id,))
-    if not crew:
-        raise HTTPException(404, f"Crew {req.crew_id} not found")
-    with db.session() as conn:
-        conn.execute(
-            "UPDATE crews SET current_area=?, active_assignment=? WHERE crew_id=?",
-            (req.target_area, f"Pre-positioned in {req.target_area}", req.crew_id)
-        )
-    db.audit("operator", "reposition_crew", {
-        "crew_id": req.crew_id, "from_area": crew["current_area"], "to_area": req.target_area
-    })
-    return {"status": "ok", "message": f"{req.crew_id} pre-positioned to {req.target_area}",
-            "crew_id": req.crew_id, "new_area": req.target_area}
+# Note: crew dispatch and pre-positioning are handled by the work-orders API
+# below (ops_svc.dispatch_crew / ops_svc.reposition_crew), which checks crew
+# availability, computes a real travel-time ETA, and updates lat/lon — not
+# just a free-text label.
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +313,87 @@ def copilot_query(req: CopilotRequest):
 def brief():
     _require_seeded()
     return brief_svc.generate_brief()
+
+
+@app.get("/api/brief/text", response_class=PlainTextResponse)
+def brief_text():
+    _require_seeded()
+    return ops_svc.brief_text()
+
+
+# ---------------------------------------------------------------------------
+# Operator actions — every one mutates real state and is audit-logged
+# ---------------------------------------------------------------------------
+def _ok_or_409(result):
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(409, result["error"])
+    return result
+
+
+@app.post("/api/work-orders/dispatch")
+def wo_dispatch(req: DispatchRequest):
+    _require_seeded()
+    return _ok_or_409(ops_svc.dispatch_crew(req.asset_id, req.crew_id))
+
+
+@app.post("/api/work-orders/schedule")
+def wo_schedule(req: ScheduleRequest):
+    _require_seeded()
+    return _ok_or_409(ops_svc.schedule_job(req.asset_id, req.hours))
+
+
+@app.post("/api/work-orders/defer")
+def wo_defer(req: DeferRequest):
+    _require_seeded()
+    return _ok_or_409(ops_svc.defer_job(req.asset_id, req.reason))
+
+
+@app.get("/api/work-orders")
+def wo_list(limit: int = 100, status: Optional[str] = None, asset_id: Optional[str] = None):
+    return ops_svc.list_work_orders(limit=limit, status=status, asset_id=asset_id)
+
+
+@app.post("/api/crews/reposition")
+def crew_reposition(req: RepositionRequest):
+    _require_seeded()
+    return _ok_or_409(ops_svc.reposition_crew(req.crew_id, req.area_id))
+
+
+@app.post("/api/crews/{crew_id}/release")
+def crew_release(crew_id: str):
+    return _ok_or_409(ops_svc.release_crew(crew_id))
+
+
+@app.post("/api/dispatch/emergency")
+def emergency_dispatch(limit: int = 5):
+    _require_seeded()
+    return ops_svc.emergency_dispatch(limit=limit)
+
+
+@app.post("/api/alerts/{alert_id}/ack")
+def alert_ack(alert_id: str):
+    return _ok_or_409(ops_svc.acknowledge_alert(alert_id))
+
+
+@app.get("/api/audit")
+def audit_log(limit: int = 50):
+    return ops_svc.operations_log(limit=limit)
+
+
+@app.get("/api/system/stats")
+def system_stats():
+    return ops_svc.system_stats()
+
+
+@app.get("/api/export/{kind}")
+def export(kind: str):
+    _require_seeded()
+    filename, body = ops_svc.export_csv(kind)
+    if not filename:
+        raise HTTPException(404, f"Unknown export '{kind}'. "
+                                 f"Valid: {', '.join(ops_svc.EXPORTS)}")
+    return Response(content=body, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 # ---------------------------------------------------------------------------

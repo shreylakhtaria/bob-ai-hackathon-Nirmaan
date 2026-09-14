@@ -130,8 +130,27 @@ CREATE TABLE IF NOT EXISTS alerts (
     area_id           TEXT,
     title             TEXT,
     reason            TEXT,
-    recommended_action TEXT
+    recommended_action TEXT,
+    acknowledged      INTEGER DEFAULT 0,
+    acknowledged_at   TEXT
 );
+
+-- Operator actions taken from the UI (dispatch / schedule / defer / reposition).
+-- These are real state changes, not UI-only affordances.
+CREATE TABLE IF NOT EXISTS work_orders (
+    wo_id         TEXT PRIMARY KEY,
+    created_at    TEXT,
+    asset_id      TEXT,
+    area_id       TEXT,
+    crew_id       TEXT,
+    wo_type       TEXT,          -- DISPATCH | SCHEDULED | DEFERRED | PRE_POSITION | EMERGENCY
+    status        TEXT,          -- OPEN | DEFERRED | CLOSED
+    priority      TEXT,
+    scheduled_for TEXT,
+    eta_min       REAL,
+    notes         TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_wo_asset ON work_orders(asset_id);
 
 CREATE TABLE IF NOT EXISTS audit_log (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,9 +188,18 @@ def session():
         conn.close()
 
 
+def _ensure_column(conn, table, column, ddl):
+    """Additive migration so databases seeded by an older build keep working."""
+    existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+
 def init_db():
     with session() as conn:
         conn.executescript(SCHEMA)
+        _ensure_column(conn, "alerts", "acknowledged", "acknowledged INTEGER DEFAULT 0")
+        _ensure_column(conn, "alerts", "acknowledged_at", "acknowledged_at TEXT")
 
 
 def reset_db():
@@ -180,7 +208,7 @@ def reset_db():
         conn.executescript(SCHEMA)
         for tbl in ["assets", "sensor_data", "weather_data", "incidents",
                     "maintenance_history", "crews", "predictions", "area_risk",
-                    "alerts", "audit_log"]:
+                    "alerts", "audit_log", "work_orders"]:
             conn.execute(f"DELETE FROM {tbl}")
 
 

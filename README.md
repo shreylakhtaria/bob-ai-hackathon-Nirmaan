@@ -34,7 +34,8 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 ## ✨ Key Features
 
 - **Failure prediction** — LightGBM (28 engineered features) + IsolationForest anomaly
-  scoring, evaluated at **ROC-AUC 0.979** on held-out data.
+  scoring, **ROC-AUC ≈0.97** on a held-out, time-aware split (the live figure is shown
+  in the app header and the Metrics drawer, straight from `/api/model/metrics`).
 - **Explainability** — per-asset SHAP attributions surfaced as human-readable drivers
   (e.g. *"partial-discharge rise (72h): +65 pC"*); the copilot can only relay these.
 - **Grid Impact Score** — an interpretable 0–100 blend of failure probability,
@@ -42,9 +43,15 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
   maintenance queue (raw probability alone is a poor ranking signal).
 - **What-if simulation** — simulate an asset failure or a severe-weather event and see
   customers affected, downstream assets, nearest crew and estimated outage duration.
-- **Grounded AI copilot** — answers operator questions using only real backend tool
-  results, cites its evidence, and auto-upgrades to true LLM function-calling when an
-  API key is configured.
+- **Grounded AI copilot on IBM watsonx.ai** — answers operator questions using only
+  real backend tool results and cites the exact tool calls behind each answer. It runs
+  true function-calling against watsonx.ai's `/ml/v1/text/chat` API when credentials are
+  present, and falls back to a deterministic grounded router otherwise — so it works
+  with no API key at all.
+- **Closed-loop operator actions** — dispatch a crew, schedule or defer a job,
+  pre-position crews, acknowledge alerts and export CSVs. Each one writes a real work
+  order, changes crew availability and is recorded in an audit log — nothing in the UI
+  is a decorative button.
 
 ---
 
@@ -54,9 +61,10 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 |---|---|
 | **Languages** | Python, JavaScript, SQL |
 | **Frameworks** | FastAPI, Pydantic, Uvicorn |
-| **AI / LLM copilot** | Grounded tool-calling router (no key required); auto-upgrades to OpenAI / Azure OpenAI-compatible function-calling when configured — see [Known Limitations](#️-known-limitations) |
+| **IBM Technologies** | **IBM watsonx.ai** — `/ml/v1/text/chat` tool-calling API (default model `ibm/granite-3-8b-instruct`), authenticated via IBM Cloud IAM |
+| **AI / LLM copilot** | watsonx.ai first, then Nebius / OpenAI / Azure OpenAI as alternates; grounded local tool-router when no key is set |
 | **Databases** | SQLite (documented one-line swap to PostgreSQL, see [`docs/architecture.md`](docs/architecture.md)) |
-| **Frontend & UI** | Framework-free static SPA — HTML/CSS/JS, Leaflet (map), Chart.js (sensor trends) |
+| **Frontend & UI** | Build-free static SPA — HTML/JS, Tailwind CSS (CDN), Leaflet (map), Chart.js (sensor trends) |
 | **AI / ML** | Pandas, NumPy, Scikit-learn, LightGBM, IsolationForest, SHAP |
 | **Ops** | Docker, docker-compose |
 
@@ -120,15 +128,18 @@ Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 
 ## ⚠️ Known Limitations
 
-- All data is clearly-labelled **SIMULATION DATA** — there is no live SCADA/IoT feed integration.
-- The AI copilot's optional LLM mode targets an **OpenAI-compatible** chat-completions API
-  (OpenAI or Azure OpenAI). It is not yet wired to IBM watsonx.ai / IBM Bob specifically —
-  the tool-calling loop is isolated behind one adapter, so that swap is contained but not
-  done in this submission (see [`docs/solution-overview.md`](docs/solution-overview.md)).
+- All data is clearly-labelled **SIMULATION DATA** — there is no live SCADA/IoT feed
+  integration. Sensor telemetry is generated from a latent asset-health model, not read
+  from real equipment.
+- The watsonx.ai copilot path needs your own `WATSONX_API_KEY` + `WATSONX_PROJECT_ID`.
+  Without them the copilot runs its grounded local tool-router, which answers from the
+  same tools but composes text from templates rather than a language model.
 - SQLite is used as the data layer for demo reliability (zero infra); a documented,
   mechanical swap to PostgreSQL is described in [`docs/architecture.md`](docs/architecture.md)
   but not exercised here.
 - The crew pre-positioning optimiser is a greedy heuristic, not a full OR-Tools LP solve.
+- Work orders model dispatch/scheduling state but there is no downstream CMMS
+  (Maximo/SAP PM) integration — exports are CSV.
 
 ---
 

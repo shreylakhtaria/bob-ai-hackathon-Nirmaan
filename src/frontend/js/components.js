@@ -109,6 +109,13 @@ const C = {
         </div>
         <div class="font-body-sm text-[12px] text-on-surface-variant mt-0.5">${F.esc(al.reason)}</div>
         <div class="font-body-sm text-[12px] text-primary mt-0.5">▸ ${F.esc(al.recommended_action)}</div>
+        <div class="flex gap-1 mt-1.5">
+          ${al.asset_id ? `<button onclick="App.openAsset('${al.asset_id}')" class="px-1.5 py-0.5 bg-surface-container font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high" type="button">Open</button>
+          <button onclick="Actions.dispatch('${al.asset_id}', this)" class="px-1.5 py-0.5 bg-error-container text-on-error-container font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90" type="button">Dispatch</button>` : ''}
+          ${al.acknowledged
+            ? '<span class="px-1.5 py-0.5 bg-surface-container font-label-sm text-[10px] font-bold rounded uppercase text-on-surface-variant">Acknowledged</span>'
+            : `<button onclick="App.ackAlert('${al.alert_id}')" class="px-1.5 py-0.5 bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90" type="button">Ack</button>`}
+        </div>
       </div>
     </div>`;
   },
@@ -177,8 +184,8 @@ const C = {
       <td class="py-2 px-space-sm text-[11px] text-on-surface-variant max-w-[140px] truncate" title="${F.esc(x.recommended_action)}">${F.esc(x.recommended_action)}</td>
       <td class="py-2 px-space-sm text-right">
         <div class="flex items-center gap-1 justify-end">
-          <button class="px-2 py-1 bg-error text-on-error font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity" onclick="event.stopPropagation(); Pages.dispatchMaint('${x.asset_id}', 'Dispatch')" type="button">Dispatch</button>
-          <button class="px-2 py-1 bg-surface-container text-on-surface font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high transition-colors" onclick="event.stopPropagation(); Pages.dispatchMaint('${x.asset_id}', 'Defer')" type="button">Defer</button>
+          <button class="px-2 py-1 bg-error text-on-error font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity" onclick="event.stopPropagation(); Actions.dispatch('${x.asset_id}', this)" type="button">Dispatch</button>
+          <button class="px-2 py-1 bg-surface-container text-on-surface font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high transition-colors" onclick="event.stopPropagation(); Actions.defer('${x.asset_id}', this)" type="button">Defer</button>
         </div>
       </td>
     </tr>`;
@@ -201,7 +208,7 @@ const C = {
         <span class="font-semibold text-on-surface">MOVE:</span> ${F.esc(r.current_area)} → <span class="font-semibold text-primary">${F.esc(r.recommended_area)}</span>
       </div>
       <div class="font-body-sm text-[12px] text-on-surface-variant mb-space-sm">${F.esc(r.rationale)}</div>
-      <button onclick="Pages.repositionCrew('${r.crew_id}', '${r.recommended_area}')" class="w-full h-7 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
+      <button onclick="Actions.reposition('${r.crew_id}', '${r.recommended_area}', this)" class="w-full h-7 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center justify-center gap-1.5 uppercase tracking-wider hover:opacity-90 transition-opacity" type="button">
         <span class="material-symbols-outlined text-[14px]">check_circle</span>Authorize Pre-Positioning Order
       </button>
     </div>`;
@@ -212,4 +219,44 @@ const C = {
     <span class="text-on-surface-variant font-medium">${k}</span>
     <span class="font-mono font-semibold text-on-surface text-right">${v}</span>
   </div>`,
+};
+
+/* ─── Operator actions — every one hits a real endpoint and mutates state ─── */
+const Actions = {
+  async _run(btn, fn, { refresh = true } = {}) {
+    const label = btn ? btn.innerHTML : null;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    try {
+      const r = await fn();
+      Toast.ok(r.message || 'Done');
+      if (refresh) {
+        await App.refreshChrome();
+        if (['maintenance', 'crews', 'overview'].includes(App.current)) App.refresh();
+      }
+      return r;
+    } catch (e) {
+      Toast.err(e.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; if (label) btn.innerHTML = label; }
+    }
+  },
+
+  dispatch(assetId, btn)            { return this._run(btn, () => API.dispatch(assetId)); },
+
+  /* Pre-position a crew into an area: prefer the optimiser's own recommendation
+     for that area, otherwise send the first available crew. */
+  prepositionArea(areaId, btn) {
+    return this._run(btn, async () => {
+      const r = await API.crewRecommendations();
+      const rec = (r.recommendations || []).find(x => x.recommended_area === areaId);
+      const crewId = rec ? rec.crew_id
+        : (r.crews || []).find(c => c.availability === 'AVAILABLE')?.crew_id;
+      if (!crewId) throw new Error('No crew is currently AVAILABLE to pre-position');
+      return API.reposition(crewId, areaId);
+    });
+  },
+  defer(assetId, btn)               { return this._run(btn, () => API.defer(assetId, 'Deferred from maintenance queue')); },
+  schedule(assetId, btn)            { return this._run(btn, () => API.schedule(assetId)); },
+  reposition(crewId, areaId, btn)   { return this._run(btn, () => API.reposition(crewId, areaId)); },
+  release(crewId, btn)              { return this._run(btn, () => API.releaseCrew(crewId)); },
 };
