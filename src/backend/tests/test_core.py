@@ -82,7 +82,11 @@ def test_copilot_is_grounded():
     """Every factual copilot answer must carry tool evidence (no hallucination)."""
     r = copilot.answer("Why is T-1024 critical?")
     assert r["evidence"], "answer must cite tool evidence"
-    assert "T-1024" in r["answer"]
+    # The evidence itself must be about the right asset — this is robust to an
+    # LLM (when configured) rendering the id with different punctuation/spacing
+    # in its prose (e.g. a Unicode hyphen), which free-text substring matching
+    # on r["answer"] is not.
+    assert any(e.get("args", {}).get("asset_id") == "T-1024" for e in r["evidence"])
     assert r["mode"] in ("grounded", "llm")
 
 
