@@ -148,7 +148,9 @@
           <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
         </button>
         <div id="export-menu" class="hidden absolute right-0 top-9 w-56 bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50 py-1">
-          <div class="px-space-md py-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant">Download CSV</div>
+          <div class="px-space-md py-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant">Download PDF</div>
+          <button onclick="App.exportOperationsLog()" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Operations log report</button>
+          <div class="px-space-md py-1 mt-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant border-t border-outline-variant">Download CSV</div>
           <button onclick="App.exportCsv('maintenance')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Maintenance queue</button>
           <button onclick="App.exportCsv('assets')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Asset register</button>
           <button onclick="App.exportCsv('work_orders')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Work orders</button>
@@ -262,6 +264,8 @@
 <!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/components.js"></script>
 <script src="/js/pages.js"></script>

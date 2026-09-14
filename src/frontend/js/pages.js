@@ -858,8 +858,11 @@ Pages.maintenance = async () => {
         <span>CUST EXPOSED &gt;10K</span>
       </label>
       <span id="mf-count" class="font-mono text-[11px] text-on-surface-variant"></span>
-      <button onclick="App.exportCsv('maintenance')" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
-        <span class="material-symbols-outlined text-[15px]">download</span>Export Schedule
+      <button onclick="App.exportCsv('maintenance')" class="h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
+        <span class="material-symbols-outlined text-[15px]">table_view</span>CSV
+      </button>
+      <button onclick="App.exportMaintenanceSchedule()" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
+        <span class="material-symbols-outlined text-[15px]">download</span>Export Schedule (PDF)
       </button>
     </div>
     <!-- Work orders panel (real persisted operator actions) -->
@@ -1616,18 +1619,6 @@ Pages.copilot = async () => {
 /* ═══════════════════════════════════════════════════════════════
    OPERATOR BRIEF
    ══════════════════════════════════════════════════════════════ */
-Pages.exportBrief = async (btn) => {
-  if (btn) btn.disabled = true;
-  try {
-    const text = await API.briefText();
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-    downloadFile(url, `operator-brief-${new Date().toISOString().slice(0, 10)}.txt`);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    Toast.ok('Operator brief downloaded');
-  } catch (e) { Toast.err(e.message); }
-  if (btn) btn.disabled = false;
-};
-
 Pages.operatorBrief = async () => {
   const [b, metrics] = await Promise.all([API.brief(), API.metrics()]);
   const confidenceValue = metrics && (metrics.roc_auc ?? metrics.pr_auc ?? null);
@@ -1645,8 +1636,8 @@ Pages.operatorBrief = async () => {
         <p class="font-body-md text-body-md text-on-surface-variant">Shift handover summary — grid risk, asset status, recommended actions.</p>
       </div>
       <div class="flex gap-space-xs">
-        <button onclick="Pages.exportBrief(this)" class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
-          <span class="material-symbols-outlined text-[15px]">download</span>Export Brief
+        <button onclick="App.exportOperatorBrief()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
+          <span class="material-symbols-outlined text-[15px]">download</span>Export PDF
         </button>
         <button onclick="App.refresh()" class="h-8 px-space-md bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90" type="button">
           <span class="material-symbols-outlined text-[15px]">refresh</span>Regenerate
