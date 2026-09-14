@@ -2,48 +2,85 @@
 
 ## System Architecture
 
-[Describe the overall architecture of your system. Replace the Mermaid diagram below with your actual architecture.]
-
 ```mermaid
 graph TD
-    A[User / Browser] -->|HTTP| B[Frontend - React]
-    B -->|REST API| C[Backend - FastAPI]
-    C -->|SDK| D[watsonx.ai]
-    C -->|Query| E[PostgreSQL]
-    C -->|Publish| F[Slack Webhook]
-    D -->|Inference Result| C
+    A[Operator Browser] -->|HTTP| B[Frontend - static SPA<br/>Leaflet + Chart.js]
+    B -->|REST / JSON| C[Backend API - FastAPI]
+    C -->|read/write| E[(SQLite<br/>data/grid.db)]
+    C -->|score| D[ML: LightGBM failure model<br/>+ IsolationForest anomaly<br/>+ SHAP explainer]
+    C -->|compute| G[Decision engines:<br/>Grid Impact Score, crew optimiser,<br/>what-if simulation, briefing, alerts]
+    C -->|tool-calling| H[Copilot<br/>grounded local router,<br/>auto-upgrades to LLM mode]
+    H -->|optional| I[OpenAI-compatible<br/>chat completions API]
+    D -->|scores + explanations| E
+    G -->|reads| E
+    H -->|calls same tools as| G
 ```
 
 ## Components
 
 | Component | Technology | Responsibility |
 |---|---|---|
-| Frontend | [e.g., React 18] | [e.g., Dashboard UI, user interaction] |
-| Backend API | [e.g., FastAPI] | [e.g., Business logic, orchestration] |
-| AI / ML | [e.g., watsonx.ai] | [e.g., Anomaly scoring, classification] |
-| Database | [e.g., PostgreSQL] | [e.g., Storing pipeline events and scores] |
-| Notifications | [e.g., Slack API] | [e.g., Alerting on threshold breaches] |
+| Frontend | Static HTML/CSS/JS SPA (Leaflet for the map, Chart.js for sensor trends), served directly by FastAPI | Operator dashboard: overview, asset map, asset detail, maintenance queue, crew view, weather/outage view, what-if simulator, AI copilot chat |
+| Backend API | FastAPI (`backend/main.py`) | All REST endpoints under `/api/*`, request validation (Pydantic), static file serving, SPA fallback routing |
+| ML / AI | scikit-learn + LightGBM + SHAP (`backend/ml/`) | Feature engineering, failure-probability scoring, anomaly scoring, per-asset explainability |
+| Decision engines | Plain Python services (`backend/services/`) | Grid Impact Score, area outage risk, ranked maintenance queue, crew pre-positioning optimiser, what-if simulation, auto-briefing, alert generation |
+| Copilot | `backend/services/copilot.py` | Grounded, tool-calling operator Q&A — deterministic intent router by default; upgrades to real LLM function-calling over the same tool registry when an OpenAI-compatible API key is configured |
+| Data layer | SQLite via the Python stdlib `sqlite3` (`backend/db.py`) | Schema + data-access helpers for assets, sensor telemetry, weather, incidents, maintenance history, crews, predictions, area risk, alerts, and an audit log |
+| Data generation / training pipeline | `backend/data/generator.py`, `scripts/seed.py` | Generates a correlated synthetic grid (latent asset health → sensors → failures), engineers features, trains and evaluates the models, and seeds the database end-to-end |
 
 ## Data Flow
 
-[Describe how data moves through your system from input to output.]
-
-1. [e.g., Pipeline logs are ingested via a webhook from GitHub Actions]
-2. [e.g., Logs are preprocessed and chunked into 512-token segments]
-3. [e.g., Each chunk is sent to the watsonx.ai inference endpoint]
-4. [e.g., Anomaly scores are stored in PostgreSQL]
-5. [e.g., The React dashboard polls the API every 30 seconds to refresh]
+1. `scripts/seed.py` generates 220 synthetic assets with a latent health
+   value driven by age, load, maintenance history and weather stress, then
+   simulates 21 days of hourly sensor telemetry and historical incidents
+   from that latent health.
+2. `backend/ml/features.py` builds 28 engineered features per asset (24h/72h
+   rolling means, maxes and slopes, oil-quality degradation, asset age,
+   maintenance recency, historical failure count, 24h weather forecast).
+3. `backend/ml/model.py` trains a class-balanced LightGBM classifier
+   (time-aware 75/25 split) plus an IsolationForest anomaly detector, and
+   computes per-asset SHAP explanations; results are written into the
+   `predictions` table together with `top_risk_factors` and a Grid Impact
+   Score.
+4. `backend/services/impact.py`, `maintenance.py`, `crew.py`,
+   `simulation.py`, `briefing.py` and `alerts.py` read from that same
+   SQLite database to compute area-level outage risk, the ranked
+   maintenance queue, crew pre-positioning recommendations, what-if
+   simulations, the operator briefing, and alerts.
+5. `backend/main.py` exposes all of the above as REST/JSON under `/api/*`
+   and serves the static frontend at `/`.
+6. The frontend (`frontend/js/*`) polls/fetches these endpoints to render
+   the dashboard, map, charts, maintenance queue, crew view and simulator,
+   and posts operator questions to `/api/copilot/query`.
+7. The copilot answers either via a deterministic tool router (default, no
+   API key needed) or by giving an LLM real function-calling access to the
+   exact same tool functions — every answer returns the `evidence` (tool
+   name, arguments, and result) it was built from, so nothing is invented.
 
 ## Security Considerations
 
-[Note any security decisions relevant to the architecture — even if basic.]
-
-- [e.g., API keys stored in environment variables, never committed to git]
-- [e.g., All API routes require a Bearer token]
-- [e.g., Database credentials rotated via IBM Secrets Manager]
+- All request bodies are validated with Pydantic models (`SimulationRequest`,
+  `CopilotRequest`) before touching the database or engines.
+- Secrets (LLM API keys) are read only from environment variables via
+  `backend/config.py` — nothing is hardcoded, and `.env` is git-ignored.
+- Every recommendation, simulation and copilot query is written to an
+  `audit_log` table for traceability.
+- The copilot can **only** call a fixed allow-list of read/simulate tool
+  functions (`copilot.TOOLS`) — it has no path to arbitrary code execution
+  or arbitrary SQL, even in LLM mode.
+- All data surfaced to the operator is explicitly labelled
+  **SIMULATION DATA** (`config.IS_SIMULATION`) so it can never be mistaken
+  for a live SCADA feed.
 
 ## Scalability Notes
 
-[Optional: how would this scale beyond the hackathon prototype?]
-
-[e.g., "The FastAPI backend is stateless and could be horizontally scaled behind a load balancer. The watsonx.ai calls are the bottleneck and would benefit from request batching."]
+The FastAPI backend is stateless per-request and could be horizontally
+scaled behind a load balancer. The current SQLite data layer is a deliberate
+demo-reliability trade-off (zero infrastructure, fully reproducible); the
+codebase isolates all SQL access behind `backend/db.py`, so moving to
+PostgreSQL is a contained change — replace the connection helper, swap `?`
+placeholders for `%s` and `AUTOINCREMENT` for `SERIAL`, and everything above
+`db.py` (services, ML, API routes) is unaffected. At real-world scale the
+next bottlenecks would be the LightGBM scoring pass (batchable/schedulable
+as an offline job rather than inline) and, if the LLM copilot mode is
+enabled, the external LLM API call latency.

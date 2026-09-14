@@ -2,40 +2,116 @@
 
 ## What We Built
 
-[Describe your solution in plain language. Avoid jargon — write as if explaining to a smart colleague unfamiliar with your tech stack.]
+**Grid Risk Command Center** is an operator-facing decision-support platform
+that turns raw asset-health, weather and incident data into grounded
+operational decisions: *what will fail, where, when, why, what happens if it
+does, and what the operator should do now.*
+
+It is explicitly **not a chatbot**. Every number the UI or the AI copilot
+shows is grounded in a real model output or a real database row — nothing is
+invented. All data is clearly labelled **SIMULATION DATA** throughout the
+product, since this is a hackathon build without access to live SCADA feeds.
+
+The system delivers the full decision chain:
+
+**PREDICT → EXPLAIN → PRIORITISE → SIMULATE → OPTIMISE → ACT**
 
 ## How It Works
 
-[Explain the core mechanism step by step. A numbered list or simple flow works well here.]
-
-1. [Step 1: e.g., "User connects their GitHub repository via OAuth"]
-2. [Step 2: e.g., "The system ingests pipeline logs and feeds them to watsonx.ai"]
-3. [Step 3: e.g., "An anomaly score is computed and displayed on the dashboard"]
-4. [Step 4: e.g., "Alerts are sent to Slack when the score exceeds a threshold"]
+1. **Generate a realistic grid.** 220 synthetic assets (transformers, circuit
+   breakers, substations, switchgear, feeders) are created with a *latent
+   health* value that decays with age, chronic overloading, poor maintenance
+   recency and acute weather stress. Hourly sensor telemetry (temperature,
+   vibration, oil quality, partial discharge, load) is driven by that latent
+   health, and failures follow a smooth probabilistic hazard curve rather
+   than random noise — so the resulting labels are learnable and calibrated,
+   not saturated.
+2. **Predict.** A LightGBM classifier (28 engineered features: 24h/72h
+   rolling stats and slopes, oil-quality degradation, asset age, maintenance
+   recency, historical failures, 24h weather forecast) scores every asset's
+   failure probability. An IsolationForest adds an anomaly score on top.
+3. **Explain.** Per-asset SHAP (TreeExplainer) attributions are converted
+   into human-readable drivers (e.g. *"partial-discharge rise (72h): +65
+   pC"*). The AI copilot can only relay these — it can never invent a reason.
+4. **Prioritise.** Failure probability alone is a poor ranking signal — a
+   20%-probability asset serving 100k customers can matter more than a 60%
+   asset serving 1k. The **Grid Impact Score** (0–100) blends failure
+   probability, asset criticality, customers served, downstream network
+   exposure and current weather risk into one interpretable ranking that
+   drives the maintenance queue.
+5. **Simulate.** An operator can run "what happens if asset X fails right
+   now" or "what happens if a severe storm hits area Y" and see customers
+   affected, downstream assets, nearest available crew, and estimated
+   outage duration — before either event actually happens.
+6. **Optimise.** A greedy crew pre-positioning optimiser recommends which
+   field crews should reposition toward high-risk areas, and by how much
+   that would cut response time.
+7. **Act.** Everything above surfaces as a ranked maintenance queue, an
+   auto-generated operations briefing, intelligent alerts, and a
+   grounded AI copilot that answers operator questions ("Why is T-1024
+   critical?", "What happens if it fails?") by calling the same backend
+   tools and citing exactly which tool calls and data it used.
 
 ## Architecture Diagram
 
-> See [`architecture.md`](architecture.md) for the detailed diagram.
-
-[Optionally include a simple ASCII or Mermaid diagram here for quick reference.]
+> See [`architecture.md`](architecture.md) for the full diagram and component
+> breakdown.
 
 ```
-[User] → [Frontend: React] → [API: FastAPI] → [watsonx.ai] → [Dashboard]
-                                    ↓
-                             [PostgreSQL DB]
+[Operator Browser] → [Static SPA: map, dashboards, copilot UI]
+        │ REST/JSON
+        ▼
+[FastAPI backend] → [ML: LightGBM + IsolationForest + SHAP]
+        │                 │
+        ▼                 ▼
+[SQLite data layer]  [Decision engines: Grid Impact Score,
+ (assets, sensors,    crew optimiser, what-if simulation,
+  weather, incidents,  briefing, alerts]
+  predictions, ...)         │
+                            ▼
+                    [Grounded copilot — tool-calling,
+                     auto-upgrades to real LLM function-
+                     calling if an OpenAI-compatible key
+                     is configured]
 ```
 
 ## Key Design Decisions
 
 | Decision | Rationale |
 |---|---|
-| [e.g., Used watsonx.ai for anomaly detection] | [e.g., Pre-trained models reduced time-to-value vs. building from scratch] |
-| [Decision 2] | [Rationale 2] |
-| [Decision 3] | [Rationale 3] |
+| SQLite via stdlib `sqlite3` instead of Postgres | Zero infrastructure to fail during a live demo; fully reproducible from a fresh clone. One-line swap to Postgres is documented (see `docs/architecture.md`). |
+| Framework-free static frontend served by FastAPI | No `npm install` / frontend build step that can fail or drift right before a demo. |
+| Grounded, tool-calling copilot with no required API key | The copilot must work in the demo room with no internet/API key. A deterministic intent router answers from real tool calls by default, and *auto-upgrades* to true LLM function-calling over the same tools if an OpenAI-compatible key is present — the answers stay grounded either way. |
+| Correlated synthetic data instead of random noise | A model trained on random labels can't demonstrate real predictive skill or explainability. Driving sensors from a latent health variable with a smooth failure hazard produces calibrated, non-saturated probabilities that SHAP can meaningfully explain. |
+| Grid Impact Score as an explicit, interpretable blend (not a black box) | Judges and operators alike need to see *why* an asset outranks another — every weighted component is stored and shown in the UI, not hidden inside a model. |
 
-## IBM Technologies Used
+## What the User Experience Looks Like
 
-[Explain specifically HOW you used each IBM technology — not just that you used it.]
+An operator opens the dashboard and immediately sees overall grid risk,
+critical-asset counts, customers at risk, a live map, and active alerts.
+Clicking a high-risk marker opens an asset detail view with sensor trend
+charts and a plain-language explanation of why the asset is risky. The
+maintenance queue is ranked by grid impact, not raw probability — so the
+highest-consequence asset floats to the top even if it isn't the single
+highest-probability one. A "what-if" panel lets the operator simulate a
+failure or a storm before it happens, and the AI copilot answers natural-
+language questions by citing the exact tool calls and data behind each
+answer.
 
-- **[IBM Tech 1, e.g., watsonx.ai]:** [How it was used — e.g., "Used the `ibm/granite-13b-instruct-v2` model via the Python SDK to classify anomaly types from log text."]
-- **[IBM Tech 2]:** [How it was used]
+## IBM / LLM Copilot Integration
+
+The copilot's optional LLM mode talks to any **OpenAI-compatible chat
+completions API** (OpenAI or Azure OpenAI) using true function/tool calling
+over the same fixed set of grounded tools the local router uses — set
+`OPENAI_API_KEY` (or the Azure equivalent) and it upgrades automatically,
+with no code changes and no possibility of ungrounded answers, since the
+model can only call the allow-listed tools.
+
+**Honest limitation:** this repository currently wires the LLM mode to the
+OpenAI/Azure OpenAI chat-completions contract, not directly to IBM
+watsonx.ai / IBM Bob's API surface. Because the tool-calling loop in
+`backend/services/copilot.py` is already isolated behind one HTTP call and a
+fixed `TOOLS` registry, pointing it at watsonx.ai would mean swapping that
+one request/response adapter — the tool definitions, grounding guarantees,
+and evidence trail do not need to change. See `known_limitations` in
+[`submission.yaml`](../submission.yaml) for the same note.

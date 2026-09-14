@@ -1,0 +1,14 @@
+services:
+  grid-command-center:
+    build: .
+    container_name: grid-risk-command-center
+    ports:
+      - "8000:8000"
+    environment:
+      # Optional: enable the LLM copilot (otherwise grounded local mode is used)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    restart: unless-stopped

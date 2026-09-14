@@ -1,47 +1,50 @@
-# Source Code
+# Source Code — Grid Risk Command Center
 
-Place all your project's source code in this folder.
+A FastAPI backend + framework-free static frontend, monorepo-style:
 
-## Structure Guidelines
-
-Organize your code logically. Here are common patterns — use whatever fits
-your project:
-
-### Web Application
 ```
 src/
-  backend/        ← API server code
-  frontend/       ← UI code
-  shared/         ← Shared utilities/types
+├── backend/
+│   ├── main.py              # FastAPI app — all REST endpoints + static mount
+│   ├── config.py            # tunables, thresholds, env vars
+│   ├── db.py                # SQLite schema + data-access helpers + audit log
+│   ├── data/generator.py    # correlated synthetic data generator
+│   ├── ml/
+│   │   ├── features.py      # rolling/slope feature engineering
+│   │   └── model.py         # train / evaluate / score / anomaly / SHAP explain
+│   ├── services/
+│   │   ├── impact.py        # Grid Impact Score + area outage risk
+│   │   ├── maintenance.py   # ranked maintenance queue
+│   │   ├── crew.py          # crew pre-positioning optimiser
+│   │   ├── simulation.py    # what-if asset-failure & weather-event engines
+│   │   ├── briefing.py      # auto operator briefing
+│   │   ├── alerts.py        # intelligent alert generation
+│   │   └── copilot.py       # grounded tool-calling copilot (+ optional LLM mode)
+│   └── tests/test_core.py   # critical-logic tests
+├── frontend/
+│   ├── index.html
+│   ├── css/style.css
+│   └── js/                  # api.js · components.js · pages.js · app.js
+├── scripts/seed.py          # end-to-end pipeline: generate → train → score → seed DB
+├── requirements.txt
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+└── run.sh                   # one-shot install + seed + launch
 ```
 
-### Data / AI Project
-```
-src/
-  data/           ← Data ingestion / preprocessing
-  models/         ← ML model code
-  api/            ← Serving layer
-  notebooks/      ← Jupyter notebooks (exploration)
-```
+## Running it
 
-### CLI / Script-based Tool
-```
-src/
-  cli/            ← CLI entry points
-  lib/            ← Core logic
-  utils/          ← Helpers
+See [`../docs/setup-guide.md`](../docs/setup-guide.md) for full instructions. Short version:
+
+```bash
+cd src
+pip install -r requirements.txt
+python -m scripts.seed        # generates data + trains models (~60s first run)
+uvicorn backend.main:app --reload --port 8000
 ```
 
-## Important Files to Include
-
-- `requirements.txt` or `package.json` — dependency manifest
-- `.env.example` — template for environment variables (NEVER commit `.env`)
-- Any database migration files
-- Configuration files
-
-## What NOT to Include in src/
-
-- `.env` files with real secrets
-- Large binary files (use Git LFS or link externally)
-- `node_modules/` or `venv/` (these are in `.gitignore`)
-- Build artifacts (`dist/`, `build/`, `__pycache__/`)
+The generated SQLite database (`src/data/grid.db`) and trained model files
+(`src/models/*.joblib`) are build artifacts produced by `scripts/seed.py` — they
+are not committed and are regenerated on every fresh setup (deterministic given
+the same `SEED`).

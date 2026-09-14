@@ -21,13 +21,30 @@ Power transformer and substation failures cause blackouts costing utilities $1M+
 
 ## 💡 Solution
 
-*To be added.*
+**Grid Risk Command Center** — an operator-facing decision-support platform that turns
+raw asset-health, weather and incident data into grounded operational decisions: what
+will fail, where, when, why, what happens if it does, and what to do now. It delivers
+the full chain **PREDICT → EXPLAIN → PRIORITISE → SIMULATE → OPTIMISE → ACT**, and every
+number shown — in the dashboard or from the AI copilot — is grounded in a real model
+output or database row. All data is clearly labelled **SIMULATION DATA**. See
+[`docs/solution-overview.md`](docs/solution-overview.md) for the full write-up.
 
 ---
 
 ## ✨ Key Features
 
-*To be added.*
+- **Failure prediction** — LightGBM (28 engineered features) + IsolationForest anomaly
+  scoring, evaluated at **ROC-AUC 0.979** on held-out data.
+- **Explainability** — per-asset SHAP attributions surfaced as human-readable drivers
+  (e.g. *"partial-discharge rise (72h): +65 pC"*); the copilot can only relay these.
+- **Grid Impact Score** — an interpretable 0–100 blend of failure probability,
+  criticality, customers served, network exposure and weather risk that drives the
+  maintenance queue (raw probability alone is a poor ranking signal).
+- **What-if simulation** — simulate an asset failure or a severe-weather event and see
+  customers affected, downstream assets, nearest crew and estimated outage duration.
+- **Grounded AI copilot** — answers operator questions using only real backend tool
+  results, cites its evidence, and auto-upgrades to true LLM function-calling when an
+  API key is configured.
 
 ---
 
@@ -35,20 +52,23 @@ Power transformer and substation failures cause blackouts costing utilities $1M+
 
 | Category | Technologies |
 |---|---|
-| **Languages** | Python, TypeScript, SQL |
-| **Frameworks** | Next.js, React, FastAPI |
-| **IBM Technologies** | IBM watsonx / IBM Bob (LLM tool calling) |
-| **Databases** | PostgreSQL + TimescaleDB, Redis |
-| **Frontend & UI** | Tailwind CSS, shadcn/ui, ECharts, Mapbox / Leaflet |
-| **AI / ML** | Python, Pandas, NumPy, Scikit-learn, XGBoost / LightGBM, Isolation Forest, SHAP |
-| **Optimization** | Google OR-Tools |
+| **Languages** | Python, JavaScript, SQL |
+| **Frameworks** | FastAPI, Pydantic, Uvicorn |
+| **AI / LLM copilot** | Grounded tool-calling router (no key required); auto-upgrades to OpenAI / Azure OpenAI-compatible function-calling when configured — see [Known Limitations](#️-known-limitations) |
+| **Databases** | SQLite (documented one-line swap to PostgreSQL, see [`docs/architecture.md`](docs/architecture.md)) |
+| **Frontend & UI** | Framework-free static SPA — HTML/CSS/JS, Leaflet (map), Chart.js (sensor trends) |
+| **AI / ML** | Pandas, NumPy, Scikit-learn, LightGBM, IsolationForest, SHAP |
+| **Ops** | Docker, docker-compose |
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-├── src/                  # All source code
+├── src/                  # All source code (see src/README.md for the full layout)
+│   ├── backend/          # FastAPI app, ML pipeline, decision-engine services
+│   ├── frontend/         # Static SPA — dashboard, map, copilot UI
+│   └── scripts/seed.py   # generate data → train models → seed DB
 ├── docs/                 # Written documentation
 │   ├── problem-statement.md
 │   ├── solution-overview.md
@@ -65,23 +85,25 @@ Power transformer and substation failures cause blackouts costing utilities $1M+
 
 ## ⚡ How to Run
 
-> **Copy these exact steps from your [`docs/setup-guide.md`](docs/setup-guide.md)**
+> Full details in [`docs/setup-guide.md`](docs/setup-guide.md)
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/[your-repo].git
-cd [your-repo]
+git clone https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan.git
+cd bob-ai-hackathon-Nirmaan/src
 
 # 2. Install dependencies
-npm ci
+pip install -r requirements.txt
 
-# 3. Configure environment
-cp .env.example .env
-# Edit .env with your values
+# 3. Generate synthetic data + train the ML models (~60s first run)
+python -m scripts.seed
 
 # 4. Run the project
-npm run dev
+uvicorn backend.main:app --reload --port 8000
+# → open http://localhost:8000
 ```
+
+Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 
 ---
 
@@ -98,12 +120,25 @@ npm run dev
 
 ## ⚠️ Known Limitations
 
-- [Limitation 1: e.g., "Authentication is mocked — not production-ready"]
-- [Limitation 2: e.g., "Only tested on Chrome"]
-- [Limitation 3: e.g., "Feature X is scaffolded but not fully implemented"]
+- All data is clearly-labelled **SIMULATION DATA** — there is no live SCADA/IoT feed integration.
+- The AI copilot's optional LLM mode targets an **OpenAI-compatible** chat-completions API
+  (OpenAI or Azure OpenAI). It is not yet wired to IBM watsonx.ai / IBM Bob specifically —
+  the tool-calling loop is isolated behind one adapter, so that swap is contained but not
+  done in this submission (see [`docs/solution-overview.md`](docs/solution-overview.md)).
+- SQLite is used as the data layer for demo reliability (zero infra); a documented,
+  mechanical swap to PostgreSQL is described in [`docs/architecture.md`](docs/architecture.md)
+  but not exercised here.
+- The crew pre-positioning optimiser is a greedy heuristic, not a full OR-Tools LP solve.
 
 ---
 
 ## 🏅 What We're Most Proud Of
 
-[Tell the judges what part of your submission is strongest and worth paying close attention to.]
+The **Grid Impact Score** — the difference between a model that ranks assets by raw
+failure probability and a system operators can actually trust to prioritise correctly.
+Our seeded demo hero (**T-1024**) ranks only ~#13 by raw probability but **#1** on the
+maintenance queue once customer count, network exposure and weather risk are factored
+in — exactly the failure mode this project exists to fix. We're also proud that the
+synthetic data isn't random noise: asset health is a latent variable driving every
+sensor reading and failure label, which is what lets SHAP produce genuinely meaningful,
+non-fabricated explanations instead of noise attribution.
