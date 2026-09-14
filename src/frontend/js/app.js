@@ -139,7 +139,7 @@ const App = {
         : 'flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none';
     });
     const crumb = NAV.find(n => n.id === realId)?.crumb || realId;
-    document.getElementById('breadcrumb-page').textContent = crumb;
+    document.title = `${crumb} · Grid Risk Advisor`;
   },
 
   setGridRisk(lvl) {
@@ -481,16 +481,8 @@ const App = {
       this._stats = s;
       const set = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
 
-      set('hdr-api', `API ${API.lastStatus || '--'} ${API.lastStatus === 200 ? 'OK' : ''}`.trim());
-      set('hdr-model', `Model ${s.model || '--'}`);
-      set('hdr-auc', s.roc_auc != null ? `ROC-AUC ${s.roc_auc.toFixed(3)}` : 'ROC-AUC --');
-      set('hdr-latency', API.lastLatencyMs != null ? `${API.lastLatencyMs}ms` : '--');
       set('sidebar-feed', `${F.num(s.sensor_rows)} rows`);
       set('sidebar-outages', `${s.critical_assets ?? '--'} Active`);
-
-      // "Telemetry lock" = share of assets that actually have a live prediction
-      const lock = s.assets ? Math.min(100, (s.sensor_rows > 0 ? 100 : 0)) : 0;
-      set('hdr-lock', s.last_sensor_ts ? `${lock.toFixed(2)}%` : 'NO FEED');
 
       const badge = document.getElementById('notif-badge');
       if (badge) {
@@ -660,9 +652,6 @@ const App = {
 
   async init() {
     this.buildNav();
-    setInterval(() => {
-      document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
-    }, 1000);
     try {
       const h = await API.health();
       if (!h.seeded) {

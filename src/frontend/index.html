@@ -139,11 +139,6 @@
             <span class="inline-block w-2 h-2 rounded-full bg-error animate-pulse"></span>
             GRID STATUS: ELEVATED RISK
           </span>
-          <span class="hidden lg:inline text-outline-variant">|</span>
-          <span class="hidden lg:inline font-telemetry-display text-[11px] leading-tight text-on-surface-variant truncate">
-            <span id="hdr-api">API --</span> &bull; <span id="hdr-model">Model --</span> &bull;
-            <span id="hdr-auc">ROC-AUC --</span> &bull; Grid Time: <span id="clock">--:--:--</span>
-          </span>
         </div>
       </div>
     </div>
@@ -252,22 +247,6 @@
 <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
 <div class="lg:pl-72 flex flex-col min-h-screen">
 
-  <!-- Breadcrumb sub-bar (fixed below header) -->
-  <div class="fixed top-14 md:top-16 left-0 lg:left-72 right-0 z-30 bg-surface border-b border-outline-variant h-8 px-space-sm md:px-gutter flex items-center justify-between overflow-hidden">
-    <div class="flex items-center gap-space-xs font-label-sm text-label-sm min-w-0 truncate">
-      <span class="hidden sm:inline text-on-surface-variant uppercase">Grid Ops</span>
-      <span class="hidden sm:inline text-outline-variant">/</span>
-      <span class="text-primary font-mono truncate" id="breadcrumb-page">Overview</span>
-    </div>
-    <div class="hidden md:flex items-center gap-space-md font-label-sm text-label-sm flex-shrink-0">
-      <span class="flex items-center gap-1 text-on-surface-variant">
-        <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Telemetry Lock: <span id="hdr-lock">--</span>
-      </span>
-      <span class="text-outline-variant">|</span>
-      <span class="font-mono text-on-surface-variant">LATENCY: <span id="hdr-latency">--</span></span>
-    </div>
-  </div>
-
   <!-- Metrics & health drawer (populated from /api/system/stats + /api/model/metrics) -->
   <div id="metrics-drawer" class="hidden fixed bottom-0 left-0 lg:left-72 right-0 z-40 bg-surface-container-lowest border-t border-outline-variant shadow-lg max-h-[45vh] overflow-y-auto">
     <div class="px-gutter py-2 bg-surface-container-high border-b border-outline-variant flex items-center justify-between sticky top-0">
@@ -282,8 +261,8 @@
     <div id="metrics-drawer-body" class="p-gutter"></div>
   </div>
 
-  <!-- Page content (pt-24 = 64px header + 32px breadcrumb; shrinks to match the 56px mobile header) -->
-  <main class="w-full pt-[88px] md:pt-24 px-space-sm md:px-gutter pb-space-xl bg-surface flex-1 min-w-0" id="view">
+  <!-- Page content (pt-16/20 clears the fixed header now that the redundant breadcrumb bar is gone) -->
+  <main class="w-full pt-[68px] md:pt-20 px-space-sm md:px-gutter pb-space-xl bg-surface flex-1 min-w-0" id="view">
     <div class="flex items-center justify-center h-64">
       <div class="flex flex-col items-center gap-space-sm text-on-surface-variant">
         <span class="material-symbols-outlined text-[36px] text-outline animate-pulse">electrical_services</span>
