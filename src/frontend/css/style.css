@@ -44,7 +44,15 @@ canvas { max-width: 100%; }
   0%   { opacity: 0.7; transform: scale(1); }
   100% { opacity: 0;   transform: scale(2.2); }
 }
-.leaflet-pulse-ring { animation: map-ring 1.5s ease-out infinite; }
+/* Leaflet draws each circle marker as an SVG <path>; without transform-box,
+   `scale()` expands from the SVG viewport's top-left corner instead of the
+   ring's own center, so the "pulse" drifts across the map instead of
+   staying put on the asset. Pin the transform origin to the shape itself. */
+.leaflet-pulse-ring {
+  animation: map-ring 1.5s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
 
 @keyframes slide-in-right {
   from { opacity: 0; transform: translateX(12px); }
