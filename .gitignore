@@ -83,7 +83,9 @@ demo/*.avi
 demo/*.mkv
 
 # ── Docker volumes / local data ───────────────────────────────────────────────
-data/
+# (anchored to the generated runtime dirs only — src/backend/data/ is source code)
+/src/data/
+/src/models/
 logs/
 *.log
 

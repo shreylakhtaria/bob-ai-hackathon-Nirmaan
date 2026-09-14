@@ -1,0 +1,36 @@
+/* API client + shared formatting helpers */
+const API = {
+  async get(path){ const r = await fetch('/api'+path); if(!r.ok) throw new Error(await r.text()); return r.json(); },
+  async post(path, body){ const r = await fetch('/api'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); return r.json(); },
+  health:()=>API.get('/health'),
+  summary:()=>API.get('/dashboard/summary'),
+  assets:(q='')=>API.get('/assets'+q),
+  asset:(id)=>API.get('/assets/'+id),
+  sensors:(id,h=168)=>API.get(`/assets/${id}/sensors?hours=${h}`),
+  risksCritical:()=>API.get('/risks/critical'),
+  areas:()=>API.get('/areas/risk'),
+  weather:()=>API.get('/weather'),
+  weatherSeries:(a,h=96)=>API.get(`/weather/series?area=${a}&hours=${h}`),
+  maintenance:(q='')=>API.get('/maintenance/priorities'+q),
+  crews:()=>API.get('/crews/recommendations'),
+  map:()=>API.get('/map'),
+  brief:()=>API.get('/brief'),
+  metrics:()=>API.get('/model/metrics'),
+  alerts:()=>API.get('/alerts'),
+  simulate:(b)=>API.post('/simulation',b),
+  copilot:(q)=>API.post('/copilot/query',{query:q}),
+};
+
+const F = {
+  pct:(v)=> v==null?'--':(v*100).toFixed(0)+'%',
+  pct1:(v)=> v==null?'--':(v*100).toFixed(1)+'%',
+  num:(v)=> v==null?'--':Number(v).toLocaleString(),
+  score:(v)=> v==null?'--':Math.round(v),
+  date:(s)=>{ if(!s) return '--'; const d=new Date(s); return isNaN(d)?s:d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); },
+  day:(s)=>{ if(!s) return '--'; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString(); },
+  riskColor:(lvl)=>({CRITICAL:'#ef4444',HIGH:'#f59e0b',MEDIUM:'#eab308',LOW:'#22c55e',ELEVATED:'#f59e0b',NORMAL:'#22c55e'}[lvl]||'#67788f'),
+  badge:(lvl)=> `<span class="badge b-${lvl}">${lvl||'--'}</span>`,
+  probBar:(v,lvl)=>{ const c=F.riskColor(lvl||(v>=.75?'CRITICAL':v>=.55?'HIGH':v>=.3?'MEDIUM':'LOW')); return `<div class="pbar"><span style="width:${Math.round((v||0)*100)}%;background:${c}"></span></div>`; },
+  esc:(s)=> (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])),
+  md:(s)=> F.esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>'),
+};
