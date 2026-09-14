@@ -158,13 +158,17 @@ const App = {
   },
 
   loading() {
-    document.getElementById('view').innerHTML = `
-      <div class="flex items-center justify-center h-64">
-        <div class="flex flex-col items-center gap-space-sm text-on-surface-variant">
-          <span class="material-symbols-outlined text-[36px] text-outline animate-pulse">electrical_services</span>
-          <span class="font-label-sm text-label-sm uppercase tracking-widest">Loading…</span>
-        </div>
-      </div>`;
+    killCharts();
+    const el = document.getElementById('view');
+    if (el) {
+      el.innerHTML = typeof C !== 'undefined' && C.skeletonLoader ? C.skeletonLoader() : `
+        <div class="flex items-center justify-center h-64">
+          <div class="flex flex-col items-center gap-space-sm text-on-surface-variant">
+            <span class="material-symbols-outlined text-[36px] text-primary animate-pulse">electrical_services</span>
+            <span class="font-label-sm text-label-sm uppercase tracking-widest">Ingesting SCADA Telemetry…</span>
+          </div>
+        </div>`;
+    }
   },
 
   errorView(msg) {
@@ -341,9 +345,10 @@ const App = {
         ])
       );
       this._pdfSave(state, `grid-operations-log-${new Date().toISOString().slice(0, 10)}.pdf`);
+      Toast.ok('Operations log PDF generated successfully');
     } catch (e) {
       console.error(e);
-      alert(`Unable to export log PDF: ${e.message}`);
+      Toast.err(`Unable to export log PDF: ${e.message}`);
     }
   },
 
@@ -392,9 +397,10 @@ const App = {
         ])
       );
       this._pdfSave(state, `maintenance-schedule-${new Date().toISOString().slice(0, 10)}.pdf`);
+      Toast.ok('Maintenance schedule PDF generated successfully');
     } catch (e) {
       console.error(e);
-      alert(`Unable to export maintenance schedule PDF: ${e.message}`);
+      Toast.err(`Unable to export maintenance schedule PDF: ${e.message}`);
     }
   },
 
@@ -423,9 +429,10 @@ const App = {
         `PR-AUC: ${metrics && metrics.pr_auc != null ? metrics.pr_auc : 'N/A'}`,
       ]);
       this._pdfSave(state, `operator-brief-${new Date().toISOString().slice(0, 10)}.pdf`);
+      Toast.ok('Operator brief PDF generated successfully');
     } catch (e) {
       console.error(e);
-      alert(`Unable to export operator brief PDF: ${e.message}`);
+      Toast.err(`Unable to export operator brief PDF: ${e.message}`);
     }
   },
 
@@ -680,6 +687,13 @@ python -m scripts.seed</pre>
     });
 
     this.go('overview');
+  },
+
+  toast(message, kind = 'ok', duration = 4000) {
+    return Toast.show(message, kind, duration);
+  },
+  showToast(message, kind = 'ok', duration = 4000) {
+    return Toast.show(message, kind, duration);
   }
 };
 

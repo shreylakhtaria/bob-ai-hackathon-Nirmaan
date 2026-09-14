@@ -219,6 +219,192 @@ const C = {
     <span class="text-on-surface-variant font-medium">${k}</span>
     <span class="font-mono font-semibold text-on-surface text-right">${v}</span>
   </div>`,
+
+  /* SCADA Ingestion & Contingency Inference Skeleton Loader (Image 4 reference) */
+  skeletonLoader() {
+    return `<div class="flex flex-col gap-space-md w-full animate-fade-in">
+      <!-- Ingestion Pipeline Stage Banner -->
+      <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-space-md shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-space-sm border-b border-outline-variant/40">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase tracking-wider">
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>STAGE 3/4 ACTIVE
+            </span>
+            <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase tracking-tight">Telemetry Ingestion &amp; Contingency Inference Engine</span>
+          </div>
+          <div class="flex items-center gap-space-md font-mono text-[11px] text-on-surface-variant">
+            <span class="text-primary font-bold">88.2% INITIALIZED</span>
+            <span>ELAPSED: 0.88s &bull; EST REMAINING: 0.22s</span>
+          </div>
+        </div>
+        <!-- 4 Pipeline Stage Badges -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm mt-space-sm">
+          <div class="flex items-center gap-2 p-1.5 bg-surface-container-low rounded border border-outline-variant/40">
+            <span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+            <div class="min-w-0 flex-1">
+              <div class="font-label-sm text-[10px] font-bold text-on-surface truncate">1. SCADA Gateway</div>
+              <div class="font-mono text-[9px] text-on-surface-variant">TLS 1.3 [12ms]</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 p-1.5 bg-surface-container-low rounded border border-outline-variant/40">
+            <span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+            <div class="min-w-0 flex-1">
+              <div class="font-label-sm text-[10px] font-bold text-on-surface truncate">2. Synchrophasor</div>
+              <div class="font-mono text-[9px] text-on-surface-variant">IEEE C37.118 [4.8kHz]</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 p-1.5 bg-primary-container text-on-primary rounded border border-primary/50">
+            <span class="material-symbols-outlined text-[16px] text-on-primary animate-spin">sync</span>
+            <div class="min-w-0 flex-1">
+              <div class="font-label-sm text-[10px] font-bold truncate">3. DGA Telemetry</div>
+              <div class="font-mono text-[9px] opacity-90">1,194/1,420 (84%)</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 p-1.5 bg-surface-container rounded border border-outline-variant/40 opacity-70">
+            <span class="material-symbols-outlined text-[16px] text-on-surface-variant">hourglass_empty</span>
+            <div class="min-w-0 flex-1">
+              <div class="font-label-sm text-[10px] font-bold text-on-surface-variant truncate">4. XGBoost Ingest</div>
+              <div class="font-mono text-[9px] text-on-surface-variant">v4.2.1 [QUEUED]</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Skeleton Row -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-space-sm">
+        ${[1, 2, 3, 4, 5].map(() => `
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 p-space-md shadow-sm flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <div class="h-3 w-20 sk-shimmer rounded"></div>
+              <div class="w-4 h-4 sk-shimmer rounded-full"></div>
+            </div>
+            <div class="h-6 w-28 sk-shimmer-dark rounded"></div>
+            <div class="h-2.5 w-36 sk-shimmer rounded"></div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Main 12-column Skeleton Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+        <!-- Left: Telemetry Live Stream & DGA Curve (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-space-md">
+          <!-- Critical Telemetry Live Stream Table Skeleton -->
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm overflow-hidden">
+            <div class="px-space-md py-2 bg-surface-container-high flex items-center justify-between border-b border-outline-variant/50">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
+                <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Critical Telemetry Live Stream</span>
+              </div>
+              <span class="font-mono text-[10px] text-primary font-bold">SYNCING 4.8 KHZ</span>
+            </div>
+            <div class="p-space-md space-y-3">
+              ${[1, 2, 3, 4, 5].map(i => `
+                <div class="flex items-center justify-between gap-2 py-1.5 border-b border-surface-container-low last:border-0">
+                  <div class="flex items-center gap-2 w-1/4">
+                    <span class="w-2 h-2 rounded-full ${i <= 2 ? 'bg-error animate-pulse' : 'bg-outline'}"></span>
+                    <div class="h-3.5 w-16 sk-shimmer-dark rounded"></div>
+                  </div>
+                  <div class="h-3.5 w-24 sk-shimmer rounded"></div>
+                  <div class="h-3.5 w-14 sk-shimmer rounded"></div>
+                  <div class="h-3 w-16 sk-shimmer rounded-full"></div>
+                  <div class="h-5 w-12 sk-shimmer rounded"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Substation DGA & Thermal Runaway Telemetry Curve Skeleton -->
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
+            <div class="flex items-center justify-between mb-space-sm">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[16px] text-primary">show_chart</span>
+                <span class="font-label-sm text-label-sm font-bold uppercase">Substation DGA &amp; Thermal Runaway Telemetry Curve</span>
+              </div>
+              <span class="font-mono text-[10px] text-on-surface-variant">REAL-TIME HISTORIAN BUFFER</span>
+            </div>
+            <div class="h-36 w-full bg-surface-container-low rounded-lg p-space-sm relative overflow-hidden flex items-end">
+              <svg class="w-full h-28" viewBox="0 0 500 120" preserveAspectRatio="none">
+                <line x1="0" x2="500" y1="40" y2="40" stroke="#ba1a1a" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+                <path d="M0,90 Q80,105 160,85 T320,95 T440,35 L500,28" fill="none" stroke="#0f5132" stroke-width="2.5" class="animate-pulse"/>
+                <circle cx="440" cy="35" r="4" fill="#ba1a1a" class="animate-ping"/>
+                <circle cx="440" cy="35" r="3" fill="#ba1a1a"/>
+              </svg>
+            </div>
+            <div class="flex items-center justify-between mt-2 font-mono text-[10px] text-on-surface-variant">
+              <span>T - 180 MIN</span>
+              <span>T - 120 MIN</span>
+              <span>T - 60 MIN</span>
+              <span class="text-error font-bold">LIVE TELEMETRY (0s)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Risk Exposure, Alarm Feed & SCADA Cam (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-space-md">
+          <!-- Feeder Risk Exposure Skeleton -->
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
+            <div class="flex items-center justify-between mb-space-sm pb-1 border-b border-outline-variant/40">
+              <span class="font-label-sm text-label-sm font-bold uppercase">Feeder Risk Exposure</span>
+              <span class="font-mono text-[10px] text-on-surface-variant">REGION-RC4</span>
+            </div>
+            <div class="space-y-2.5">
+              <div class="h-4 w-full sk-shimmer rounded"></div>
+              <div class="h-4 w-5/6 sk-shimmer rounded"></div>
+              <div class="h-4 w-4/6 sk-shimmer rounded"></div>
+            </div>
+          </div>
+
+          <!-- High-Priority Alarm Feed Skeleton -->
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
+            <div class="flex items-center justify-between mb-space-sm pb-1 border-b border-outline-variant/40">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-error text-[16px]">campaign</span>
+                <span class="font-label-sm text-label-sm font-bold uppercase">High-Priority Alarm Feed</span>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="p-2 bg-error-container/30 border border-error/30 rounded flex items-center justify-between">
+                <span class="font-mono text-[10px] text-error font-bold">&bull; PRIORITY 1 ALARM</span>
+                <span class="font-mono text-[9px] text-on-surface-variant">LIVE INGESTION</span>
+              </div>
+              <div class="p-2 bg-surface-container-low border border-outline-variant/40 rounded flex items-center justify-between">
+                <span class="font-mono text-[10px] text-secondary font-bold">&bull; WARNING L2</span>
+                <span class="font-mono text-[9px] text-on-surface-variant">SYNCHRONIZED</span>
+              </div>
+              <div class="p-2 bg-surface-container-low border border-outline-variant/40 rounded flex items-center justify-between">
+                <span class="font-mono text-[10px] text-on-surface-variant font-bold">&bull; ADVISORY</span>
+                <span class="font-mono text-[9px] text-on-surface-variant">NORMALIZED</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Substation Optical Feed Skeleton -->
+          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-primary text-[16px]">videocam</span>
+                <span class="font-label-sm text-label-sm font-bold uppercase">Substation Optical Feed</span>
+              </div>
+              <span class="font-mono text-[10px] text-error font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>LIVE SCADA CAM</span>
+            </div>
+            <div class="h-28 bg-surface-container-low rounded-lg flex flex-col items-center justify-center gap-1 border border-outline-variant/40 text-on-surface-variant">
+              <span class="material-symbols-outlined text-[24px] text-primary animate-pulse">radar</span>
+              <span class="font-mono text-[10px] tracking-wider uppercase">Awaiting H.264 Keyframe…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Ingestion Status Strip -->
+      <div class="bg-surface-container-high/60 border border-outline-variant/40 rounded px-space-md py-1.5 flex items-center justify-between font-mono text-[10px] text-on-surface-variant">
+        <div class="flex items-center gap-2 truncate">
+          <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          <span>INIT SCADA RPC &bull; GET /api/v4/grid/state-vector [200 OK] &bull; GET /api/v4/assets/health/matrix [POLLING]</span>
+        </div>
+        <span class="text-primary font-semibold flex-shrink-0">GRID CLUSTER: RC4 ONLINE</span>
+      </div>
+    </div>`;
+  },
 };
 
 /* ─── Operator actions — every one hits a real endpoint and mutates state ─── */
