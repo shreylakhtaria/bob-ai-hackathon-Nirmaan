@@ -272,44 +272,58 @@ SYSTEM_PROMPT = (
     "say so. Be concise and operational. All data is clearly-labelled SIMULATION data.")
 
 
-def _answer_llm(query: str):
-    import httpx
-    headers = {"Content-Type": "application/json"}
+def _make_openai_client():
+    """Return (openai.OpenAI client, model_name) for whichever provider is configured."""
+    from openai import OpenAI, AzureOpenAI
+    if config.NEBIUS_API_KEY:
+        return OpenAI(
+            api_key=config.NEBIUS_API_KEY,
+            base_url=config.NEBIUS_BASE_URL,
+        ), config.NEBIUS_MODEL
     if config.AZURE_OPENAI_ENDPOINT and config.AZURE_OPENAI_KEY:
-        url = (f"{config.AZURE_OPENAI_ENDPOINT}/openai/deployments/"
-               f"{config.AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-06-01")
-        headers["api-key"] = config.AZURE_OPENAI_KEY
-        model = config.AZURE_OPENAI_DEPLOYMENT
-    else:
-        url = f"{config.OPENAI_BASE_URL}/chat/completions"
-        headers["Authorization"] = f"Bearer {config.OPENAI_API_KEY}"
-        model = config.OPENAI_MODEL
+        return AzureOpenAI(
+            api_key=config.AZURE_OPENAI_KEY,
+            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+            api_version="2024-06-01",
+        ), config.AZURE_OPENAI_DEPLOYMENT
+    # plain OpenAI or any other OpenAI-compatible base_url
+    return OpenAI(
+        api_key=config.OPENAI_API_KEY,
+        base_url=config.OPENAI_BASE_URL,
+    ), config.OPENAI_MODEL
 
+
+def _answer_llm(query: str):
+    client, model = _make_openai_client()
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": query}]
     evidence = []
-    with httpx.Client(timeout=45) as client:
-        for _ in range(5):  # allow a few tool round-trips
-            payload = {"model": model, "messages": messages, "tools": TOOL_SCHEMA,
-                       "tool_choice": "auto", "temperature": 0.2}
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            msg = resp.json()["choices"][0]["message"]
-            messages.append(msg)
-            calls = msg.get("tool_calls")
-            if not calls:
-                return {"answer": msg.get("content", ""), "evidence": evidence,
-                        "mode": "llm", "is_simulation": True}
-            for call in calls:
-                name = call["function"]["name"]
-                args = json.loads(call["function"].get("arguments") or "{}")
-                try:
-                    result = TOOLS[name](**args)
-                except Exception as e:  # never crash on a bad tool call
-                    result = {"error": str(e)}
-                evidence.append({"tool": name, "args": args, "result": result})
-                messages.append({"role": "tool", "tool_call_id": call["id"],
-                                 "content": json.dumps(result, default=str)[:6000]})
+    for _ in range(5):  # allow a few tool round-trips
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=TOOL_SCHEMA,
+            tool_choice="auto",
+            temperature=0.2,
+            timeout=45,
+        )
+        msg = resp.choices[0].message
+        # append assistant message (openai SDK object -> dict for json serialisation)
+        messages.append(msg.model_dump(exclude_unset=True))
+        calls = msg.tool_calls
+        if not calls:
+            return {"answer": msg.content or "", "evidence": evidence,
+                    "mode": "llm", "is_simulation": True}
+        for call in calls:
+            name = call.function.name
+            args = json.loads(call.function.arguments or "{}")
+            try:
+                result = TOOLS[name](**args)
+            except Exception as e:  # never crash on a bad tool call
+                result = {"error": str(e)}
+            evidence.append({"tool": name, "args": args, "result": result})
+            messages.append({"role": "tool", "tool_call_id": call.id,
+                             "content": json.dumps(result, default=str)[:6000]})
     return {"answer": "Unable to complete the tool sequence.", "evidence": evidence,
             "mode": "llm", "is_simulation": True}
 
