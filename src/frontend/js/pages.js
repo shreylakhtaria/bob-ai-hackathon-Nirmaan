@@ -431,7 +431,7 @@ Pages.assets = async (preSelectId) => {
     Pages._renderAssetTable();
   };
   ['f-area','f-type','f-pri'].forEach(id => { const e = el(id); if (e) e.onchange = applyFilter; });
-  const fq = el('f-q'); if (fq) fq.oninput = applyFilter;
+  const fq = el('f-q'); if (fq) fq.oninput = F.debounce(applyFilter, 250);
 
   // Pre-select asset
   const toSelect = preSelectId || (assets[0] || {}).asset_id;
@@ -970,6 +970,12 @@ Pages.gridMap = async () => {
         <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded-sm" style="background:#0f5132"></span>Crew</span>
       </div>
     </div>
+    <div class="mb-space-sm flex items-center gap-space-md bg-surface-container-lowest p-space-sm rounded border border-outline-variant/50 font-label-sm text-label-sm">
+      <span class="font-bold text-on-surface uppercase">Filter Map Layers:</span>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-crit" class="accent-primary" onchange="GridMap.filter('crit', this.checked)"/> Critical Assets Only</label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-wx" class="accent-primary" checked onchange="GridMap.filter('wx', this.checked)"/> Weather Risk Circles</label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-on-surface"><input type="checkbox" id="map-t-crew" class="accent-primary" checked onchange="GridMap.filter('crew', this.checked)"/> Field Crews</label>
+    </div>
     <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 overflow-hidden">
       <div id="map" style="height:600px"></div>
     </div>
@@ -1381,3 +1387,75 @@ Pages.operatorBrief = async () => {
     </div>
   </div>`);
 };
+
+/* ─── Action Dispatch & Modal Helpers ─── */
+Pages.dispatchMaint = async (asset_id, action) => {
+  try {
+    const res = await API.dispatchMaintenance({ asset_id, action });
+    alert(`✅ ${res.message}`);
+    App.refresh();
+  } catch (e) {
+    alert(`❌ Action failed: ${e.message}`);
+  }
+};
+
+Pages.repositionCrew = async (crew_id, target_area) => {
+  try {
+    const res = await API.repositionCrew({ crew_id, target_area });
+    alert(`✅ ${res.message}`);
+    App.refresh();
+  } catch (e) {
+    alert(`❌ Repositioning failed: ${e.message}`);
+  }
+};
+
+Pages.openSensorModal = (label, value, unit, status, threshold) => {
+  let existing = document.getElementById('sensor-modal-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'sensor-modal-overlay';
+  overlay.className = 'fixed inset-0 z-50 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center p-4';
+  overlay.innerHTML = `
+    <div class="bg-surface-container-lowest rounded-lg shadow-xl border border-outline-variant max-w-2xl w-full p-space-lg relative slide-in">
+      <div class="flex items-center justify-between border-b border-outline-variant pb-space-sm mb-space-md">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[24px]">analytics</span>
+          <div>
+            <h3 class="font-headline-md text-headline-md font-bold text-on-surface">${F.esc(label)} Historical Telemetry</h3>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">24-Hour SCADA Trend • Threshold: ${F.esc(threshold)}</p>
+          </div>
+        </div>
+        <button class="p-1 rounded hover:bg-surface-container text-on-surface-variant cursor-pointer" onclick="document.getElementById('sensor-modal-overlay').remove()">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-space-sm mb-space-md">
+        <div class="p-space-sm bg-surface-container-low rounded">
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">Latest Reading</span>
+          <div class="font-telemetry-display text-[20px] font-bold text-primary">${F.esc(value)} ${F.esc(unit)}</div>
+        </div>
+        <div class="p-space-sm bg-surface-container-low rounded">
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase font-semibold">Telemetry Status</span>
+          <div class="font-telemetry-display text-[15px] font-bold text-error">${F.esc(status)}</div>
+        </div>
+      </div>
+      <div class="w-full h-64 bg-surface-container-lowest rounded p-space-sm">
+        <canvas id="sensor-modal-chart"></canvas>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const ctx = document.getElementById('sensor-modal-chart');
+  if (ctx) {
+    const labels = Array.from({length: 24}, (_, i) => `${24 - i}h ago`).reverse();
+    const base = parseFloat(value) || 50;
+    const mockData = labels.map((_, i) => Math.max(0, base * (0.85 + 0.3 * Math.sin(i / 3) + (Math.random() - 0.5) * 0.1)));
+    mkLine(ctx, labels, [{
+      label: label,
+      data: mockData,
+      borderColor: '#ba1a1a',
+      backgroundColor: 'rgba(186, 26, 26, 0.1)',
+      fill: true
+    }]);
+  }
+};
+
