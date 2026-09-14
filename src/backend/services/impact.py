@@ -57,9 +57,9 @@ def compute_impact():
 
     cust = np.array([assets[p["asset_id"]]["customers_served"] for p in preds], dtype=float)
     log_cust = np.log1p(cust)
-    cust_norm = (log_cust - log_cust.min()) / (log_cust.ptp() or 1.0)
+    cust_norm = (log_cust - log_cust.min()) / (np.ptp(log_cust) or 1.0)
     down = np.array([assets[p["asset_id"]]["downstream_assets"] for p in preds], dtype=float)
-    down_norm = (down - down.min()) / (down.ptp() or 1.0)
+    down_norm = (down - down.min()) / (np.ptp(down) or 1.0)
 
     w = config.IMPACT_WEIGHTS
     updates = []

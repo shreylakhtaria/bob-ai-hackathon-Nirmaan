@@ -194,7 +194,7 @@ def score_all():
 
     proba = model.predict_proba(Xs)[:, 1]
     anom = -iso.score_samples(Xs)  # higher = more anomalous
-    anom_norm = (anom - anom.min()) / (anom.ptp() or 1.0)
+    anom_norm = (anom - anom.min()) / (np.ptp(anom) or 1.0)
 
     # SHAP (best-effort; falls back silently to importance*deviation)
     shap_vals = None
