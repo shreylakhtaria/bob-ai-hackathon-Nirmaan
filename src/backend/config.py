@@ -5,6 +5,13 @@ live here and can be overridden via environment variables.
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load src/.env (if present) into the process environment before anything
+# below reads os.getenv(). Real environment variables still take precedence
+# over .env values, matching standard dotenv behavior.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------

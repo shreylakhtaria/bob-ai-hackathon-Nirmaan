@@ -273,24 +273,25 @@ SYSTEM_PROMPT = (
 
 
 def _make_openai_client():
-    """Return (openai.OpenAI client, model_name) for whichever provider is configured."""
+    """Return (openai.OpenAI client, model_name, provider_label) for whichever
+    provider is configured."""
     from openai import OpenAI, AzureOpenAI
     if config.NEBIUS_API_KEY:
         return OpenAI(
             api_key=config.NEBIUS_API_KEY,
             base_url=config.NEBIUS_BASE_URL,
-        ), config.NEBIUS_MODEL
+        ), config.NEBIUS_MODEL, "nebius"
     if config.AZURE_OPENAI_ENDPOINT and config.AZURE_OPENAI_KEY:
         return AzureOpenAI(
             api_key=config.AZURE_OPENAI_KEY,
             azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
             api_version="2024-06-01",
-        ), config.AZURE_OPENAI_DEPLOYMENT
+        ), config.AZURE_OPENAI_DEPLOYMENT, "azure"
     # plain OpenAI or any other OpenAI-compatible base_url
     return OpenAI(
         api_key=config.OPENAI_API_KEY,
         base_url=config.OPENAI_BASE_URL,
-    ), config.OPENAI_MODEL
+    ), config.OPENAI_MODEL, "openai"
 
 
 _watsonx_token_cache = {"token": None, "expires_at": 0}
@@ -356,7 +357,7 @@ def _answer_watsonx(query: str):
 
 
 def _answer_llm(query: str):
-    client, model = _make_openai_client()
+    client, model, provider = _make_openai_client()
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": query}]
     evidence = []
@@ -375,7 +376,7 @@ def _answer_llm(query: str):
         calls = msg.tool_calls
         if not calls:
             return {"answer": msg.content or "", "evidence": evidence,
-                    "mode": "llm", "is_simulation": True}
+                    "mode": "llm", "provider": provider, "is_simulation": True}
         for call in calls:
             name = call.function.name
             args = json.loads(call.function.arguments or "{}")
@@ -387,7 +388,7 @@ def _answer_llm(query: str):
             messages.append({"role": "tool", "tool_call_id": call.id,
                              "content": json.dumps(result, default=str)[:6000]})
     return {"answer": "Unable to complete the tool sequence.", "evidence": evidence,
-            "mode": "llm", "is_simulation": True}
+            "mode": "llm", "provider": provider, "is_simulation": True}
 
 
 def answer(query: str):
