@@ -231,7 +231,7 @@ Pages.overview = async () => {
 let _allAssets = [];
 let _selectedAssetId = null;
 
-Pages.assets = async (preSelectId) => {
+Pages.assets = async (preSelectArg) => {
   const [assets, areas] = await Promise.all([API.assets('?limit=500'), API.areas()]);
   _allAssets = assets;
   const types = [...new Set(assets.map(a => a.asset_type).filter(Boolean))];
@@ -437,8 +437,26 @@ Pages.assets = async (preSelectId) => {
   ['f-area','f-type','f-pri'].forEach(id => { const e = el(id); if (e) e.onchange = applyFilter; });
   const fq = el('f-q'); if (fq) fq.oninput = F.debounce(applyFilter, 250);
 
+  let preSelectId = '';
+  let preQuery = '';
+  if (preSelectArg && typeof preSelectArg === 'object') {
+    preSelectId = (preSelectArg.assetId || '').toUpperCase();
+    preQuery = (preSelectArg.query || '').toUpperCase();
+  } else if (typeof preSelectArg === 'string') {
+    const candidate = preSelectArg.trim().toUpperCase();
+    const exact = assets.find(a => (a.asset_id || '').toUpperCase() === candidate);
+    if (exact) preSelectId = exact.asset_id;
+    else preQuery = candidate;
+  }
+
+  if (preQuery) {
+    const searchInput = el('f-q');
+    if (searchInput) searchInput.value = preQuery;
+    applyFilter();
+  }
+
   // Pre-select asset
-  const toSelect = preSelectId || (assets[0] || {}).asset_id;
+  const toSelect = preSelectId || (Pages._assetFiltered[0] || {}).asset_id || (assets[0] || {}).asset_id;
   if (toSelect) await Pages.selectAsset(toSelect);
 };
 

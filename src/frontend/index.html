@@ -133,7 +133,9 @@
     <!-- Global Search -->
     <div class="flex-1 max-w-md mx-space-sm">
       <div class="relative flex items-center">
-        <span class="material-symbols-outlined absolute left-2.5 text-outline text-[18px]">search</span>
+        <button id="global-search-btn" class="absolute left-1.5 h-6 w-6 flex items-center justify-center rounded hover:bg-surface-container-low text-outline" type="button" aria-label="Search">
+          <span class="material-symbols-outlined text-[18px]">search</span>
+        </button>
         <input id="global-search" class="w-full h-8 pl-8 pr-3 bg-surface text-on-surface font-body-sm text-body-sm rounded border border-outline-variant focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:text-outline" placeholder="Search Asset ID, Substation, Area, or Crew…" type="text"/>
       </div>
     </div>

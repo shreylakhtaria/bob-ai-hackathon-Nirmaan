@@ -603,7 +603,7 @@ const App = {
     const area = (this._areaIds || []).find(a => a === q);
     if (area) return this.go('risk-areas');
     if (/^C-\d+/.test(q)) return this.go('crews');
-    this.go('assets', q);
+    this.go('assets', { query: q });
   },
 
   async simAsset(id) {
@@ -656,9 +656,16 @@ python -m scripts.seed</pre>
 
     // Global search
     const search = document.getElementById('global-search');
+    const searchBtn = document.getElementById('global-search-btn');
     if (search) {
       search.addEventListener('keydown', e => {
         if (e.key === 'Enter') { this.searchSubmit(search.value); search.blur(); }
+      });
+    }
+    if (searchBtn && search) {
+      searchBtn.addEventListener('click', () => {
+        this.searchSubmit(search.value);
+        search.blur();
       });
     }
 
