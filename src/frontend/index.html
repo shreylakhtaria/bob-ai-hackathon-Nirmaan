@@ -123,7 +123,8 @@
           </span>
           <span class="text-outline-variant">|</span>
           <span class="font-telemetry-display text-[11px] leading-tight text-on-surface-variant">
-            API 200 OK &bull; Model v4.2.1 &bull; ROC-AUC 0.942 &bull; Grid Time: <span id="clock">--:--:--</span>
+            <span id="hdr-api">API --</span> &bull; <span id="hdr-model">Model --</span> &bull;
+            <span id="hdr-auc">ROC-AUC --</span> &bull; Grid Time: <span id="clock">--:--:--</span>
           </span>
         </div>
       </div>
@@ -139,17 +140,34 @@
 
     <!-- Action Buttons & Profile -->
     <div class="flex items-center gap-space-sm min-w-fit">
-      <button id="btn-emergency" onclick="alert('Emergency Dispatch workflow initiated.')" class="h-8 px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider" type="button">
+      <button id="btn-emergency" onclick="App.emergencyDispatch()" class="h-8 px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider" type="button">
         <span class="material-symbols-outlined text-[16px]">warning</span>Emergency Dispatch
       </button>
-      <button onclick="alert('Downloading grid operations log PDF...')" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
-        <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
-      </button>
-      <div class="relative ml-1">
-        <button onclick="alert('Opening notifications panel...')" class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface transition-colors" type="button">
-          <span class="material-symbols-outlined text-[18px]">notifications</span>
-          <span id="notif-badge" class="absolute -top-1 -right-1 bg-error text-on-error font-label-sm text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">4</span>
+      <div class="relative">
+        <button onclick="App.toggleExportMenu()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
+          <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
         </button>
+        <div id="export-menu" class="hidden absolute right-0 top-9 w-56 bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50 py-1">
+          <div class="px-space-md py-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant">Download CSV</div>
+          <button onclick="App.exportCsv('maintenance')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Maintenance queue</button>
+          <button onclick="App.exportCsv('assets')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Asset register</button>
+          <button onclick="App.exportCsv('work_orders')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Work orders</button>
+          <button onclick="App.exportCsv('alerts')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Alerts</button>
+          <button onclick="App.exportCsv('audit')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Audit log</button>
+        </div>
+      </div>
+      <div class="relative ml-1">
+        <button onclick="App.toggleNotifications()" class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface transition-colors" type="button">
+          <span class="material-symbols-outlined text-[18px]">notifications</span>
+          <span id="notif-badge" class="absolute -top-1 -right-1 bg-error text-on-error font-label-sm text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
+        </button>
+        <div id="notif-panel" class="hidden absolute right-0 top-9 w-96 max-h-[60vh] overflow-y-auto bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50">
+          <div class="px-space-md py-2 bg-surface-container-high border-b border-outline-variant flex items-center justify-between sticky top-0">
+            <span class="font-label-sm text-label-sm font-bold uppercase">Unacknowledged Alerts</span>
+            <span id="notif-count" class="font-mono text-[10px] text-on-surface-variant"></span>
+          </div>
+          <div id="notif-list" class="p-space-sm"></div>
+        </div>
       </div>
       <div class="h-6 w-px bg-outline-variant mx-1"></div>
       <div class="flex items-center gap-space-sm pl-1">
@@ -176,8 +194,8 @@
   <div class="p-space-md border-t border-outline-variant bg-surface">
     <div class="bg-surface-container-lowest border border-outline-variant p-space-sm rounded space-y-space-xs">
       <div class="flex items-center justify-between font-label-sm text-[11px]">
-        <span class="text-on-surface-variant uppercase">SCADA Feed</span>
-        <span class="font-mono font-semibold text-primary">4.8 kHz Live</span>
+        <span class="text-on-surface-variant uppercase">Telemetry Rows</span>
+        <span id="sidebar-feed" class="font-mono font-semibold text-primary">--</span>
       </div>
       <div class="flex items-center justify-between font-label-sm text-[11px]">
         <span class="text-on-surface-variant uppercase">Predicted Outages</span>
@@ -189,7 +207,7 @@
         <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse inline-block"></span>SIMULATION DATA
       </span>
     </div>
-    <button onclick="alert('Opening Metrics & Health Drawer...')" class="w-full mt-space-xs h-7 bg-surface-container border border-outline-variant hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm rounded flex items-center justify-center gap-1.5 transition-colors" type="button">
+    <button onclick="App.toggleMetricsDrawer()" class="w-full mt-space-xs h-7 bg-surface-container border border-outline-variant hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm rounded flex items-center justify-center gap-1.5 transition-colors" type="button">
       <span class="material-symbols-outlined text-[15px]">monitoring</span>Metrics &amp; Health Drawer
     </button>
   </div>
@@ -203,17 +221,31 @@
     <div class="flex items-center gap-space-xs font-label-sm text-label-sm">
       <span class="text-on-surface-variant uppercase">GridOps Regional Node</span>
       <span class="text-outline-variant">/</span>
-      <span class="text-on-surface font-semibold uppercase">North Central Feeder Ring 12</span>
+      <span class="text-on-surface font-semibold uppercase" id="breadcrumb-scope">--</span>
       <span class="text-outline-variant">/</span>
       <span class="text-primary font-mono" id="breadcrumb-page">Overview</span>
     </div>
     <div class="flex items-center gap-space-md font-label-sm text-label-sm">
       <span class="flex items-center gap-1 text-on-surface-variant">
-        <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Telemetry Lock: 99.98%
+        <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Telemetry Lock: <span id="hdr-lock">--</span>
       </span>
       <span class="text-outline-variant">|</span>
-      <span class="font-mono text-on-surface-variant">LATENCY: 14ms</span>
+      <span class="font-mono text-on-surface-variant">LATENCY: <span id="hdr-latency">--</span></span>
     </div>
+  </div>
+
+  <!-- Metrics & health drawer (populated from /api/system/stats + /api/model/metrics) -->
+  <div id="metrics-drawer" class="hidden fixed bottom-0 left-64 right-0 z-40 bg-surface-container-lowest border-t border-outline-variant shadow-lg max-h-[45vh] overflow-y-auto">
+    <div class="px-gutter py-2 bg-surface-container-high border-b border-outline-variant flex items-center justify-between sticky top-0">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-[16px] text-primary">monitoring</span>
+        <span class="font-label-sm text-label-sm font-bold uppercase">Model Metrics &amp; System Health</span>
+      </div>
+      <button onclick="App.toggleMetricsDrawer()" class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container" type="button">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+      </button>
+    </div>
+    <div id="metrics-drawer-body" class="p-gutter"></div>
   </div>
 
   <!-- Page content (pt-24 = 64px header + 32px breadcrumb) -->

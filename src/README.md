@@ -19,8 +19,9 @@ src/
 │   │   ├── simulation.py    # what-if asset-failure & weather-event engines
 │   │   ├── briefing.py      # auto operator briefing
 │   │   ├── alerts.py        # intelligent alert generation
-│   │   └── copilot.py       # grounded tool-calling copilot (+ optional LLM mode)
-│   └── tests/test_core.py   # critical-logic tests
+│   │   ├── operations.py    # work orders, crew dispatch, exports, system stats
+│   │   └── copilot.py       # grounded copilot on IBM watsonx.ai tool calling
+│   └── tests/               # test_core.py (model/logic) + test_operations.py (actions)
 ├── frontend/
 │   ├── index.html
 │   ├── css/style.css

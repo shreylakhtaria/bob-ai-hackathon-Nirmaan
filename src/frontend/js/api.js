@@ -1,18 +1,36 @@
 /* ─── API client + shared formatting helpers ─── */
 const API = {
+  lastLatencyMs: null,
+  lastStatus: null,
+
+  _detail(text) {
+    try { const j = JSON.parse(text); return j.detail || text; } catch (e) { return text; }
+  },
+
   async get(path) {
+    const t0 = performance.now();
     const r = await fetch('/api' + path);
-    if (!r.ok) throw new Error(await r.text());
+    API.lastLatencyMs = Math.round(performance.now() - t0);
+    API.lastStatus = r.status;
+    if (!r.ok) throw new Error(API._detail(await r.text()));
     return r.json();
   },
   async post(path, body) {
+    const t0 = performance.now();
     const r = await fetch('/api' + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body || {})
     });
-    if (!r.ok) throw new Error(await r.text());
+    API.lastLatencyMs = Math.round(performance.now() - t0);
+    API.lastStatus = r.status;
+    if (!r.ok) throw new Error(API._detail(await r.text()));
     return r.json();
+  },
+  async text(path) {
+    const r = await fetch('/api' + path);
+    if (!r.ok) throw new Error(API._detail(await r.text()));
+    return r.text();
   },
 
   health:              ()        => API.get('/health'),
@@ -37,7 +55,59 @@ const API = {
   incidents:           ()        => API.get('/incidents?limit=50'),
   simulate:            (b)       => API.post('/simulation', b),
   copilot:             (q)       => API.post('/copilot/query', { query: q }),
+
+  /* Operator actions — each mutates real backend state */
+  stats:               ()        => API.get('/system/stats'),
+  workOrders:          (q = '')  => API.get('/work-orders' + q),
+  audit:               (n = 50)  => API.get('/audit?limit=' + n),
+  dispatch:            (assetId, crewId) => API.post('/work-orders/dispatch', { asset_id: assetId, crew_id: crewId || null }),
+  schedule:            (assetId, hours)  => API.post('/work-orders/schedule', { asset_id: assetId, hours: hours ?? null }),
+  defer:               (assetId, reason) => API.post('/work-orders/defer', { asset_id: assetId, reason: reason || null }),
+  reposition:          (crewId, areaId)  => API.post('/crews/reposition', { crew_id: crewId, area_id: areaId }),
+  releaseCrew:         (crewId)  => API.post(`/crews/${crewId}/release`),
+  emergency:           (n = 5)   => API.post('/dispatch/emergency?limit=' + n),
+  ackAlert:            (id)      => API.post(`/alerts/${id}/ack`),
+  briefText:           ()        => API.text('/brief/text'),
+  exportUrl:           (kind)    => '/api/export/' + kind,
 };
+
+/* ─── Toast notifications (real action feedback, replaces alert()) ─── */
+const Toast = {
+  show(message, kind = 'ok') {
+    let host = document.getElementById('toast-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'toast-host';
+      host.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end';
+      document.body.appendChild(host);
+    }
+    const tone = {
+      ok:   ['#0f5132', 'check_circle'],
+      warn: ['#376757', 'info'],
+      err:  ['#ba1a1a', 'error'],
+    }[kind] || ['#0f5132', 'check_circle'];
+    const node = document.createElement('div');
+    node.className = 'toast-item flex items-start gap-2 bg-surface-container-lowest border rounded shadow-lg px-space-md py-space-sm max-w-sm';
+    node.style.borderColor = tone[0];
+    node.innerHTML = `<span class="material-symbols-outlined text-[18px]" style="color:${tone[0]}">${tone[1]}</span>
+      <span class="font-body-sm text-body-sm text-on-surface">${F.esc(message)}</span>`;
+    host.appendChild(node);
+    setTimeout(() => { node.style.opacity = '0'; setTimeout(() => node.remove(), 300); }, 4200);
+  },
+  ok:   m => Toast.show(m, 'ok'),
+  warn: m => Toast.show(m, 'warn'),
+  err:  m => Toast.show(m, 'err'),
+};
+
+/* Trigger a real file download from an API endpoint */
+function downloadFile(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  if (filename) a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 /* ─── Shared formatting utilities ─── */
 const F = {

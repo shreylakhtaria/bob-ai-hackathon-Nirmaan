@@ -106,8 +106,21 @@ AZURE_OPENAI_ENDPOINT   = os.getenv("AZURE_OPENAI_ENDPOINT", "")
 AZURE_OPENAI_KEY        = os.getenv("AZURE_OPENAI_KEY", "")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
 
+# IBM watsonx.ai — native chat/tool-calling API (checked first; this is the
+# challenge's actual "Bob solution" ask). Auth is an IBM Cloud IAM API key
+# exchanged for a short-lived bearer token (see services/copilot.py).
+WATSONX_API_KEY    = os.getenv("WATSONX_API_KEY", "")
+WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID", "")
+WATSONX_URL        = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com")
+WATSONX_MODEL_ID   = os.getenv("WATSONX_MODEL_ID", "ibm/granite-3-8b-instruct")
+WATSONX_VERSION    = os.getenv("WATSONX_VERSION", "2024-10-07")
+WATSONX_IAM_URL    = os.getenv("WATSONX_IAM_URL", "https://iam.cloud.ibm.com/identity/token")
+
+WATSONX_ENABLED = bool(WATSONX_API_KEY and WATSONX_PROJECT_ID)
+
 LLM_ENABLED = bool(
-    NEBIUS_API_KEY
+    WATSONX_ENABLED
+    or NEBIUS_API_KEY
     or OPENAI_API_KEY
     or (AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY)
 )

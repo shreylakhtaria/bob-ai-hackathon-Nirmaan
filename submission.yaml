@@ -41,16 +41,17 @@ submission:
     copilot that can never invent data.
 
   key_features:                        # REQUIRED — List 3 to 5 specific features you implemented
-    - "Failure prediction via LightGBM (28 engineered features) + IsolationForest anomaly scoring, evaluated at ROC-AUC 0.979"
+    - "Failure prediction via LightGBM (28 engineered features) + IsolationForest anomaly scoring, ROC-AUC ~0.97 on a time-aware held-out split"
     - "Per-asset SHAP explainability surfaced as human-readable risk drivers (e.g. 'partial-discharge rise (72h): +65 pC')"
     - "Grid Impact Score — an interpretable 0-100 blend of failure probability, criticality, customers served, network exposure and weather risk that drives the maintenance queue"
     - "What-if simulation engine for asset failures and severe-weather events (customers affected, downstream assets, nearest crew, estimated outage)"
-    - "Grounded, tool-calling AI copilot that answers operator questions using only real backend tool results and cites its evidence, with automatic upgrade to true LLM function-calling when an API key is configured"
+    - "AI copilot running on IBM watsonx.ai tool-calling (/ml/v1/text/chat with IAM auth), restricted to 10 allow-listed tools over real data and citing the exact tool calls behind every answer"
+    - "Closed-loop operator actions — dispatch, schedule, defer, pre-position, acknowledge and export all write real work orders, change crew availability and are audit-logged"
 
   tech_stack:
     languages: ["Python", "JavaScript", "SQL"]                          # REQUIRED — e.g., ["Python", "TypeScript"]
     frameworks: ["FastAPI", "Pydantic", "Uvicorn"]                      # e.g., ["FastAPI", "React"]
-    ibm_technologies: []                                                # e.g., ["watsonx.ai", "IBM Bob", "IBM Cloud Functions"]
+    ibm_technologies: ["watsonx.ai", "IBM Granite (granite-3-8b-instruct)", "IBM Cloud IAM"]
     databases: ["SQLite"]                                               # e.g., ["PostgreSQL", "Redis"]
     other: ["scikit-learn", "LightGBM", "SHAP", "pandas", "NumPy", "Leaflet", "Chart.js", "Tailwind CSS", "OpenAI SDK", "Nebius Token Factory", "Docker"]  # e.g., ["Docker", "GitHub Actions", "Slack API"]
 
@@ -66,14 +67,15 @@ submission:
 
   known_limitations: >                 # Optional but recommended — be honest about gaps
     All data is clearly-labelled SIMULATION DATA — there is no live SCADA/IoT feed
-    integration yet. The AI copilot's optional LLM mode currently targets an
-    OpenAI-SDK-compatible chat-completions API (Nebius Token Factory, OpenAI, or
-    Azure OpenAI); it is NOT yet wired to IBM watsonx.ai / IBM Bob specifically, so
-    the challenge's "Build a Bob solution" framing is not literally satisfied by a
-    direct Bob integration today. The tool-calling loop is isolated behind a single
-    client adapter and a fixed tool registry (see docs/solution-overview.md), so
-    wiring it to watsonx.ai, or exposing the same tools to Bob over MCP, is a
-    contained follow-up rather than a rewrite. The default data layer is SQLite for demo
+    integration; sensor telemetry is generated from a latent asset-health model rather
+    than read from real equipment. The watsonx.ai copilot path requires your own
+    WATSONX_API_KEY and WATSONX_PROJECT_ID; without them the copilot falls back to a
+    deterministic grounded tool-router that uses the same tools but composes text from
+    templates instead of a language model. We integrate watsonx.ai's chat/tool-calling
+    API directly, but do not additionally expose the system as an MCP server for an
+    external agent to drive. Work orders model dispatch and scheduling state but there
+    is no downstream CMMS (Maximo / SAP PM) integration — exports are CSV.
+    The default data layer is SQLite for demo
     reliability — a documented, mechanical swap to PostgreSQL is described in
     docs/architecture.md but not exercised in this submission. The crew
     pre-positioning optimiser uses a greedy heuristic rather than a full

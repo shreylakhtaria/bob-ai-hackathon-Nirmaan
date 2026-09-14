@@ -10,7 +10,9 @@ graph TD
     C -->|score| D[ML: LightGBM failure model<br/>+ IsolationForest anomaly<br/>+ SHAP explainer]
     C -->|compute| G[Decision engines:<br/>Grid Impact Score, crew optimiser,<br/>what-if simulation, briefing, alerts]
     C -->|tool-calling| H[Copilot<br/>grounded local router,<br/>auto-upgrades to LLM mode]
-    H -->|optional| I[OpenAI-SDK-compatible API:<br/>Nebius, OpenAI, or Azure OpenAI]
+    H -->|tool calling| I[IBM watsonx.ai<br/>/ml/v1/text/chat<br/>granite-3-8b-instruct]
+    H -->|alternates| J[Nebius / OpenAI / Azure OpenAI]
+    C -->|operator actions| K[work_orders + crews + alerts<br/>audit_log]
     D -->|scores + explanations| E
     G -->|reads| E
     H -->|calls same tools as| G
@@ -24,8 +26,9 @@ graph TD
 | Backend API | FastAPI (`backend/main.py`) | All REST endpoints under `/api/*`, request validation (Pydantic), static file serving, SPA fallback routing |
 | ML / AI | scikit-learn + LightGBM + SHAP (`backend/ml/`) | Feature engineering, failure-probability scoring, anomaly scoring, per-asset explainability |
 | Decision engines | Plain Python services (`backend/services/`) | Grid Impact Score, area outage risk, ranked maintenance queue, crew pre-positioning optimiser, what-if simulation, auto-briefing, alert generation |
-| Copilot | `backend/services/copilot.py` | Grounded, tool-calling operator Q&A — deterministic intent router by default; upgrades to real LLM function-calling over the same tool registry when an OpenAI-compatible API key is configured |
-| Data layer | SQLite via the Python stdlib `sqlite3` (`backend/db.py`) | Schema + data-access helpers for assets, sensor telemetry, weather, incidents, maintenance history, crews, predictions, area risk, alerts, and an audit log |
+| Copilot | `backend/services/copilot.py` | Grounded, tool-calling operator Q&A — runs on IBM watsonx.ai's `/ml/v1/text/chat` tool-calling API (IAM-token auth, `ibm/granite-3-8b-instruct` by default), with Nebius/OpenAI/Azure as alternates and a deterministic grounded router as the no-key fallback |
+| Operations | `backend/services/operations.py` | Operator actions — crew dispatch with skill/travel cost, work-order scheduling and deferral, crew pre-positioning, bulk emergency dispatch, alert acknowledgement, CSV exports and live system statistics |
+| Data layer | SQLite via the Python stdlib `sqlite3` (`backend/db.py`) | Schema + data-access helpers for assets, sensor telemetry, weather, incidents, maintenance history, crews, predictions, area risk, alerts, **work orders**, and an audit log |
 | Data generation / training pipeline | `backend/data/generator.py`, `scripts/seed.py` | Generates a correlated synthetic grid (latent asset health → sensors → failures), engineers features, trains and evaluates the models, and seeds the database end-to-end |
 
 ## Data Flow
@@ -52,10 +55,15 @@ graph TD
 6. The frontend (`frontend/js/*`) polls/fetches these endpoints to render
    the dashboard, map, charts, maintenance queue, crew view and simulator,
    and posts operator questions to `/api/copilot/query`.
-7. The copilot answers either via a deterministic tool router (default, no
-   API key needed) or by giving an LLM real function-calling access to the
-   exact same tool functions — every answer returns the `evidence` (tool
-   name, arguments, and result) it was built from, so nothing is invented.
+7. The copilot answers either via IBM watsonx.ai function-calling (when
+   `WATSONX_API_KEY` + `WATSONX_PROJECT_ID` are set) or a deterministic tool
+   router (no API key needed). Both drive the exact same tool functions, and
+   every answer returns the `evidence` (tool name, arguments, and result) it
+   was built from, so nothing is invented.
+8. Operator actions (`POST /api/work-orders/*`, `/api/crews/reposition`,
+   `/api/dispatch/emergency`, `/api/alerts/{id}/ack`) write to `work_orders`,
+   update `crews.availability` / `active_assignment`, flag `alerts`, and
+   append to `audit_log` — which `GET /api/audit` reads back as the Runs Log.
 
 ## Security Considerations
 

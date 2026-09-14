@@ -293,6 +293,68 @@ def _make_openai_client():
     ), config.OPENAI_MODEL
 
 
+_watsonx_token_cache = {"token": None, "expires_at": 0}
+
+
+def _get_watsonx_token():
+    """Exchange the IBM Cloud IAM API key for a short-lived bearer token, cached
+    until shortly before it expires (see IBM's IAMTokenManager for the same flow)."""
+    import time
+    import httpx
+    now = time.time()
+    if _watsonx_token_cache["token"] and now < _watsonx_token_cache["expires_at"] - 60:
+        return _watsonx_token_cache["token"]
+    resp = httpx.post(
+        config.WATSONX_IAM_URL,
+        data={"grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+              "apikey": config.WATSONX_API_KEY},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    _watsonx_token_cache["token"] = data["access_token"]
+    _watsonx_token_cache["expires_at"] = now + data.get("expires_in", 3600)
+    return _watsonx_token_cache["token"]
+
+
+def _answer_watsonx(query: str):
+    """LLM mode via IBM watsonx.ai's native /ml/v1/text/chat tool-calling API."""
+    import httpx
+    token = _get_watsonx_token()
+    url = f"{config.WATSONX_URL}/ml/v1/text/chat?version={config.WATSONX_VERSION}"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json",
+               "Accept": "application/json"}
+    messages = [{"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": query}]
+    evidence = []
+    with httpx.Client(timeout=45) as client:
+        for _ in range(5):  # allow a few tool round-trips
+            payload = {"model_id": config.WATSONX_MODEL_ID, "project_id": config.WATSONX_PROJECT_ID,
+                       "messages": messages, "tools": TOOL_SCHEMA, "tool_choice_option": "auto",
+                       "temperature": 0.2}
+            resp = client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            msg = resp.json()["choices"][0]["message"]
+            messages.append(msg)
+            calls = msg.get("tool_calls")
+            if not calls:
+                return {"answer": msg.get("content", ""), "evidence": evidence,
+                        "mode": "llm", "provider": "watsonx", "is_simulation": True}
+            for call in calls:
+                name = call["function"]["name"]
+                args = json.loads(call["function"].get("arguments") or "{}")
+                try:
+                    result = TOOLS[name](**args)
+                except Exception as e:  # never crash on a bad tool call
+                    result = {"error": str(e)}
+                evidence.append({"tool": name, "args": args, "result": result})
+                messages.append({"role": "tool", "tool_call_id": call["id"],
+                                 "content": json.dumps(result, default=str)[:6000]})
+    return {"answer": "Unable to complete the tool sequence.", "evidence": evidence,
+            "mode": "llm", "provider": "watsonx", "is_simulation": True}
+
+
 def _answer_llm(query: str):
     client, model = _make_openai_client()
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
@@ -330,6 +392,13 @@ def _answer_llm(query: str):
 
 def answer(query: str):
     db.audit("copilot", "query", {"query": query, "llm": config.LLM_ENABLED})
+    if config.WATSONX_ENABLED:
+        try:
+            return _answer_watsonx(query)
+        except Exception as e:
+            out = _answer_grounded(query)
+            out["llm_error"] = str(e)
+            return out
     if config.LLM_ENABLED:
         try:
             return _answer_llm(query)
