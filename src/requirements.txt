@@ -3,6 +3,7 @@ fastapi==0.136.3
 uvicorn[standard]==0.35.0
 pydantic==2.12.5
 httpx==0.28.1
+openai>=1.30.0
 
 # Data / ML
 pandas==2.2.2

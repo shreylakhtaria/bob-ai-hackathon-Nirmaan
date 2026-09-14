@@ -92,14 +92,25 @@ CREW_SPEED_KMPH = float(os.getenv("CREW_SPEED_KMPH", "45"))
 # LLM copilot (optional). If no key is present the copilot runs a deterministic,
 # fully grounded responder over the same tool functions.
 # ---------------------------------------------------------------------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
+OPENAI_MODEL    = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+# Nebius (or any OpenAI-SDK-compatible provider)
+NEBIUS_API_KEY  = os.getenv("NEBIUS_API_KEY", "")
+NEBIUS_BASE_URL = os.getenv("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1/")
+NEBIUS_MODEL    = os.getenv("NEBIUS_MODEL", "openai/gpt-oss-120b")
+
+# Azure OpenAI
+AZURE_OPENAI_ENDPOINT   = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_KEY        = os.getenv("AZURE_OPENAI_KEY", "")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
 
-LLM_ENABLED = bool(OPENAI_API_KEY or (AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY))
+LLM_ENABLED = bool(
+    NEBIUS_API_KEY
+    or OPENAI_API_KEY
+    or (AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY)
+)
 
 API_TITLE = "Grid Risk Command Center API"
 API_VERSION = "1.0.0"
