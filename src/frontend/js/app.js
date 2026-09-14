@@ -146,6 +146,255 @@ const App = {
     </div>`);
   },
 
+  _createPdf(title, subtitle) {
+    const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!JsPDF) throw new Error('PDF export library is not loaded.');
+    const doc = new JsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+    doc.setProperties({
+      title,
+      subject: subtitle || title,
+      creator: 'Grid Risk Command Center',
+      author: 'Grid Risk Command Center'
+    });
+    return doc;
+  },
+
+  _startPdf(title, subtitle) {
+    const doc = this._createPdf(title, subtitle);
+    this._pdfHeader(doc, title, subtitle);
+    return {
+      doc,
+      title,
+      subtitle,
+      margin: 40,
+      pageWidth: doc.internal.pageSize.getWidth(),
+      pageHeight: doc.internal.pageSize.getHeight(),
+      y: 90,
+    };
+  },
+
+  _pdfHeader(doc, title, subtitle) {
+    const width = doc.internal.pageSize.getWidth();
+    doc.setFillColor(0, 56, 32);
+    doc.rect(0, 0, width, 72, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(title, 40, 30);
+    if (subtitle) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(subtitle, 40, 50);
+    }
+    doc.setTextColor(11, 28, 48);
+  },
+
+  _pdfEnsureRoom(state, neededHeight = 0) {
+    if (state.y + neededHeight > state.pageHeight - state.margin) {
+      state.doc.addPage();
+      this._pdfHeader(state.doc, state.title, state.subtitle);
+      state.y = 90;
+    }
+  },
+
+  _pdfSection(state, heading, lines = []) {
+    const { doc, margin, pageWidth } = state;
+    const contentWidth = pageWidth - (margin * 2);
+    const textLines = lines.flatMap(line => doc.splitTextToSize(String(line), contentWidth));
+    const neededHeight = 20 + (textLines.length * 12);
+    this._pdfEnsureRoom(state, neededHeight);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(heading, margin, state.y);
+    state.y += 16;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    lines.forEach(line => {
+      const wrapped = doc.splitTextToSize(String(line), contentWidth);
+      doc.text(wrapped, margin, state.y);
+      state.y += wrapped.length * 12;
+    });
+    state.y += 10;
+  },
+
+  _pdfTable(state, heading, columns, rows) {
+    const { doc, margin } = state;
+    this._pdfEnsureRoom(state, 24);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(heading, margin, state.y);
+    state.y += 8;
+    doc.autoTable({
+      startY: state.y,
+      head: [columns],
+      body: rows,
+      margin: { left: margin, right: margin },
+      theme: 'grid',
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 4,
+        valign: 'middle',
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [0, 56, 32],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 249, 255],
+      },
+      tableLineColor: [192, 201, 192],
+      tableLineWidth: 0.25,
+    });
+    state.y = (doc.lastAutoTable?.finalY || state.y) + 16;
+  },
+
+  _pdfSave(state, filename) {
+    state.doc.save(filename);
+  },
+
+  async exportOperationsLog() {
+    try {
+      const [summary, alerts, areas] = await Promise.all([API.summary(), API.alerts(), API.areas()]);
+      const state = this._startPdf(
+        'Grid Operations Log',
+        `Generated ${new Date().toLocaleString()} · Simulation data`
+      );
+      this._pdfSection(state, 'Current Situation', [
+        `Overall grid risk: ${summary.overall_grid_risk || '--'}`,
+        `Critical assets: ${summary.critical_assets || 0}`,
+        `High-risk assets: ${summary.high_risk_assets || 0}`,
+        `Predicted failures: ${summary.predicted_failures || 0}`,
+        `Customers at risk: ${F.num(summary.customers_at_risk)}`,
+        `Weather exposed zones: ${summary.weather_exposed_zones || 0}`,
+      ]);
+      this._pdfTable(
+        state,
+        'Top Ranked Assets',
+        ['Asset ID', 'Area', 'Priority', 'P(Fail)', 'Impact', 'Customers'],
+        (summary.top_assets || []).slice(0, 10).map(a => [
+          a.asset_id || '--',
+          a.area || a.geographic_area || '--',
+          a.priority || a.risk_level || '--',
+          F.pct(a.failure_probability),
+          F.score(a.grid_impact_score),
+          F.num(a.customers_served),
+        ])
+      );
+      this._pdfTable(
+        state,
+        'Area Risk Snapshot',
+        ['Area', 'Risk', 'High-Risk Assets', 'Customers Affected', 'Drivers'],
+        (areas || []).slice(0, 8).map(a => [
+          a.area_id || '--',
+          a.risk_level || '--',
+          String(a.high_risk_assets || 0),
+          F.num(a.expected_customers_affected),
+          (a.contributing_factors || []).slice(0, 2).join('; '),
+        ])
+      );
+      this._pdfTable(
+        state,
+        'Active Alerts',
+        ['Priority', 'Title', 'Reason', 'Recommended Action'],
+        (alerts || []).slice(0, 12).map(al => [
+          al.priority || '--',
+          al.title || '--',
+          al.reason || '--',
+          al.recommended_action || '--',
+        ])
+      );
+      this._pdfSave(state, `grid-operations-log-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert(`Unable to export log PDF: ${e.message}`);
+    }
+  },
+
+  async exportMaintenanceSchedule() {
+    try {
+      const [queue, crewRecs, roster] = await Promise.all([
+        API.maintenance('?limit=100'),
+        API.crewRecommendations(),
+        API.crews(),
+      ]);
+      const crewsList = roster?.crews || roster || [];
+      const state = this._startPdf(
+        'Maintenance Priority Schedule',
+        `Generated ${new Date().toLocaleString()} · Impact-ranked queue`
+      );
+      this._pdfSection(state, 'Schedule Summary', [
+        `Ranked maintenance candidates: ${queue.length}`,
+        `Active field crews: ${crewsList.filter(c => c.availability === 'ON_JOB').length} / ${crewsList.length}`,
+        `Crew recommendations: ${(crewRecs.recommendations || []).length}`,
+      ]);
+      this._pdfTable(
+        state,
+        'Ranked Outage Candidates',
+        ['Rank', 'Asset ID', 'Area', 'Type', 'P(Fail)', 'Impact', 'Customers', 'Action'],
+        queue.map((x, i) => [
+          String(i + 1),
+          x.asset_id || '--',
+          x.area || '--',
+          x.asset_type || '--',
+          F.pct(x.failure_probability),
+          F.score(x.grid_impact_score),
+          F.num(x.customers_served),
+          x.recommended_action || '--',
+        ])
+      );
+      this._pdfTable(
+        state,
+        'Crew Repositioning Recommendations',
+        ['Crew ID', 'Current Area', 'Recommended Area', 'Time Saved', 'Rationale'],
+        (crewRecs.recommendations || []).slice(0, 8).map(r => [
+          r.crew_id || '--',
+          r.current_area || '--',
+          r.recommended_area || '--',
+          `${r.response_reduction_min || 0} min`,
+          r.rationale || '--',
+        ])
+      );
+      this._pdfSave(state, `maintenance-schedule-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert(`Unable to export maintenance schedule PDF: ${e.message}`);
+    }
+  },
+
+  async exportOperatorBrief() {
+    try {
+      const [brief, metrics] = await Promise.all([API.brief(), API.metrics()]);
+      const state = this._startPdf(
+        'Operator Brief',
+        `Generated ${new Date().toLocaleString()} · Shift handover summary`
+      );
+      this._pdfSection(state, 'Situation Snapshot', [
+        `Overall grid risk: ${brief.overall_grid_risk || '--'}`,
+        `Customers at risk: ${F.num(brief.customers_at_risk)}`,
+        `Weather exposed zones: ${brief.weather_exposed_zones || 0}`,
+        `Major risk driver: ${brief.major_risk_driver || 'Not identified'}`,
+      ]);
+      this._pdfTable(
+        state,
+        'Recommended Immediate Actions',
+        ['#', 'Action'],
+        (brief.recommended_immediate_actions || []).map((action, index) => [String(index + 1), action])
+      );
+      this._pdfSection(state, 'Model Confidence', [
+        `Model: ${metrics && metrics.model ? metrics.model : 'N/A'}`,
+        `ROC-AUC: ${metrics && metrics.roc_auc != null ? metrics.roc_auc : 'N/A'}`,
+        `PR-AUC: ${metrics && metrics.pr_auc != null ? metrics.pr_auc : 'N/A'}`,
+      ]);
+      this._pdfSave(state, `operator-brief-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert(`Unable to export operator brief PDF: ${e.message}`);
+    }
+  },
+
   async go(id, arg) {
     this.current = id;
     this.setActive(id === 'asset' ? 'assets' : id);

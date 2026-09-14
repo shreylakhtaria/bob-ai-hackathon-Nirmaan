@@ -800,7 +800,7 @@ Pages.maintenance = async () => {
         <input type="checkbox" class="accent-primary" id="mf-cust" checked/>
         <span>CUST EXPOSED &gt;10K</span>
       </label>
-      <button onclick="App.refresh()" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
+      <button onclick="App.exportMaintenanceSchedule()" class="ml-auto h-7 px-space-md bg-surface-container border border-outline-variant rounded flex items-center gap-1 hover:bg-surface-container-high transition-colors" type="button">
         <span class="material-symbols-outlined text-[15px]">download</span>Export Schedule
       </button>
     </div>
@@ -1345,7 +1345,7 @@ Pages.operatorBrief = async () => {
         <p class="font-body-md text-body-md text-on-surface-variant">Shift handover summary — grid risk, asset status, recommended actions.</p>
       </div>
       <div class="flex gap-space-xs">
-        <button class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
+        <button onclick="App.exportOperatorBrief()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface border border-outline-variant rounded font-label-sm text-label-sm flex items-center gap-1.5 hover:bg-surface-container" type="button">
           <span class="material-symbols-outlined text-[15px]">download</span>Export PDF
         </button>
         <button onclick="App.refresh()" class="h-8 px-space-md bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90" type="button">

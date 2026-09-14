@@ -142,7 +142,7 @@
       <button id="btn-emergency" onclick="alert('Emergency Dispatch workflow initiated.')" class="h-8 px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider" type="button">
         <span class="material-symbols-outlined text-[16px]">warning</span>Emergency Dispatch
       </button>
-      <button onclick="alert('Downloading grid operations log PDF...')" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
+      <button onclick="App.exportOperationsLog()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
         <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
       </button>
       <div class="relative ml-1">
@@ -230,6 +230,8 @@
 <!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/components.js"></script>
 <script src="/js/pages.js"></script>
