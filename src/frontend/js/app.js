@@ -443,6 +443,7 @@ const App = {
   async go(id, arg) {
     this.current = id;
     this.setActive(id === 'asset' ? 'assets' : id);
+    this.toggleSidebar(false); // no-op on desktop (lg: overrides the transform), closes the drawer on mobile/tablet
     // Persist the current page in the URL hash (replaceState, not pushState,
     // so it doesn't spam browser history) so a refresh restores the same page
     // instead of always falling back to Overview.
@@ -498,6 +499,24 @@ const App = {
         badge.style.display = (s.unacked_alerts ?? 0) > 0 ? 'flex' : 'none';
       }
     } catch (e) { /* server offline — leave placeholders */ }
+  },
+
+  /* ─── Off-canvas sidebar (mobile/tablet, below the `lg` breakpoint) ─── */
+  toggleSidebar(force) {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar || !backdrop) return;
+    const open = typeof force === 'boolean' ? force : sidebar.classList.contains('-translate-x-full');
+    sidebar.classList.toggle('-translate-x-full', !open);
+    backdrop.classList.toggle('hidden', !open);
+  },
+
+  /* ─── Mobile search row (header collapses the search box below `md`) ─── */
+  toggleMobileSearch() {
+    const row = document.getElementById('mobile-search-row');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) document.getElementById('global-search-mobile')?.focus();
   },
 
   /* ─── Export menu ─── */
@@ -684,6 +703,18 @@ python -m scripts.seed</pre>
       searchBtn.addEventListener('click', () => {
         this.searchSubmit(search.value);
         search.blur();
+      });
+    }
+
+    // Mobile search row (header collapses the search box below `md`)
+    const searchMobile = document.getElementById('global-search-mobile');
+    if (searchMobile) {
+      searchMobile.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          this.searchSubmit(searchMobile.value);
+          searchMobile.blur();
+          this.toggleMobileSearch();
+        }
       });
     }
 

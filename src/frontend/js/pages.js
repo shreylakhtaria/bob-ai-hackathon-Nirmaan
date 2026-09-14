@@ -65,25 +65,25 @@ Pages.overview = async () => {
 
   // Recommended action banner
   const recAction = (s.recommended_actions || [])[0] || 'No immediate actions required.';
-  const banner = `<div class="bg-surface-container-low border border-outline-variant rounded p-space-md mb-space-md flex items-center justify-between gap-space-sm">
-    <div class="flex items-start gap-space-sm">
+  const banner = `<div class="bg-surface-container-low border border-outline-variant rounded p-space-md mb-space-md flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
+    <div class="flex items-start gap-space-sm min-w-0">
       <span class="material-symbols-outlined text-error text-[20px] flex-shrink-0 mt-0.5">notifications_active</span>
-      <div>
+      <div class="min-w-0">
         <div class="font-label-sm text-[10px] text-on-surface-variant uppercase font-bold tracking-wider mb-0.5">TOP RECOMMENDED ACTION</div>
         <div class="font-body-md text-body-md text-on-surface font-semibold">${F.esc(recAction)}</div>
       </div>
     </div>
-    <div class="flex gap-space-xs flex-shrink-0">
+    <div class="flex flex-wrap gap-space-xs flex-shrink-0">
       <button onclick="Actions.dispatch('${(s.top_assets[0] || {}).asset_id || ''}', this)"
-        class="h-8 px-space-md bg-error text-on-error font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity" type="button">
+        class="h-8 px-space-md bg-error text-on-error font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity whitespace-nowrap" type="button">
         <span class="material-symbols-outlined text-[15px]">send</span>Dispatch Crew Now
       </button>
       <button onclick="App.simAsset('${(s.top_assets[0] || {}).asset_id || ''}')"
-        class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
+        class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors whitespace-nowrap" type="button">
         <span class="material-symbols-outlined text-[15px]">model_training</span>Simulate Failure
       </button>
       <button onclick="App.openAsset('${(s.top_assets[0] || {}).asset_id || ''}')"
-        class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors" type="button">
+        class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold rounded border border-outline-variant flex items-center gap-1.5 hover:bg-surface-container transition-colors whitespace-nowrap" type="button">
         <span class="material-symbols-outlined text-[15px]">monitoring</span>Review Telemetry
       </button>
     </div>
