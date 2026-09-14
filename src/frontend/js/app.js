@@ -68,9 +68,13 @@ const GridMap = {
       m._assetPriority = lvl;
       this._layers.assets.push(m);
       if (lvl === 'CRITICAL') {
+        // Purely decorative pulse animation — must be non-interactive, otherwise
+        // this larger ring (radius 14 vs the marker's radius 8) sits on top of
+        // and intercepts clicks meant for the real, popup-bound marker `m`,
+        // which made CRITICAL assets look like they had no info on click.
         const ring = L.circleMarker([a.latitude, a.longitude], {
           radius: 14, color: F.riskColor(lvl), weight: 1, fillOpacity: 0,
-          className: 'leaflet-pulse-ring'
+          className: 'leaflet-pulse-ring', interactive: false
         }).addTo(map);
         ring._assetPriority = lvl;
         this._layers.assets.push(ring);
@@ -439,6 +443,13 @@ const App = {
   async go(id, arg) {
     this.current = id;
     this.setActive(id === 'asset' ? 'assets' : id);
+    // Persist the current page in the URL hash (replaceState, not pushState,
+    // so it doesn't spam browser history) so a refresh restores the same page
+    // instead of always falling back to Overview.
+    try {
+      const h = '#' + id;
+      if (location.hash !== h) history.replaceState(null, '', h);
+    } catch (e) { /* ignore (e.g. file:// origin) */ }
     this.loading();
     try {
       switch (id) {
@@ -686,7 +697,15 @@ python -m scripts.seed</pre>
       }
     });
 
-    this.go('overview');
+    // Restore whichever page was open when the operator refreshed/deep-linked,
+    // instead of always defaulting to Overview.
+    const validIds = NAV.map(n => n.id).concat(['asset']);
+    const startId = (location.hash || '').replace('#', '');
+    window.addEventListener('hashchange', () => {
+      const id = (location.hash || '').replace('#', '');
+      if (validIds.includes(id) && id !== this.current) this.go(id);
+    });
+    this.go(validIds.includes(startId) ? startId : 'overview');
   },
 
   toast(message, kind = 'ok', duration = 4000) {

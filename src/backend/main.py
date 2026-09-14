@@ -6,16 +6,16 @@ Run:  uvicorn backend.main:app --reload --port 8000
 """
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import config, db
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
-                       operations as ops_svc)
+                       operations as ops_svc, auth as auth_svc)
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -59,6 +59,16 @@ class RepositionRequest(BaseModel):
     area_id: str
 
 
+class SignupRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 def _require_seeded():
     if not db.query_one("SELECT 1 FROM assets LIMIT 1"):
         raise HTTPException(503, "Database not seeded. Run: python -m scripts.seed")
@@ -72,6 +82,26 @@ def health():
     seeded = bool(db.query_one("SELECT 1 FROM assets LIMIT 1"))
     return {"status": "ok", "seeded": seeded, "is_simulation": config.IS_SIMULATION,
             "llm_enabled": config.LLM_ENABLED, "now": db.get_meta("now")}
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+@app.post("/api/auth/signup")
+def auth_signup(req: SignupRequest):
+    user = auth_svc.signup(req.email, req.password)
+    return {"token": auth_svc.issue_token(user), "user": auth_svc.public_user(user)}
+
+
+@app.post("/api/auth/login")
+def auth_login(req: LoginRequest):
+    user = auth_svc.login(req.email, req.password)
+    return {"token": auth_svc.issue_token(user), "user": auth_svc.public_user(user)}
+
+
+@app.get("/api/auth/me")
+def auth_me(current=Depends(auth_svc.get_current_user)):
+    return {"id": current["uid"], "email": current["email"], "role": current["role"]}
 
 
 @app.get("/api/model/metrics")
