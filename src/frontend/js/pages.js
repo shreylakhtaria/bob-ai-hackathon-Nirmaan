@@ -421,16 +421,25 @@ Pages.assets = async (preSelectArg) => {
 
   Pages._renderAssetTable();
 
-  // Filter logic
+  // Filter logic: searches Asset ID, Substation, Serial Number, Area, Type, Manufacturer, and Status
   const applyFilter = () => {
-    const q = v('f-q').toUpperCase();
+    const q = v('f-q').trim().toUpperCase();
     const area = v('f-area'), type = v('f-type'), pri = v('f-pri');
-    Pages._assetFiltered = _allAssets.filter(a =>
-      (!q    || a.asset_id.includes(q) || (a.geographic_area||'').toUpperCase().includes(q)) &&
-      (!area || a.geographic_area === area) &&
-      (!type || a.asset_type === type) &&
-      (!pri  || a.priority === pri)
-    );
+    Pages._assetFiltered = _allAssets.filter(a => {
+      const matchQ = !q ||
+        (a.asset_id || '').toUpperCase().includes(q) ||
+        (a.geographic_area || a.area || '').toUpperCase().includes(q) ||
+        (a.substation_id || '').toUpperCase().includes(q) ||
+        (a.substation || '').toUpperCase().includes(q) ||
+        (a.serial_number || '').toUpperCase().includes(q) ||
+        (a.asset_type || '').toUpperCase().includes(q) ||
+        (a.manufacturer || '').toUpperCase().includes(q) ||
+        (a.current_status || '').toUpperCase().includes(q);
+      const matchArea = !area || (a.geographic_area === area || a.area === area);
+      const matchType = !type || a.asset_type === type;
+      const matchPri  = !pri  || a.priority === pri;
+      return matchQ && matchArea && matchType && matchPri;
+    });
     Pages._assetPage = 0;
     Pages._renderAssetTable();
   };

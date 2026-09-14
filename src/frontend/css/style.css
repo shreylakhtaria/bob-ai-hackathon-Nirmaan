@@ -1,6 +1,8 @@
 /* ===================================================================
    Grid Risk Command Center — Supplemental CSS
    Tailwind handles the token system; this file covers:
+   - Top-centered toast notifications (Image 1 reference)
+   - Rounded border and card micro-effects
    - Leaflet map overrides
    - Chart.js canvas
    - Custom animations beyond Tailwind defaults
@@ -9,20 +11,165 @@
    - Table row selection indicator
    =================================================================== */
 
+/* ─── Top Toast Notifications (Image 1 reference) ─── */
+.toast-host, #toast-host {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: auto;
+  max-width: calc(100vw - 32px);
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px -4px rgba(11, 28, 48, 0.12), 0 4px 10px -2px rgba(11, 28, 48, 0.05);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0b1c30;
+  min-width: 310px;
+  max-width: 600px;
+  animation: toast-slide-down 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.toast-item.toast-ok {
+  border: 1px solid #005234;
+  background: #ffffff;
+}
+
+.toast-item.toast-warn, .toast-item.toast-info {
+  border: 1px solid #376757;
+  background: #ffffff;
+}
+
+.toast-item.toast-err {
+  border: 1px solid #ba1a1a;
+  background: #ffffff;
+}
+
+.toast-icon-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast-icon-circle.ok {
+  border: 1.5px solid #005234;
+  color: #005234;
+}
+
+.toast-icon-circle.warn, .toast-icon-circle.info {
+  border: 1.5px solid #376757;
+  color: #376757;
+}
+
+.toast-icon-circle.err {
+  border: 1.5px solid #ba1a1a;
+  color: #ba1a1a;
+}
+
+.toast-icon-circle .material-symbols-outlined {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.toast-text {
+  flex: 1;
+  line-height: 1.4;
+  color: #0b1c30;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #707971;
+  cursor: pointer;
+  padding: 2px;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.55;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.toast-close:hover {
+  opacity: 1;
+  background: #eff4ff;
+}
+
+@keyframes toast-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-leaving {
+  opacity: 0 !important;
+  transform: translateY(-16px) scale(0.96) !important;
+}
+
+/* ─── Global Card, Button & Surface Softening ─── */
+button {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.bg-surface-container-lowest.rounded,
+.bg-surface-container-low.rounded,
+.bg-surface-container-high.rounded,
+.bg-surface-container.rounded {
+  border-radius: 0.5rem;
+}
+
+/* Soft elevation and hover lift for KPI cards and panels */
+.kpi-accent { width: 3.5px; border-radius: 3px; align-self: stretch; }
+
 /* ── Leaflet ────────────────────────────────────────────────────── */
 #map, .map-container {
   height: 460px;
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
   border: 1px solid #c0c9c0;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(11, 28, 48, 0.05);
 }
 .map-sm { height: 280px; }
 .leaflet-container { background: #e5eeff; font-family: 'IBM Plex Sans', sans-serif; }
 .leaflet-popup-content-wrapper {
   background: #ffffff;
   color: #0b1c30;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(11, 28, 48, 0.14);
   border: 1px solid #c0c9c0;
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 12px;
@@ -60,13 +207,36 @@ canvas { max-width: 100%; }
 }
 .slide-in { animation: slide-in-right 0.2s ease-out; }
 
+/* ─── Skeleton Loading Shimmer & Fade (Image 4 reference) ─── */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.sk-shimmer {
+  background: linear-gradient(90deg, #e5eeff 25%, #f4f8ff 50%, #e5eeff 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+.sk-shimmer-dark {
+  background: linear-gradient(90deg, #d3e4fe 25%, #eaf1ff 50%, #d3e4fe 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
 /* ── Table row selection ────────────────────────────────────────── */
 tr.row-selected > td:first-child { border-left: 3px solid #003820; }
 tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
 
 /* ── Scrollable panel ───────────────────────────────────────────── */
 .scroll-panel::-webkit-scrollbar { width: 4px; height: 4px; }
-.scroll-panel::-webkit-scrollbar-thumb { background: #c0c9c0; border-radius: 2px; }
+.scroll-panel::-webkit-scrollbar-thumb { background: #c0c9c0; border-radius: 3px; }
 .scroll-panel::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Sub-tab bar ────────────────────────────────────────────────── */
@@ -98,27 +268,28 @@ tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
   flex: 1;
 }
 .chat-log::-webkit-scrollbar { width: 4px; }
-.chat-log::-webkit-scrollbar-thumb { background: #c0c9c0; border-radius: 2px; }
+.chat-log::-webkit-scrollbar-thumb { background: #c0c9c0; border-radius: 3px; }
 .chat-msg {
   max-width: 88%;
   padding: 10px 13px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13px;
   line-height: 1.55;
   font-family: 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 1px 3px rgba(11, 28, 48, 0.05);
 }
 .chat-msg.user {
   align-self: flex-end;
   background: #0f5132;
   color: #ffffff;
-  border-bottom-right-radius: 3px;
+  border-bottom-right-radius: 4px;
 }
 .chat-msg.bot {
   align-self: flex-start;
   background: #eff4ff;
   border: 1px solid #c0c9c0;
   color: #0b1c30;
-  border-bottom-left-radius: 3px;
+  border-bottom-left-radius: 4px;
 }
 .chat-msg.bot strong { color: #003820; }
 .chat-msg.typing { color: #707971; font-style: italic; }
@@ -132,8 +303,8 @@ tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
 }
 .chat-evidence code {
   background: #e5eeff;
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
   color: #003820;
 }
 
@@ -141,45 +312,45 @@ tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
 .suggest-chip {
   background: #eff4ff;
   border: 1px solid #c0c9c0;
-  border-radius: 20px;
-  padding: 4px 10px;
+  border-radius: 9999px;
+  padding: 5px 12px;
   font-size: 11px;
   color: #404942;
   cursor: pointer;
   font-family: 'IBM Plex Sans', sans-serif;
-  transition: border-color 0.15s, color 0.15s;
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
-.suggest-chip:hover { border-color: #0f5132; color: #003820; background: #e5eeff; }
+.suggest-chip:hover { border-color: #0f5132; color: #003820; background: #e5eeff; transform: translateY(-0.5px); }
 
 /* ── Factor / SHAP bars ─────────────────────────────────────────── */
 .fbar-track {
-  height: 5px;
+  height: 6px;
   background: #e5eeff;
-  border-radius: 3px;
+  border-radius: 9999px;
   overflow: hidden;
   min-width: 80px;
 }
 .fbar-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 9999px;
   background: linear-gradient(90deg, #376757, #0f5132);
 }
 .fbar-fill.danger { background: linear-gradient(90deg, #f59e0b, #ba1a1a); }
 
 /* ── Probability bar ────────────────────────────────────────────── */
-.prob-bar { height: 5px; border-radius: 3px; overflow: hidden; flex: 1; min-width: 60px; background: #d3e4fe; }
-.prob-bar-fill { height: 100%; border-radius: 3px; }
+.prob-bar { height: 6px; border-radius: 9999px; overflow: hidden; flex: 1; min-width: 60px; background: #d3e4fe; }
+.prob-bar-fill { height: 100%; border-radius: 9999px; }
 
 /* ── Rank badge ─────────────────────────────────────────────────── */
-.rank-urgent { background: #ffdad6; color: #93000a; border: 1px solid #ba1a1a; }
-.rank-high   { background: #dce9ff; color: #0b1c30; border: 1px solid #c0c9c0; }
-.rank-planned{ background: #baeed9; color: #002117; border: 1px solid #376757; }
+.rank-urgent { background: #ffdad6; color: #93000a; border: 1px solid #ba1a1a; border-radius: 0.375rem; }
+.rank-high   { background: #dce9ff; color: #0b1c30; border: 1px solid #c0c9c0; border-radius: 0.375rem; }
+.rank-planned{ background: #baeed9; color: #002117; border: 1px solid #376757; border-radius: 0.375rem; }
 
 /* ── Simulation ─────────────────────────────────────────────────── */
 .sim-tab {
   padding: 5px 12px;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 600;
@@ -198,21 +369,19 @@ tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }
 }
 .sim-tab:not(.active):hover { background: #e5eeff; border-color: #c0c9c0; }
 
-/* ── KPI tile accent bar ────────────────────────────────────────── */
-.kpi-accent { width: 3px; border-radius: 2px; align-self: stretch; }
-
 /* ── Mitigation step ────────────────────────────────────────────── */
 .miti-step {
   display: flex;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
   border: 1px solid #c0c9c0;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(11, 28, 48, 0.04);
 }
 .miti-num {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #0f5132;
   color: #fff;
@@ -236,7 +405,7 @@ table { border-collapse: collapse; }
 /* ── Print / PDF styling ────────────────────────────────────────── */
 @media print {
   body { background: #ffffff !important; color: #000000 !important; }
-  aside.sidebar, header.topbar, button, .topbar-right, #sensor-modal-overlay { display: none !important; }
+  aside.sidebar, header.topbar, button, .topbar-right, #sensor-modal-overlay, #toast-host { display: none !important; }
   main.main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
   .bg-surface-container-lowest, .bg-surface-container-high, .bg-surface-container-low {
     background: #ffffff !important;

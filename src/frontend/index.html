@@ -6,6 +6,12 @@
   <title>Grid Equipment Failure &amp; Outage Advisor</title>
   <meta name="description" content="Grid Risk Command Center — SCADA/ML-powered asset health, failure prediction and operational decision support for power utilities."/>
 
+  <!-- Favicon matching product logo -->
+  <link rel="icon" type="image/png" href="/favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="shortcut icon" href="/favicon.png"/>
+  <link rel="apple-touch-icon" href="/favicon.png"/>
+
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -57,7 +63,14 @@
             "inverse-surface":"#213145","inverse-on-surface":"#eaf1ff"
           },
           borderRadius: {
-            "DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"
+            "none": "0px",
+            "sm": "0.25rem",
+            "DEFAULT": "0.375rem",
+            "md": "0.5rem",
+            "lg": "0.625rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
           },
           spacing: {
             "space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem",
@@ -108,8 +121,8 @@
 
     <!-- Brand & Status -->
     <div class="flex items-center gap-space-md min-w-fit">
-      <div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center flex-shrink-0">
-        <span class="material-symbols-outlined text-on-primary text-[20px]" style="font-variation-settings:'FILL' 1">electric_bolt</span>
+      <div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-outline-variant/40">
+        <img src="/favicon.png" alt="Grid Risk Advisor" class="w-8 h-8 object-cover"/>
       </div>
       <div class="flex flex-col">
         <div class="flex items-center gap-space-sm">

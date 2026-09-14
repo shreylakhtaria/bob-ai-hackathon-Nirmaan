@@ -71,32 +71,60 @@ const API = {
   exportUrl:           (kind)    => '/api/export/' + kind,
 };
 
-/* ─── Toast notifications (real action feedback, replaces alert()) ─── */
+/* ─── Toast notifications (Image 1 reference, replaces native browser alert()) ─── */
 const Toast = {
-  show(message, kind = 'ok') {
+  show(message, kind = 'ok', duration = 4000) {
+    if (!message) return;
     let host = document.getElementById('toast-host');
     if (!host) {
       host = document.createElement('div');
       host.id = 'toast-host';
-      host.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end';
+      host.className = 'toast-host';
       document.body.appendChild(host);
     }
-    const tone = {
-      ok:   ['#0f5132', 'check_circle'],
-      warn: ['#376757', 'info'],
-      err:  ['#ba1a1a', 'error'],
-    }[kind] || ['#0f5132', 'check_circle'];
+    const iconName = {
+      ok:   'check',
+      warn: 'info',
+      err:  'priority_high',
+      info: 'info'
+    }[kind] || 'check';
+
     const node = document.createElement('div');
-    node.className = 'toast-item flex items-start gap-2 bg-surface-container-lowest border rounded shadow-lg px-space-md py-space-sm max-w-sm';
-    node.style.borderColor = tone[0];
-    node.innerHTML = `<span class="material-symbols-outlined text-[18px]" style="color:${tone[0]}">${tone[1]}</span>
-      <span class="font-body-sm text-body-sm text-on-surface">${F.esc(message)}</span>`;
+    node.className = `toast-item toast-${kind}`;
+    node.setAttribute('role', 'alert');
+    node.innerHTML = `
+      <div class="toast-icon-circle ${kind}">
+        <span class="material-symbols-outlined">${iconName}</span>
+      </div>
+      <div class="toast-text">${F.esc(message)}</div>
+      <button class="toast-close" title="Dismiss" type="button" aria-label="Close notification">
+        <span class="material-symbols-outlined text-[16px]">close</span>
+      </button>
+    `;
+
+    const dismiss = () => {
+      if (node._dismissed) return;
+      node._dismissed = true;
+      node.classList.add('toast-leaving');
+      setTimeout(() => node.remove(), 260);
+    };
+
+    node.querySelector('.toast-close').addEventListener('click', dismiss);
     host.appendChild(node);
-    setTimeout(() => { node.style.opacity = '0'; setTimeout(() => node.remove(), 300); }, 4200);
+
+    if (duration > 0) {
+      setTimeout(dismiss, duration);
+    }
   },
-  ok:   m => Toast.show(m, 'ok'),
-  warn: m => Toast.show(m, 'warn'),
-  err:  m => Toast.show(m, 'err'),
+  ok:   (m, dur) => Toast.show(m, 'ok', dur),
+  warn: (m, dur) => Toast.show(m, 'warn', dur),
+  err:  (m, dur) => Toast.show(m, 'err', dur),
+  info: (m, dur) => Toast.show(m, 'info', dur),
+};
+
+/* Intercept native window.alert so all unexpected or localhost alerts show the custom toast */
+window.alert = function(msg) {
+  Toast.show(String(msg), 'warn');
 };
 
 /* Trigger a real file download from an API endpoint */
