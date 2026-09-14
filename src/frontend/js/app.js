@@ -25,11 +25,17 @@ const GridMap = {
     const el = document.getElementById(elId);
     if (!el) return;
 
-    const map = L.map(elId, { zoomControl: true, attributionControl: false }).setView([23.05, 72.58], 11);
+    const map = L.map(elId, { zoomControl: true, attributionControl: true }).setView([23.05, 72.58], 11);
     this._map = map;
     this._layers = { wx: [], assets: [], crews: [] };
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    // OpenStreetMap's standard tile server — free, no API key required.
+    // (CartoDB's anonymous basemap endpoint now requires a key and watermarks
+    // unauthenticated requests with "API KEY REQUIRED" tiles.)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
     // Area weather circles
     (data.areas || []).forEach(a => {
