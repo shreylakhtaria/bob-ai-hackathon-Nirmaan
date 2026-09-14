@@ -37,10 +37,19 @@ const API = {
   incidents:           ()        => API.get('/incidents?limit=50'),
   simulate:            (b)       => API.post('/simulation', b),
   copilot:             (q)       => API.post('/copilot/query', { query: q }),
+  dispatchMaintenance: (d)       => API.post('/maintenance/dispatch', d),
+  repositionCrew:      (d)       => API.post('/crews/reposition', d),
 };
 
 /* ─── Shared formatting utilities ─── */
 const F = {
+  debounce: (fn, delay = 300) => {
+    let timer = null;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  },
   pct:   v  => v == null ? '--' : (v * 100).toFixed(0) + '%',
   pct1:  v  => v == null ? '--' : (v * 100).toFixed(1) + '%',
   num:   v  => v == null ? '--' : Number(v).toLocaleString(),

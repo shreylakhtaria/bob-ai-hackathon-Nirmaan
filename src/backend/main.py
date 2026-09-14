@@ -35,6 +35,17 @@ class CopilotRequest(BaseModel):
     query: str
 
 
+class DispatchRequest(BaseModel):
+    asset_id: str
+    action: str = "Dispatch"
+    technician: Optional[str] = "Control Room Desk"
+
+
+class CrewRepositionRequest(BaseModel):
+    crew_id: str
+    target_area: str
+
+
 def _require_seeded():
     if not db.query_one("SELECT 1 FROM assets LIMIT 1"):
         raise HTTPException(503, "Database not seeded. Run: python -m scripts.seed")
@@ -227,6 +238,40 @@ def crews():
 def crew_recommendations():
     _require_seeded()
     return crew_svc.recommend_crews()
+
+
+@app.post("/api/maintenance/dispatch")
+def maintenance_dispatch(req: DispatchRequest):
+    _require_seeded()
+    asset = db.query_one("SELECT * FROM assets WHERE asset_id=?", (req.asset_id,))
+    if not asset:
+        raise HTTPException(404, f"Asset {req.asset_id} not found")
+    with db.session() as conn:
+        conn.execute("UPDATE predictions SET recommended_action=? WHERE asset_id=?",
+                     (f"{req.action.capitalize()}ed: Work order logged", req.asset_id))
+    db.audit("operator", f"maintenance_{req.action.lower()}", {
+        "asset_id": req.asset_id, "action": req.action, "technician": req.technician
+    })
+    return {"status": "ok", "message": f"{req.action.capitalize()} order recorded for {req.asset_id}",
+            "asset_id": req.asset_id, "action": req.action}
+
+
+@app.post("/api/crews/reposition")
+def crew_reposition(req: CrewRepositionRequest):
+    _require_seeded()
+    crew = db.query_one("SELECT * FROM crews WHERE crew_id=?", (req.crew_id,))
+    if not crew:
+        raise HTTPException(404, f"Crew {req.crew_id} not found")
+    with db.session() as conn:
+        conn.execute(
+            "UPDATE crews SET current_area=?, active_assignment=? WHERE crew_id=?",
+            (req.target_area, f"Pre-positioned in {req.target_area}", req.crew_id)
+        )
+    db.audit("operator", "reposition_crew", {
+        "crew_id": req.crew_id, "from_area": crew["current_area"], "to_area": req.target_area
+    })
+    return {"status": "ok", "message": f"{req.crew_id} pre-positioned to {req.target_area}",
+            "crew_id": req.crew_id, "new_area": req.target_area}
 
 
 # ---------------------------------------------------------------------------
