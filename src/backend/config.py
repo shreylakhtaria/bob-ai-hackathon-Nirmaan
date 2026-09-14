@@ -113,17 +113,17 @@ AZURE_OPENAI_ENDPOINT   = os.getenv("AZURE_OPENAI_ENDPOINT", "")
 AZURE_OPENAI_KEY        = os.getenv("AZURE_OPENAI_KEY", "")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
 
-# IBM Bob — the hackathon-provided coding-agent platform's Inference API
-# (OpenAI-Chat-Completions-compatible gateway at api.<region>.bob.ibm.com).
-# This is the literal graded "IBM Bob Integration" criterion, distinct from
-# watsonx.ai below. Auth is a single `bob_prod_...` API key (Inference-scoped
-# keys need no extra team-id header). Checked first if present.
-BOB_API_KEY   = os.getenv("BOB_API_KEY", "")
-BOB_BASE_URL  = os.getenv("BOB_BASE_URL", "https://api.us-east.bob.ibm.com/inference/v1")
-# Leave blank to auto-discover the first model from GET {BOB_BASE_URL}/model/info
-# at call time (cached) — set explicitly if you know the catalog id you want.
-BOB_MODEL     = os.getenv("BOB_MODEL", "")
-BOB_ENABLED   = bool(BOB_API_KEY)
+# IBM Bob — the hackathon-provided coding-agent CLI. This is the literal
+# graded "IBM Bob Integration" criterion, distinct from watsonx.ai below.
+# Bob has no public raw-HTTP inference API for third-party backends (its
+# /inference/* route is Cloudflare-gated to the official CLI client only —
+# confirmed by a 403 even with a bogus token). The working integration is
+# headless CLI mode (`bob run --mode ask ...`, invoked as a subprocess from
+# services/copilot.py), which requires the `bob` binary on PATH:
+# https://bob.ibm.com/docs/shell/getting-started/install-and-setup
+# Checked first if BOB_API_KEY is present.
+BOB_API_KEY = os.getenv("BOB_API_KEY", "")
+BOB_ENABLED = bool(BOB_API_KEY)
 
 # IBM watsonx.ai — native chat/tool-calling API. Auth is an IBM Cloud IAM API
 # key exchanged for a short-lived bearer token (see services/copilot.py).
