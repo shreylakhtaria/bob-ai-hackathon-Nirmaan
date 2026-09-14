@@ -52,7 +52,7 @@ submission:
     frameworks: ["FastAPI", "Pydantic", "Uvicorn"]                      # e.g., ["FastAPI", "React"]
     ibm_technologies: []                                                # e.g., ["watsonx.ai", "IBM Bob", "IBM Cloud Functions"]
     databases: ["SQLite"]                                               # e.g., ["PostgreSQL", "Redis"]
-    other: ["scikit-learn", "LightGBM", "SHAP", "pandas", "NumPy", "Leaflet", "Chart.js", "Docker"]  # e.g., ["Docker", "GitHub Actions", "Slack API"]
+    other: ["scikit-learn", "LightGBM", "SHAP", "pandas", "NumPy", "Leaflet", "Chart.js", "Tailwind CSS", "OpenAI SDK", "Nebius Token Factory", "Docker"]  # e.g., ["Docker", "GitHub Actions", "Slack API"]
 
   what_we_are_most_proud_of: >         # Optional but recommended — guides judges to your best work
     The Grid Impact Score: it is the difference between a model that ranks assets by
@@ -67,10 +67,13 @@ submission:
   known_limitations: >                 # Optional but recommended — be honest about gaps
     All data is clearly-labelled SIMULATION DATA — there is no live SCADA/IoT feed
     integration yet. The AI copilot's optional LLM mode currently targets an
-    OpenAI-compatible chat-completions API (OpenAI or Azure OpenAI); it is not yet
-    wired to IBM watsonx.ai / IBM Bob specifically, though the tool-calling loop is
-    isolated behind a single adapter so that swap is contained (see
-    docs/solution-overview.md). The default data layer is SQLite for demo
+    OpenAI-SDK-compatible chat-completions API (Nebius Token Factory, OpenAI, or
+    Azure OpenAI); it is NOT yet wired to IBM watsonx.ai / IBM Bob specifically, so
+    the challenge's "Build a Bob solution" framing is not literally satisfied by a
+    direct Bob integration today. The tool-calling loop is isolated behind a single
+    client adapter and a fixed tool registry (see docs/solution-overview.md), so
+    wiring it to watsonx.ai, or exposing the same tools to Bob over MCP, is a
+    contained follow-up rather than a rewrite. The default data layer is SQLite for demo
     reliability — a documented, mechanical swap to PostgreSQL is described in
     docs/architecture.md but not exercised in this submission. The crew
     pre-positioning optimiser uses a greedy heuristic rather than a full

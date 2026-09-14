@@ -30,8 +30,9 @@ cp .env.example .env
 | `HERO_TARGET_DEG` | Severity knob for the demo "hero" asset (T-1024) | No (default `0.60`) |
 | `DB_PATH` / `DATABASE_URL` | Override the SQLite file location, or point at Postgres | No (default: local SQLite file) |
 | `CREW_SPEED_KMPH` | Assumed field-crew travel speed for the optimiser | No (default `45`) |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | Enables true LLM function-calling in the copilot | No — grounded local mode is used if unset |
-| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_KEY` / `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI alternative to the above | No |
+| `NEBIUS_API_KEY` / `NEBIUS_BASE_URL` / `NEBIUS_MODEL` | **Recommended.** Enables true LLM function-calling via Nebius Token Factory (OpenAI-SDK-compatible, defaults to the open-weight `openai/gpt-oss-120b`) | No — grounded local mode is used if unset |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | Alternative: plain OpenAI | No |
+| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_KEY` / `AZURE_OPENAI_DEPLOYMENT` | Alternative: Azure OpenAI | No |
 
 ## Installation
 
@@ -79,7 +80,7 @@ docker compose up --build
 
 **Optional: enable the LLM copilot**
 ```bash
-export OPENAI_API_KEY=sk-...
+export NEBIUS_API_KEY=...      # recommended — or OPENAI_API_KEY / AZURE_OPENAI_*
 # then run uvicorn as above
 ```
 Without this, the copilot still fully answers operator questions — it just

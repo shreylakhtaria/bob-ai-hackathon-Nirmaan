@@ -54,9 +54,9 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 |---|---|
 | **Languages** | Python, JavaScript, SQL |
 | **Frameworks** | FastAPI, Pydantic, Uvicorn |
-| **AI / LLM copilot** | Grounded tool-calling router (no key required); auto-upgrades to OpenAI / Azure OpenAI-compatible function-calling when configured — see [Known Limitations](#️-known-limitations) |
+| **AI / LLM copilot** | Grounded tool-calling router (no key required); auto-upgrades to true function-calling via Nebius Token Factory (recommended), OpenAI, or Azure OpenAI when configured — see [Known Limitations](#️-known-limitations) |
 | **Databases** | SQLite (documented one-line swap to PostgreSQL, see [`docs/architecture.md`](docs/architecture.md)) |
-| **Frontend & UI** | Framework-free static SPA — HTML/CSS/JS, Leaflet (map), Chart.js (sensor trends) |
+| **Frontend & UI** | Build-free static SPA — HTML/JS, Tailwind CSS (CDN), Leaflet (map), Chart.js (sensor trends) |
 | **AI / ML** | Pandas, NumPy, Scikit-learn, LightGBM, IsolationForest, SHAP |
 | **Ops** | Docker, docker-compose |
 
@@ -121,10 +121,13 @@ Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 ## ⚠️ Known Limitations
 
 - All data is clearly-labelled **SIMULATION DATA** — there is no live SCADA/IoT feed integration.
-- The AI copilot's optional LLM mode targets an **OpenAI-compatible** chat-completions API
-  (OpenAI or Azure OpenAI). It is not yet wired to IBM watsonx.ai / IBM Bob specifically —
-  the tool-calling loop is isolated behind one adapter, so that swap is contained but not
-  done in this submission (see [`docs/solution-overview.md`](docs/solution-overview.md)).
+- The AI copilot's optional LLM mode targets an **OpenAI-SDK-compatible** chat-completions
+  API (Nebius Token Factory, OpenAI, or Azure OpenAI). It is **not yet wired to IBM
+  watsonx.ai / IBM Bob** — meaning the challenge's "Build a Bob solution" framing is not
+  literally satisfied by a direct Bob integration today. The tool-calling loop is isolated
+  behind one client adapter and a fixed tool registry, so pointing it at watsonx.ai, or
+  exposing the same tools to Bob over MCP, is a contained follow-up rather than a rewrite
+  (see [`docs/solution-overview.md`](docs/solution-overview.md)).
 - SQLite is used as the data layer for demo reliability (zero infra); a documented,
   mechanical swap to PostgreSQL is described in [`docs/architecture.md`](docs/architecture.md)
   but not exercised here.

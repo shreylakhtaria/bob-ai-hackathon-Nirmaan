@@ -10,7 +10,7 @@ graph TD
     C -->|score| D[ML: LightGBM failure model<br/>+ IsolationForest anomaly<br/>+ SHAP explainer]
     C -->|compute| G[Decision engines:<br/>Grid Impact Score, crew optimiser,<br/>what-if simulation, briefing, alerts]
     C -->|tool-calling| H[Copilot<br/>grounded local router,<br/>auto-upgrades to LLM mode]
-    H -->|optional| I[OpenAI-compatible<br/>chat completions API]
+    H -->|optional| I[OpenAI-SDK-compatible API:<br/>Nebius, OpenAI, or Azure OpenAI]
     D -->|scores + explanations| E
     G -->|reads| E
     H -->|calls same tools as| G
@@ -20,7 +20,7 @@ graph TD
 
 | Component | Technology | Responsibility |
 |---|---|---|
-| Frontend | Static HTML/CSS/JS SPA (Leaflet for the map, Chart.js for sensor trends), served directly by FastAPI | Operator dashboard: overview, asset map, asset detail, maintenance queue, crew view, weather/outage view, what-if simulator, AI copilot chat |
+| Frontend | Static HTML/JS SPA styled with Tailwind CSS (CDN) plus a custom stylesheet, Leaflet for the map, Chart.js for sensor trends — served directly by FastAPI, no build step | Operator dashboard: overview, asset map, asset detail, maintenance queue, crew view, weather/outage view, what-if simulator, AI copilot chat |
 | Backend API | FastAPI (`backend/main.py`) | All REST endpoints under `/api/*`, request validation (Pydantic), static file serving, SPA fallback routing |
 | ML / AI | scikit-learn + LightGBM + SHAP (`backend/ml/`) | Feature engineering, failure-probability scoring, anomaly scoring, per-asset explainability |
 | Decision engines | Plain Python services (`backend/services/`) | Grid Impact Score, area outage risk, ranked maintenance queue, crew pre-positioning optimiser, what-if simulation, auto-briefing, alert generation |

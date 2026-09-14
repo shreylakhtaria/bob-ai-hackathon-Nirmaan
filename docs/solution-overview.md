@@ -100,18 +100,28 @@ answer.
 
 ## IBM / LLM Copilot Integration
 
-The copilot's optional LLM mode talks to any **OpenAI-compatible chat
-completions API** (OpenAI or Azure OpenAI) using true function/tool calling
-over the same fixed set of grounded tools the local router uses — set
-`OPENAI_API_KEY` (or the Azure equivalent) and it upgrades automatically,
-with no code changes and no possibility of ungrounded answers, since the
-model can only call the allow-listed tools.
+The copilot's optional LLM mode talks to any **OpenAI-SDK-compatible chat
+completions API** using the official `openai` Python client, with true
+function/tool calling over the same fixed set of grounded tools the local
+router uses. Three providers are supported out of the box, tried in this
+order: **Nebius Token Factory** (recommended — hosts the open-weight
+`openai/gpt-oss-120b` model), plain **OpenAI**, or **Azure OpenAI**. Set the
+matching API key and the copilot upgrades automatically, with no code
+changes and no possibility of ungrounded answers, since the model can only
+call the allow-listed tools.
 
 **Honest limitation:** this repository currently wires the LLM mode to the
-OpenAI/Azure OpenAI chat-completions contract, not directly to IBM
-watsonx.ai / IBM Bob's API surface. Because the tool-calling loop in
-`backend/services/copilot.py` is already isolated behind one HTTP call and a
-fixed `TOOLS` registry, pointing it at watsonx.ai would mean swapping that
-one request/response adapter — the tool definitions, grounding guarantees,
-and evidence trail do not need to change. See `known_limitations` in
-[`submission.yaml`](../submission.yaml) for the same note.
+OpenAI chat-completions contract (via Nebius, OpenAI, or Azure OpenAI), not
+directly to IBM watsonx.ai / IBM Bob's own API surface — meaning the core
+"Build a Bob solution" ask of the challenge is not yet literally satisfied
+by an IBM Bob integration. Because the tool-calling loop in
+`backend/services/copilot.py` is already isolated behind one client
+adapter (`_make_openai_client`) and a fixed `TOOLS` registry, pointing it at
+watsonx.ai would mean swapping that one adapter and its request/response
+shapes — the tool definitions, grounding guarantees, and evidence trail do
+not need to change. A second, complementary path is to expose the same
+`TOOLS` registry as an MCP (Model Context Protocol) server, so IBM Bob (or
+any MCP-capable agent) could call this system's tools directly rather than
+going through the in-app copilot at all. Neither has been built yet — see
+`known_limitations` in [`submission.yaml`](../submission.yaml) for the same
+note.
