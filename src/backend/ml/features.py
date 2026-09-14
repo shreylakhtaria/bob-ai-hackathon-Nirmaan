@@ -97,7 +97,6 @@ def _rolling_features(g):
     out["cur_max_24"] = cu.rolling(24, min_periods=1).max()
     out["hum_mean_24"] = hu.rolling(24, min_periods=1).mean()
     out["timestamp"] = g["timestamp"].values
-    out["asset_id"] = g["asset_id"].values
     return out
 
 
@@ -148,7 +147,12 @@ def build_frames(snapshot_every_h=12, min_history_h=72):
         for aid, grp in incidents.groupby("asset_id"):
             inc_by_asset[aid] = np.sort(grp["ts"].values)
 
-    feats_all = sensors.groupby("asset_id", group_keys=False).apply(_rolling_features)
+    def _rolling_features_wrap(g):
+        result = _rolling_features(g)
+        result["asset_id"] = g.name if isinstance(g.name, str) else g["asset_id"].iloc[0]
+        return result
+
+    feats_all = sensors.groupby("asset_id", group_keys=False).apply(_rolling_features_wrap)
     feats_all = feats_all.reset_index(drop=True)
     # .values strips tz above -> re-attach UTC so comparisons stay consistent
     feats_all["timestamp"] = pd.to_datetime(feats_all["timestamp"], utc=True)
