@@ -52,7 +52,8 @@ def _b64_decode(s: str) -> bytes:
 
 def issue_token(user: dict) -> str:
     payload = {
-        "uid": user["id"], "email": user["email"], "role": user["role"],
+        "uid": user["id"], "display_name": user.get("display_name") or user["email"],
+        "email": user["email"], "role": user["role"],
         "exp": int(time.time()) + config.AUTH_TOKEN_TTL_HOURS * 3600,
     }
     body = _b64(json.dumps(payload).encode("utf-8"))
@@ -76,8 +77,11 @@ def verify_token(token: str) -> dict:
         raise HTTPException(401, "Invalid or expired session token")
 
 
-def signup(email: str, password: str) -> dict:
+def signup(display_name: str, email: str, password: str) -> dict:
+    display_name = display_name.strip()
     email = email.strip().lower()
+    if len(display_name) < 2:
+        raise HTTPException(422, "Operator name must be at least 2 characters")
     if not EMAIL_RE.match(email):
         raise HTTPException(422, "Invalid email address")
     if len(password) < 8:
@@ -87,8 +91,8 @@ def signup(email: str, password: str) -> dict:
     from datetime import datetime, timezone
     with db.session() as conn:
         conn.execute(
-            "INSERT INTO users(email, password_hash, role, created_at) VALUES(?,?,?,?)",
-            (email, _hash_password(password), "operator", datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO users(display_name, email, password_hash, role, created_at) VALUES(?,?,?,?,?)",
+            (display_name, email, _hash_password(password), "operator", datetime.now(timezone.utc).isoformat()),
         )
     user = db.query_one("SELECT * FROM users WHERE email=?", (email,))
     db.audit(email, "SIGNUP", {"role": user["role"]})
@@ -113,5 +117,6 @@ def get_current_user(authorization: str = Header(default=None)) -> dict:
 
 
 def public_user(user: dict) -> dict:
-    return {"id": user["id"], "email": user["email"], "role": user["role"],
+    return {"id": user["id"], "display_name": user.get("display_name") or user["email"],
+            "email": user["email"], "role": user["role"],
             "created_at": user["created_at"]}

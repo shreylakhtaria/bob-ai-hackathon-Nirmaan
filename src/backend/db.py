@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS meta (
 -- to distinguish normal operators from admins in the audit log / future gating.
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    display_name  TEXT,
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'operator',
@@ -211,6 +212,7 @@ def init_db():
         conn.executescript(SCHEMA)
         _ensure_column(conn, "alerts", "acknowledged", "acknowledged INTEGER DEFAULT 0")
         _ensure_column(conn, "alerts", "acknowledged_at", "acknowledged_at TEXT")
+        _ensure_column(conn, "users", "display_name", "display_name TEXT")
 
 
 def reset_db():

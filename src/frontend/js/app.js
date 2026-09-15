@@ -651,6 +651,9 @@ const App = {
   refresh() { this.go(this.current); },
 
   async init() {
+    if (window.Auth && !Auth.isAuthenticated()) return;
+    if (this._initialized) return;
+    this._initialized = true;
     this.buildNav();
     try {
       const h = await API.health();
