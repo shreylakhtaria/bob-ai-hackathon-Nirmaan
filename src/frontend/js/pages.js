@@ -217,7 +217,7 @@ Pages.overview = async () => {
                 <span class="font-mono text-[10px] font-bold text-error">${alerts.length} Active SCADA Trips</span>
               </div>
             </div>
-            <div class="p-space-sm scroll-panel" style="max-height:320px">${alertsHtml}</div>
+            <div class="p-space-sm scroll-panel overflow-y-auto" style="max-height:320px">${alertsHtml}</div>
           </div>
         </div>
       </div>
