@@ -64,19 +64,19 @@
           },
           borderRadius: {
             "none": "0px",
-            "sm": "0.25rem",
-            "DEFAULT": "0.375rem",
-            "md": "0.5rem",
-            "lg": "0.625rem",
-            "xl": "0.75rem",
-            "2xl": "1rem",
+            "sm": "0.3125rem",
+            "DEFAULT": "0.4375rem",
+            "md": "0.625rem",
+            "lg": "0.75rem",
+            "xl": "0.875rem",
+            "2xl": "1.125rem",
             "full": "9999px"
           },
           spacing: {
-            "space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem",
-            "space-lg":"1rem","space-xl":"1.5rem",
-            "gutter":"0.75rem","gutter-mobile":"0.5rem",
-            "margin":"1rem","margin-mobile":"0.75rem"
+            "space-xs":"0.375rem","space-sm":"0.625rem","space-md":"1rem",
+            "space-lg":"1.375rem","space-xl":"2rem",
+            "gutter":"1.25rem","gutter-mobile":"0.75rem",
+            "margin":"1.25rem","margin-mobile":"0.75rem"
           },
           fontFamily: {
             "telemetry-display":["JetBrains Mono","monospace"],
@@ -93,17 +93,17 @@
             "telemetry-unit":["IBM Plex Sans","sans-serif"]
           },
           fontSize: {
-            "telemetry-display":["24px",{lineHeight:"28px",letterSpacing:"-0.02em",fontWeight:"600"}],
-            "body-sm":["12px",{lineHeight:"16px",fontWeight:"400"}],
-            "body-lg":["15px",{lineHeight:"22px",fontWeight:"400"}],
-            "label-lg":["14px",{lineHeight:"20px",fontWeight:"500"}],
-            "headline-lg":["20px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],
-            "headline-xl-mobile":["22px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],
-            "body-md":["13px",{lineHeight:"18px",fontWeight:"400"}],
+            "telemetry-display":["24px",{lineHeight:"30px",letterSpacing:"-0.02em",fontWeight:"600"}],
+            "body-sm":["13px",{lineHeight:"19px",fontWeight:"400"}],
+            "body-lg":["16px",{lineHeight:"25px",fontWeight:"400"}],
+            "label-lg":["14px",{lineHeight:"21px",fontWeight:"500"}],
+            "headline-lg":["22px",{lineHeight:"30px",letterSpacing:"-0.01em",fontWeight:"600"}],
+            "headline-xl-mobile":["23px",{lineHeight:"30px",letterSpacing:"-0.01em",fontWeight:"600"}],
+            "body-md":["14px",{lineHeight:"21px",fontWeight:"400"}],
             "telemetry-unit":["11px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"500"}],
-            "headline-md":["16px",{lineHeight:"24px",fontWeight:"600"}],
+            "headline-md":["17px",{lineHeight:"26px",fontWeight:"600"}],
             "label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.02em",fontWeight:"500"}],
-            "headline-xl":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],
+            "headline-xl":["30px",{lineHeight:"39px",letterSpacing:"-0.015em",fontWeight:"600"}],
             "label-md":["12px",{lineHeight:"16px",fontWeight:"500"}]
           }
         }
@@ -117,34 +117,34 @@
 
 <!-- ═══════════════════════ FIXED TOP HEADER ═══════════════════════ -->
 <header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
-  <div class="h-16 w-full px-gutter flex items-center justify-between gap-space-md">
+  <div class="h-14 md:h-16 w-full px-space-sm md:px-gutter flex items-center justify-between gap-space-sm md:gap-space-md">
 
     <!-- Brand & Status -->
-    <div class="flex items-center gap-space-md min-w-fit">
+    <div class="flex items-center gap-space-sm md:gap-space-md min-w-0">
+      <button id="btn-menu" onclick="App.toggleSidebar()" class="lg:hidden w-9 h-9 flex-shrink-0 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface" type="button" aria-label="Toggle navigation">
+        <span class="material-symbols-outlined text-[20px]">menu</span>
+      </button>
       <div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-outline-variant/40">
         <img src="/favicon.png" alt="Grid Risk Advisor" class="w-8 h-8 object-cover"/>
       </div>
-      <div class="flex flex-col">
-        <div class="flex items-center gap-space-sm">
-          <span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface uppercase">Grid Equipment Failure &amp; Outage Advisor</span>
-          <span class="font-label-sm text-label-sm px-1.5 py-0.5 bg-surface-container-high text-on-surface-variant rounded border border-outline-variant font-medium tracking-wide uppercase">SCADA / ML-EMS SYNCED</span>
+      <div class="flex flex-col min-w-0">
+        <div class="flex items-center gap-space-sm min-w-0">
+          <span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface uppercase truncate">
+            <span class="hidden sm:inline">Grid Equipment Failure &amp; Outage Advisor</span>
+            <span class="sm:hidden">Grid Risk Advisor</span>
+          </span>
         </div>
-        <div class="flex items-center gap-space-sm font-label-sm text-label-sm text-on-surface-variant font-medium">
-          <span id="grid-status-pill" class="inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30">
+        <div class="hidden sm:flex items-center gap-space-sm font-label-sm text-label-sm text-on-surface-variant font-medium min-w-0">
+          <span id="grid-status-pill" class="inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30 flex-shrink-0 whitespace-nowrap">
             <span class="inline-block w-2 h-2 rounded-full bg-error animate-pulse"></span>
             GRID STATUS: ELEVATED RISK
-          </span>
-          <span class="text-outline-variant">|</span>
-          <span class="font-telemetry-display text-[11px] leading-tight text-on-surface-variant">
-            <span id="hdr-api">API --</span> &bull; <span id="hdr-model">Model --</span> &bull;
-            <span id="hdr-auc">ROC-AUC --</span> &bull; Grid Time: <span id="clock">--:--:--</span>
           </span>
         </div>
       </div>
     </div>
 
     <!-- Global Search -->
-    <div class="flex-1 max-w-md mx-space-sm">
+    <div class="hidden md:block flex-1 max-w-md mx-space-sm">
       <div class="relative flex items-center">
         <button id="global-search-btn" class="absolute left-1.5 h-6 w-6 flex items-center justify-center rounded hover:bg-surface-container-low text-outline" type="button" aria-label="Search">
           <span class="material-symbols-outlined text-[18px]">search</span>
@@ -154,15 +154,18 @@
     </div>
 
     <!-- Action Buttons & Profile -->
-    <div class="flex items-center gap-space-sm min-w-fit">
-      <button id="btn-emergency" onclick="App.emergencyDispatch()" class="h-8 px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider" type="button">
-        <span class="material-symbols-outlined text-[16px]">warning</span>Emergency Dispatch
+    <div class="flex items-center gap-space-xs md:gap-space-sm flex-shrink-0">
+      <button id="btn-search-toggle" onclick="App.toggleMobileSearch()" class="md:hidden w-9 h-9 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface" type="button" aria-label="Search">
+        <span class="material-symbols-outlined text-[18px]">search</span>
       </button>
-      <div class="relative">
+      <button id="btn-emergency" onclick="App.emergencyDispatch()" class="h-8 md:h-8 px-space-sm md:px-space-md bg-error text-on-error font-body-sm text-body-sm font-medium rounded border border-error hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider whitespace-nowrap" type="button">
+        <span class="material-symbols-outlined text-[16px]">warning</span><span class="hidden sm:inline">Emergency Dispatch</span>
+      </button>
+      <div class="relative hidden sm:block">
         <button onclick="App.toggleExportMenu()" class="h-8 px-space-md bg-surface-container-lowest text-on-surface font-body-sm text-body-sm font-medium rounded border border-outline-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5" type="button">
-          <span class="material-symbols-outlined text-[16px] text-outline">download</span>Export Log
+          <span class="material-symbols-outlined text-[16px] text-outline">download</span><span class="hidden lg:inline">Export Log</span>
         </button>
-        <div id="export-menu" class="hidden absolute right-0 top-9 w-56 bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50 py-1">
+        <div id="export-menu" class="hidden absolute right-0 top-9 w-56 max-w-[calc(100vw-1.5rem)] bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50 py-1">
           <div class="px-space-md py-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant">Download PDF</div>
           <button onclick="App.exportOperationsLog()" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Operations log report</button>
           <div class="px-space-md py-1 mt-1 font-label-sm text-[10px] uppercase tracking-wider text-on-surface-variant border-t border-outline-variant">Download CSV</div>
@@ -173,12 +176,12 @@
           <button onclick="App.exportCsv('audit')" class="w-full text-left px-space-md py-1.5 font-body-sm text-body-sm hover:bg-surface-container" type="button">Audit log</button>
         </div>
       </div>
-      <div class="relative ml-1">
-        <button onclick="App.toggleNotifications()" class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface transition-colors" type="button">
+      <div class="relative">
+        <button onclick="App.toggleNotifications()" class="w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-on-surface transition-colors" type="button">
           <span class="material-symbols-outlined text-[18px]">notifications</span>
           <span id="notif-badge" class="absolute -top-1 -right-1 bg-error text-on-error font-label-sm text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
         </button>
-        <div id="notif-panel" class="hidden absolute right-0 top-9 w-96 max-h-[60vh] overflow-y-auto bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50">
+        <div id="notif-panel" class="hidden absolute right-0 top-10 md:top-9 w-96 max-w-[calc(100vw-1.5rem)] max-h-[60vh] overflow-y-auto bg-surface-container-lowest border border-outline-variant rounded shadow-lg z-50">
           <div class="px-space-md py-2 bg-surface-container-high border-b border-outline-variant flex items-center justify-between sticky top-0">
             <span class="font-label-sm text-label-sm font-bold uppercase">Unacknowledged Alerts</span>
             <span id="notif-count" class="font-mono text-[10px] text-on-surface-variant"></span>
@@ -186,8 +189,8 @@
           <div id="notif-list" class="p-space-sm"></div>
         </div>
       </div>
-      <div class="h-6 w-px bg-outline-variant mx-1"></div>
-      <div class="flex items-center gap-space-sm pl-1">
+      <div class="h-6 w-px bg-outline-variant mx-1 hidden lg:block"></div>
+      <div class="hidden lg:flex items-center gap-space-sm pl-1">
         <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center border border-outline-variant flex-shrink-0">
           <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
         </div>
@@ -198,10 +201,21 @@
       </div>
     </div>
   </div>
+
+  <!-- Mobile search row (toggled below the header bar on small screens) -->
+  <div id="mobile-search-row" class="hidden md:hidden px-space-sm pb-space-sm">
+    <div class="relative flex items-center">
+      <span class="material-symbols-outlined text-[18px] text-outline absolute left-2">search</span>
+      <input id="global-search-mobile" class="w-full h-9 pl-8 pr-3 bg-surface text-on-surface font-body-sm text-body-sm rounded border border-outline-variant focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container placeholder:text-outline" placeholder="Search Asset ID, Substation, Area, or Crew…" type="text"/>
+    </div>
+  </div>
 </header>
 
-<!-- ═══════════════════════ FIXED LEFT SIDEBAR ═══════════════════════ -->
-<aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between overflow-y-auto">
+<!-- Backdrop behind the off-canvas sidebar on small/medium screens -->
+<div id="sidebar-backdrop" onclick="App.toggleSidebar(false)" class="hidden fixed inset-0 bg-black/40 z-30 lg:hidden"></div>
+
+<!-- ═══════════════════════ LEFT SIDEBAR (off-canvas below lg) ═══════════════════════ -->
+<aside id="sidebar" class="fixed left-0 top-14 md:top-16 bottom-0 w-72 max-w-[80vw] bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between overflow-y-auto -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-out">
   <div class="py-space-sm">
     <div class="px-space-md pb-space-xs font-label-sm text-label-sm uppercase font-semibold text-on-surface-variant tracking-wider">Operational Navigation</div>
     <nav class="space-y-0.5 px-space-xs" id="nav"></nav>
@@ -231,28 +245,10 @@
 </aside>
 
 <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
-<div class="pl-64 flex flex-col min-h-screen">
-
-  <!-- Breadcrumb sub-bar (fixed below header) -->
-  <div class="fixed top-16 left-64 right-0 z-30 bg-surface border-b border-outline-variant h-8 px-gutter flex items-center justify-between">
-    <div class="flex items-center gap-space-xs font-label-sm text-label-sm">
-      <span class="text-on-surface-variant uppercase">GridOps Regional Node</span>
-      <span class="text-outline-variant">/</span>
-      <span class="text-on-surface font-semibold uppercase" id="breadcrumb-scope">--</span>
-      <span class="text-outline-variant">/</span>
-      <span class="text-primary font-mono" id="breadcrumb-page">Overview</span>
-    </div>
-    <div class="flex items-center gap-space-md font-label-sm text-label-sm">
-      <span class="flex items-center gap-1 text-on-surface-variant">
-        <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Telemetry Lock: <span id="hdr-lock">--</span>
-      </span>
-      <span class="text-outline-variant">|</span>
-      <span class="font-mono text-on-surface-variant">LATENCY: <span id="hdr-latency">--</span></span>
-    </div>
-  </div>
+<div class="lg:pl-72 flex flex-col min-h-screen">
 
   <!-- Metrics & health drawer (populated from /api/system/stats + /api/model/metrics) -->
-  <div id="metrics-drawer" class="hidden fixed bottom-0 left-64 right-0 z-40 bg-surface-container-lowest border-t border-outline-variant shadow-lg max-h-[45vh] overflow-y-auto">
+  <div id="metrics-drawer" class="hidden fixed bottom-0 left-0 lg:left-72 right-0 z-40 bg-surface-container-lowest border-t border-outline-variant shadow-lg max-h-[45vh] overflow-y-auto">
     <div class="px-gutter py-2 bg-surface-container-high border-b border-outline-variant flex items-center justify-between sticky top-0">
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-[16px] text-primary">monitoring</span>
@@ -265,8 +261,8 @@
     <div id="metrics-drawer-body" class="p-gutter"></div>
   </div>
 
-  <!-- Page content (pt-24 = 64px header + 32px breadcrumb) -->
-  <main class="w-full pt-24 px-gutter pb-space-xl bg-surface flex-1" id="view">
+  <!-- Page content (pt-16/20 clears the fixed header now that the redundant breadcrumb bar is gone) -->
+  <main class="w-full pt-[68px] md:pt-20 px-space-sm md:px-gutter pb-space-xl bg-surface flex-1 min-w-0" id="view">
     <div class="flex items-center justify-center h-64">
       <div class="flex flex-col items-center gap-space-sm text-on-surface-variant">
         <span class="material-symbols-outlined text-[36px] text-outline animate-pulse">electrical_services</span>

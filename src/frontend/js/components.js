@@ -6,12 +6,17 @@ const C = {
     const accent = {
       CRITICAL: '#ba1a1a', HIGH: '#376757', MEDIUM: '#707971', LOW: '#0f5132'
     }[level] || '#707971';
-    return `<div class="bg-surface-container-lowest rounded shadow-sm p-space-md flex gap-space-sm border border-outline-variant/60">
+    // This tile sits 5-up on a fixed grid at desktop width, so its own padding
+    // stays on the tighter, un-tokenized Tailwind scale (p-3, not p-space-md)
+    // deliberately — bumping it to match the roomier page-wide spacing scale
+    // narrows the available text width just enough to wrap "OVERALL GRID RISK"
+    // -style uppercase labels onto two lines inside their column.
+    return `<div class="bg-surface-container-lowest rounded shadow-sm p-3 flex gap-2.5 border border-outline-variant/60">
       <div class="kpi-accent" style="background:${accent}"></div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 mb-0.5">
           <span class="material-symbols-outlined text-[16px] text-on-surface-variant">${icon}</span>
-          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">${label}</span>
+          <span class="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold whitespace-nowrap">${label}</span>
         </div>
         <div class="font-telemetry-display text-[22px] font-bold text-on-surface leading-none">${value}</div>
         <div class="font-label-sm text-[11px] text-on-surface-variant mt-0.5">${sub || ''}</div>
@@ -40,11 +45,11 @@ const C = {
   assetTable(rows) {
     const hdr = `<tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
       <th class="py-2 px-space-md font-semibold sticky top-0 bg-surface-container-low">Asset ID</th>
-      <th class="py-2 px-space-sm font-semibold sticky top-0 bg-surface-container-low">Type &amp; Location</th>
-      <th class="py-2 px-space-sm font-semibold sticky top-0 bg-surface-container-low">Risk</th>
-      <th class="py-2 px-space-sm font-semibold sticky top-0 bg-surface-container-low">P(Fail)</th>
-      <th class="py-2 px-space-sm font-semibold text-right sticky top-0 bg-surface-container-low">Impact</th>
-      <th class="py-2 px-space-sm font-semibold text-right sticky top-0 bg-surface-container-low">Customers</th>
+      <th class="py-2.5 px-space-sm font-semibold sticky top-0 bg-surface-container-low">Type &amp; Location</th>
+      <th class="py-2.5 px-space-sm font-semibold sticky top-0 bg-surface-container-low">Risk</th>
+      <th class="py-2.5 px-space-sm font-semibold sticky top-0 bg-surface-container-low">P(Fail)</th>
+      <th class="py-2.5 px-space-sm font-semibold text-right sticky top-0 bg-surface-container-low">Impact</th>
+      <th class="py-2.5 px-space-sm font-semibold text-right sticky top-0 bg-surface-container-low">Customers</th>
       <th class="py-2 px-space-md text-right font-semibold sticky top-0 bg-surface-container-low">Action</th>
     </tr>`;
     const body = rows.map(a => C.assetRow(a)).join('') ||
@@ -69,12 +74,12 @@ const C = {
           ${lvl === 'CRITICAL' ? '<span class="material-symbols-outlined text-[13px] text-error">priority_high</span>' : ''}
         </div>
       </td>
-      <td class="py-2.5 px-space-sm">
+      <td class="py-3 px-space-sm">
         <div class="font-semibold text-on-surface text-[12px] leading-tight">${F.esc(a.asset_type || '')}</div>
         <div class="text-[11px] text-on-surface-variant font-mono">${F.esc(a.geographic_area || a.area || '')}</div>
       </td>
-      <td class="py-2.5 px-space-sm">${F.badge(lvl)}</td>
-      <td class="py-2.5 px-space-sm">
+      <td class="py-3 px-space-sm">${F.badge(lvl)}</td>
+      <td class="py-3 px-space-sm">
         <div class="flex items-center gap-2">
           <div class="w-14 h-1.5 bg-surface-container-highest rounded overflow-hidden">
             <div class="h-full rounded" style="width:${barW}%;background:${barCol}"></div>
@@ -82,8 +87,8 @@ const C = {
           <span class="font-telemetry-display text-label-sm font-bold" style="color:${barCol}">${F.pct(p)}</span>
         </div>
       </td>
-      <td class="py-2.5 px-space-sm text-right font-telemetry-display text-label-sm font-semibold">${F.score(a.grid_impact_score)}</td>
-      <td class="py-2.5 px-space-sm text-right font-telemetry-display text-label-sm">${F.num(a.customers_served)}</td>
+      <td class="py-3 px-space-sm text-right font-telemetry-display text-label-sm font-semibold">${F.score(a.grid_impact_score)}</td>
+      <td class="py-3 px-space-sm text-right font-telemetry-display text-label-sm">${F.num(a.customers_served)}</td>
       <td class="py-2.5 px-space-md text-right">
         <button class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors" type="button">
           <span class="material-symbols-outlined text-[18px]">chevron_right</span>
@@ -162,16 +167,16 @@ const C = {
     const urgCls = x.priority === 'CRITICAL' ? 'rank-urgent' : x.priority === 'HIGH' ? 'rank-high' : 'rank-planned';
     const urgLabel = x.priority === 'CRITICAL' ? 'URGENT' : x.priority === 'HIGH' ? 'HIGH' : 'PLANNED';
     return `<tr class="text-on-surface font-body-sm text-body-sm hover:bg-surface-container transition-colors cursor-pointer border-b border-surface-container" onclick="App.openAsset('${x.asset_id}')">
-      <td class="py-2 px-space-sm">
+      <td class="py-2.5 px-space-sm">
         <span class="inline-flex items-center justify-center w-6 h-5 rounded ${urgCls} font-label-sm text-[10px] font-bold">#${idx + 1}</span>
         <span class="ml-1 inline-block px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold ${urgCls}">${urgLabel}</span>
       </td>
-      <td class="py-2 px-space-sm">
+      <td class="py-2.5 px-space-sm">
         <div class="font-telemetry-display text-label-md font-bold text-primary">${x.asset_id}</div>
         <div class="text-[10px] text-on-surface-variant font-mono">${F.esc(x.area || '')}</div>
       </td>
-      <td class="py-2 px-space-sm text-[11px] text-on-surface-variant">${F.esc(x.asset_type || '')}</td>
-      <td class="py-2 px-space-sm">
+      <td class="py-2.5 px-space-sm text-[11px] text-on-surface-variant">${F.esc(x.asset_type || '')}</td>
+      <td class="py-2.5 px-space-sm">
         <div class="flex items-center gap-1.5">
           <div class="w-12 h-1.5 bg-surface-container-highest rounded overflow-hidden">
             <div class="h-full rounded" style="width:${F.pct(x.failure_probability)};background:${F.riskColor(x.priority)}"></div>
@@ -179,10 +184,10 @@ const C = {
           <span class="font-mono text-[11px] font-bold" style="color:${F.riskColor(x.priority)}">${F.pct(x.failure_probability)}</span>
         </div>
       </td>
-      <td class="py-2 px-space-sm text-right font-mono text-[11px]">${F.num(x.customers_served)}</td>
-      <td class="py-2 px-space-sm font-mono text-[11px] font-bold text-on-surface">${F.score(x.grid_impact_score)}</td>
-      <td class="py-2 px-space-sm text-[11px] text-on-surface-variant max-w-[140px] truncate" title="${F.esc(x.recommended_action)}">${F.esc(x.recommended_action)}</td>
-      <td class="py-2 px-space-sm text-right">
+      <td class="py-2.5 px-space-sm text-right font-mono text-[11px]">${F.num(x.customers_served)}</td>
+      <td class="py-2.5 px-space-sm font-mono text-[11px] font-bold text-on-surface">${F.score(x.grid_impact_score)}</td>
+      <td class="py-2.5 px-space-sm text-[11px] text-on-surface-variant max-w-[140px] truncate" title="${F.esc(x.recommended_action)}">${F.esc(x.recommended_action)}</td>
+      <td class="py-2.5 px-space-sm text-right">
         <div class="flex items-center gap-1 justify-end">
           <button class="px-2 py-1 bg-error text-on-error font-label-sm text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity" onclick="event.stopPropagation(); Actions.dispatch('${x.asset_id}', this)" type="button">Dispatch</button>
           <button class="px-2 py-1 bg-surface-container text-on-surface font-label-sm text-[10px] font-bold rounded uppercase hover:bg-surface-container-high transition-colors" onclick="event.stopPropagation(); Actions.defer('${x.asset_id}', this)" type="button">Defer</button>
@@ -220,57 +225,19 @@ const C = {
     <span class="font-mono font-semibold text-on-surface text-right">${v}</span>
   </div>`,
 
-  /* SCADA Ingestion & Contingency Inference Skeleton Loader (Image 4 reference) */
+  /* Loading skeleton shown while a page's data is being fetched. Deliberately
+     plain: earlier versions dressed this up with invented protocol names,
+     fabricated percentages, and a fake live camera feed, none of which
+     corresponded to anything the app actually does - the opposite of the
+     "every number is grounded in a real result" principle the rest of the
+     app follows. */
   skeletonLoader() {
     return `<div class="flex flex-col gap-space-md w-full animate-fade-in">
-      <!-- Ingestion Pipeline Stage Banner -->
-      <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-space-md shadow-sm">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-space-sm border-b border-outline-variant/40">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex items-center gap-1.5 bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-label-sm text-[10px] font-bold uppercase tracking-wider">
-              <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>STAGE 3/4 ACTIVE
-            </span>
-            <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase tracking-tight">Telemetry Ingestion &amp; Contingency Inference Engine</span>
-          </div>
-          <div class="flex items-center gap-space-md font-mono text-[11px] text-on-surface-variant">
-            <span class="text-primary font-bold">88.2% INITIALIZED</span>
-            <span>ELAPSED: 0.88s &bull; EST REMAINING: 0.22s</span>
-          </div>
-        </div>
-        <!-- 4 Pipeline Stage Badges -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm mt-space-sm">
-          <div class="flex items-center gap-2 p-1.5 bg-surface-container-low rounded border border-outline-variant/40">
-            <span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
-            <div class="min-w-0 flex-1">
-              <div class="font-label-sm text-[10px] font-bold text-on-surface truncate">1. SCADA Gateway</div>
-              <div class="font-mono text-[9px] text-on-surface-variant">TLS 1.3 [12ms]</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 p-1.5 bg-surface-container-low rounded border border-outline-variant/40">
-            <span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
-            <div class="min-w-0 flex-1">
-              <div class="font-label-sm text-[10px] font-bold text-on-surface truncate">2. Synchrophasor</div>
-              <div class="font-mono text-[9px] text-on-surface-variant">IEEE C37.118 [4.8kHz]</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 p-1.5 bg-primary-container text-on-primary rounded border border-primary/50">
-            <span class="material-symbols-outlined text-[16px] text-on-primary animate-spin">sync</span>
-            <div class="min-w-0 flex-1">
-              <div class="font-label-sm text-[10px] font-bold truncate">3. DGA Telemetry</div>
-              <div class="font-mono text-[9px] opacity-90">1,194/1,420 (84%)</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 p-1.5 bg-surface-container rounded border border-outline-variant/40 opacity-70">
-            <span class="material-symbols-outlined text-[16px] text-on-surface-variant">hourglass_empty</span>
-            <div class="min-w-0 flex-1">
-              <div class="font-label-sm text-[10px] font-bold text-on-surface-variant truncate">4. XGBoost Ingest</div>
-              <div class="font-mono text-[9px] text-on-surface-variant">v4.2.1 [QUEUED]</div>
-            </div>
-          </div>
-        </div>
+      <div class="flex items-center gap-space-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+        <span class="font-label-sm text-label-sm uppercase tracking-wide">Loading…</span>
       </div>
 
-      <!-- KPI Skeleton Row -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-space-sm">
         ${[1, 2, 3, 4, 5].map(() => `
           <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 p-space-md shadow-sm flex flex-col gap-2">
@@ -284,124 +251,18 @@ const C = {
         `).join('')}
       </div>
 
-      <!-- Main 12-column Skeleton Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
-        <!-- Left: Telemetry Live Stream & DGA Curve (7 cols) -->
-        <div class="lg:col-span-7 flex flex-col gap-space-md">
-          <!-- Critical Telemetry Live Stream Table Skeleton -->
-          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm overflow-hidden">
-            <div class="px-space-md py-2 bg-surface-container-high flex items-center justify-between border-b border-outline-variant/50">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
-                <span class="font-label-sm text-label-sm font-bold text-on-surface uppercase">Critical Telemetry Live Stream</span>
-              </div>
-              <span class="font-mono text-[10px] text-primary font-bold">SYNCING 4.8 KHZ</span>
+      <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
+        <div class="space-y-3">
+          ${[1, 2, 3, 4, 5].map(() => `
+            <div class="flex items-center justify-between gap-2 py-1.5 border-b border-surface-container-low last:border-0">
+              <div class="h-3.5 w-24 sk-shimmer-dark rounded"></div>
+              <div class="h-3.5 w-32 sk-shimmer rounded"></div>
+              <div class="h-3.5 w-16 sk-shimmer rounded"></div>
+              <div class="h-3 w-20 sk-shimmer rounded-full"></div>
+              <div class="h-5 w-14 sk-shimmer rounded"></div>
             </div>
-            <div class="p-space-md space-y-3">
-              ${[1, 2, 3, 4, 5].map(i => `
-                <div class="flex items-center justify-between gap-2 py-1.5 border-b border-surface-container-low last:border-0">
-                  <div class="flex items-center gap-2 w-1/4">
-                    <span class="w-2 h-2 rounded-full ${i <= 2 ? 'bg-error animate-pulse' : 'bg-outline'}"></span>
-                    <div class="h-3.5 w-16 sk-shimmer-dark rounded"></div>
-                  </div>
-                  <div class="h-3.5 w-24 sk-shimmer rounded"></div>
-                  <div class="h-3.5 w-14 sk-shimmer rounded"></div>
-                  <div class="h-3 w-16 sk-shimmer rounded-full"></div>
-                  <div class="h-5 w-12 sk-shimmer rounded"></div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Substation DGA & Thermal Runaway Telemetry Curve Skeleton -->
-          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
-            <div class="flex items-center justify-between mb-space-sm">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-[16px] text-primary">show_chart</span>
-                <span class="font-label-sm text-label-sm font-bold uppercase">Substation DGA &amp; Thermal Runaway Telemetry Curve</span>
-              </div>
-              <span class="font-mono text-[10px] text-on-surface-variant">REAL-TIME HISTORIAN BUFFER</span>
-            </div>
-            <div class="h-36 w-full bg-surface-container-low rounded-lg p-space-sm relative overflow-hidden flex items-end">
-              <svg class="w-full h-28" viewBox="0 0 500 120" preserveAspectRatio="none">
-                <line x1="0" x2="500" y1="40" y2="40" stroke="#ba1a1a" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-                <path d="M0,90 Q80,105 160,85 T320,95 T440,35 L500,28" fill="none" stroke="#0f5132" stroke-width="2.5" class="animate-pulse"/>
-                <circle cx="440" cy="35" r="4" fill="#ba1a1a" class="animate-ping"/>
-                <circle cx="440" cy="35" r="3" fill="#ba1a1a"/>
-              </svg>
-            </div>
-            <div class="flex items-center justify-between mt-2 font-mono text-[10px] text-on-surface-variant">
-              <span>T - 180 MIN</span>
-              <span>T - 120 MIN</span>
-              <span>T - 60 MIN</span>
-              <span class="text-error font-bold">LIVE TELEMETRY (0s)</span>
-            </div>
-          </div>
+          `).join('')}
         </div>
-
-        <!-- Right: Risk Exposure, Alarm Feed & SCADA Cam (5 cols) -->
-        <div class="lg:col-span-5 flex flex-col gap-space-md">
-          <!-- Feeder Risk Exposure Skeleton -->
-          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
-            <div class="flex items-center justify-between mb-space-sm pb-1 border-b border-outline-variant/40">
-              <span class="font-label-sm text-label-sm font-bold uppercase">Feeder Risk Exposure</span>
-              <span class="font-mono text-[10px] text-on-surface-variant">REGION-RC4</span>
-            </div>
-            <div class="space-y-2.5">
-              <div class="h-4 w-full sk-shimmer rounded"></div>
-              <div class="h-4 w-5/6 sk-shimmer rounded"></div>
-              <div class="h-4 w-4/6 sk-shimmer rounded"></div>
-            </div>
-          </div>
-
-          <!-- High-Priority Alarm Feed Skeleton -->
-          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
-            <div class="flex items-center justify-between mb-space-sm pb-1 border-b border-outline-variant/40">
-              <div class="flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-error text-[16px]">campaign</span>
-                <span class="font-label-sm text-label-sm font-bold uppercase">High-Priority Alarm Feed</span>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <div class="p-2 bg-error-container/30 border border-error/30 rounded flex items-center justify-between">
-                <span class="font-mono text-[10px] text-error font-bold">&bull; PRIORITY 1 ALARM</span>
-                <span class="font-mono text-[9px] text-on-surface-variant">LIVE INGESTION</span>
-              </div>
-              <div class="p-2 bg-surface-container-low border border-outline-variant/40 rounded flex items-center justify-between">
-                <span class="font-mono text-[10px] text-secondary font-bold">&bull; WARNING L2</span>
-                <span class="font-mono text-[9px] text-on-surface-variant">SYNCHRONIZED</span>
-              </div>
-              <div class="p-2 bg-surface-container-low border border-outline-variant/40 rounded flex items-center justify-between">
-                <span class="font-mono text-[10px] text-on-surface-variant font-bold">&bull; ADVISORY</span>
-                <span class="font-mono text-[9px] text-on-surface-variant">NORMALIZED</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Substation Optical Feed Skeleton -->
-          <div class="bg-surface-container-lowest rounded-lg border border-outline-variant/50 shadow-sm p-space-md">
-            <div class="flex items-center justify-between mb-2">
-              <div class="flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-primary text-[16px]">videocam</span>
-                <span class="font-label-sm text-label-sm font-bold uppercase">Substation Optical Feed</span>
-              </div>
-              <span class="font-mono text-[10px] text-error font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>LIVE SCADA CAM</span>
-            </div>
-            <div class="h-28 bg-surface-container-low rounded-lg flex flex-col items-center justify-center gap-1 border border-outline-variant/40 text-on-surface-variant">
-              <span class="material-symbols-outlined text-[24px] text-primary animate-pulse">radar</span>
-              <span class="font-mono text-[10px] tracking-wider uppercase">Awaiting H.264 Keyframe…</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom Ingestion Status Strip -->
-      <div class="bg-surface-container-high/60 border border-outline-variant/40 rounded px-space-md py-1.5 flex items-center justify-between font-mono text-[10px] text-on-surface-variant">
-        <div class="flex items-center gap-2 truncate">
-          <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-          <span>INIT SCADA RPC &bull; GET /api/v4/grid/state-vector [200 OK] &bull; GET /api/v4/assets/health/matrix [POLLING]</span>
-        </div>
-        <span class="text-primary font-semibold flex-shrink-0">GRID CLUSTER: RC4 ONLINE</span>
       </div>
     </div>`;
   },

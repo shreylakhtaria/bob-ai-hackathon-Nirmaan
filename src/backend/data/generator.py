@@ -295,7 +295,13 @@ def _make_crews(now):
             round(area["lat"] + RNG.normal(0, 0.02), 5),
             round(area["lon"] + RNG.normal(0, 0.02), 5),
             random.choice(skills),
-            random.choices(["AVAILABLE", "ON_JOB", "OFF"], weights=[6, 3, 1])[0],
+            # ON_JOB must always correspond to a real row in work_orders (set by
+            # operations.dispatch_crew at runtime) - work_orders starts empty at
+            # seed time, so seeding some crews as ON_JOB here left them "busy" on
+            # a job that didn't exist, permanently shrinking the dispatchable
+            # fleet before any operator action. OFF (genuinely off-shift) is
+            # fine to seed randomly since it isn't tied to a work order.
+            random.choices(["AVAILABLE", "OFF"], weights=[9, 1])[0],
             random.choice(["Bucket truck", "Crane", "Standard", "Mobile substation"]),
             round(float(np.clip(RNG.normal(28, 8), 10, 60)), 1),
             "",

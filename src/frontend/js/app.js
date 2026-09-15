@@ -139,7 +139,7 @@ const App = {
         : 'flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none';
     });
     const crumb = NAV.find(n => n.id === realId)?.crumb || realId;
-    document.getElementById('breadcrumb-page').textContent = crumb;
+    document.title = `${crumb} · Grid Risk Advisor`;
   },
 
   setGridRisk(lvl) {
@@ -150,8 +150,8 @@ const App = {
     };
     pill.textContent = `GRID STATUS: ${labels[lvl] || lvl || 'UNKNOWN'}`;
     pill.className = lvl === 'CRITICAL' || lvl === 'HIGH' || lvl === 'ELEVATED'
-      ? 'inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30 font-label-sm text-label-sm'
-      : 'inline-flex items-center gap-1.5 text-secondary font-semibold bg-secondary-container/40 px-2 py-0.5 rounded border border-secondary/30 font-label-sm text-label-sm';
+      ? 'inline-flex items-center gap-1.5 text-error font-semibold bg-error-container/40 px-2 py-0.5 rounded border border-error/30 font-label-sm text-label-sm whitespace-nowrap'
+      : 'inline-flex items-center gap-1.5 text-secondary font-semibold bg-secondary-container/40 px-2 py-0.5 rounded border border-secondary/30 font-label-sm text-label-sm whitespace-nowrap';
     // Re-add the pulse dot
     pill.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-error animate-pulse"></span>${pill.textContent}`;
   },
@@ -443,6 +443,7 @@ const App = {
   async go(id, arg) {
     this.current = id;
     this.setActive(id === 'asset' ? 'assets' : id);
+    this.toggleSidebar(false); // no-op on desktop (lg: overrides the transform), closes the drawer on mobile/tablet
     // Persist the current page in the URL hash (replaceState, not pushState,
     // so it doesn't spam browser history) so a refresh restores the same page
     // instead of always falling back to Overview.
@@ -480,17 +481,8 @@ const App = {
       this._stats = s;
       const set = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
 
-      set('hdr-api', `API ${API.lastStatus || '--'} ${API.lastStatus === 200 ? 'OK' : ''}`.trim());
-      set('hdr-model', `Model ${s.model || '--'}`);
-      set('hdr-auc', s.roc_auc != null ? `ROC-AUC ${s.roc_auc.toFixed(3)}` : 'ROC-AUC --');
-      set('hdr-latency', API.lastLatencyMs != null ? `${API.lastLatencyMs}ms` : '--');
       set('sidebar-feed', `${F.num(s.sensor_rows)} rows`);
       set('sidebar-outages', `${s.critical_assets ?? '--'} Active`);
-      set('breadcrumb-scope', `${s.assets || 0} assets · ${s.crews || 0} crews`);
-
-      // "Telemetry lock" = share of assets that actually have a live prediction
-      const lock = s.assets ? Math.min(100, (s.sensor_rows > 0 ? 100 : 0)) : 0;
-      set('hdr-lock', s.last_sensor_ts ? `${lock.toFixed(2)}%` : 'NO FEED');
 
       const badge = document.getElementById('notif-badge');
       if (badge) {
@@ -498,6 +490,24 @@ const App = {
         badge.style.display = (s.unacked_alerts ?? 0) > 0 ? 'flex' : 'none';
       }
     } catch (e) { /* server offline — leave placeholders */ }
+  },
+
+  /* ─── Off-canvas sidebar (mobile/tablet, below the `lg` breakpoint) ─── */
+  toggleSidebar(force) {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar || !backdrop) return;
+    const open = typeof force === 'boolean' ? force : sidebar.classList.contains('-translate-x-full');
+    sidebar.classList.toggle('-translate-x-full', !open);
+    backdrop.classList.toggle('hidden', !open);
+  },
+
+  /* ─── Mobile search row (header collapses the search box below `md`) ─── */
+  toggleMobileSearch() {
+    const row = document.getElementById('mobile-search-row');
+    if (!row) return;
+    row.classList.toggle('hidden');
+    if (!row.classList.contains('hidden')) document.getElementById('global-search-mobile')?.focus();
   },
 
   /* ─── Export menu ─── */
@@ -642,9 +652,6 @@ const App = {
 
   async init() {
     this.buildNav();
-    setInterval(() => {
-      document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
-    }, 1000);
     try {
       const h = await API.health();
       if (!h.seeded) {
@@ -684,6 +691,18 @@ python -m scripts.seed</pre>
       searchBtn.addEventListener('click', () => {
         this.searchSubmit(search.value);
         search.blur();
+      });
+    }
+
+    // Mobile search row (header collapses the search box below `md`)
+    const searchMobile = document.getElementById('global-search-mobile');
+    if (searchMobile) {
+      searchMobile.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          this.searchSubmit(searchMobile.value);
+          searchMobile.blur();
+          this.toggleMobileSearch();
+        }
       });
     }
 
