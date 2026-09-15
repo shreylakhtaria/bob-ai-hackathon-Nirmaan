@@ -7,31 +7,54 @@ const API = {
     try { const j = JSON.parse(text); return j.detail || text; } catch (e) { return text; }
   },
 
+  _handleUnauthorized() {
+    localStorage.removeItem('grid-risk-token');
+    localStorage.removeItem('grid-risk-user');
+    if (window.Auth) Auth.show();
+  },
+
   async get(path) {
     const t0 = performance.now();
-    const r = await fetch('/api' + path);
+    const r = await fetch('/api' + path, { headers: API._headers() });
     API.lastLatencyMs = Math.round(performance.now() - t0);
     API.lastStatus = r.status;
-    if (!r.ok) throw new Error(API._detail(await r.text()));
+    if (!r.ok) {
+      if (r.status === 401) API._handleUnauthorized();
+      throw new Error(API._detail(await r.text()));
+    }
     return r.json();
   },
   async post(path, body) {
     const t0 = performance.now();
     const r = await fetch('/api' + path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...API._headers() },
       body: JSON.stringify(body || {})
     });
     API.lastLatencyMs = Math.round(performance.now() - t0);
     API.lastStatus = r.status;
-    if (!r.ok) throw new Error(API._detail(await r.text()));
+    if (!r.ok) {
+      if (r.status === 401) API._handleUnauthorized();
+      throw new Error(API._detail(await r.text()));
+    }
     return r.json();
   },
   async text(path) {
-    const r = await fetch('/api' + path);
-    if (!r.ok) throw new Error(API._detail(await r.text()));
+    const r = await fetch('/api' + path, { headers: API._headers() });
+    if (!r.ok) {
+      if (r.status === 401) API._handleUnauthorized();
+      throw new Error(API._detail(await r.text()));
+    }
     return r.text();
   },
+
+  _headers() {
+    const token = localStorage.getItem('grid-risk-token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+
+  login:  credentials => API.post('/auth/login', credentials),
+  signup: credentials => API.post('/auth/signup', credentials),
 
   health:              ()        => API.get('/health'),
   summary:             ()        => API.get('/dashboard/summary'),

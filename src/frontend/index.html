@@ -115,6 +115,63 @@
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased">
 
+<!-- Operator authentication gate -->
+<section id="auth-gate" class="auth-gate" aria-label="Operator authentication">
+  <div class="auth-shell">
+    <div class="auth-briefing">
+      <div class="auth-brand">
+        <img src="/favicon.png" alt="Grid Risk Advisor" class="auth-brand-mark"/>
+        <span>GRID RISK ADVISOR</span>
+      </div>
+      <div class="auth-briefing-content">
+        <div class="auth-creatures" id="auth-creatures" aria-label="Grid monitoring crew" role="img">
+          <div class="auth-creature auth-creature-violet"><div class="auth-eyes"><span class="auth-eye"><i></i></span><span class="auth-eye"><i></i></span></div></div>
+          <div class="auth-creature auth-creature-ink"><div class="auth-eyes"><span class="auth-eye"><i></i></span><span class="auth-eye"><i></i></span></div></div>
+          <div class="auth-creature auth-creature-coral"><div class="auth-eyes"><span class="auth-pupil"></span><span class="auth-pupil"></span></div></div>
+          <div class="auth-creature auth-creature-lime"><div class="auth-eyes"><span class="auth-pupil"></span><span class="auth-pupil"></span></div><span class="auth-mouth"></span></div>
+        </div>
+        <div class="auth-signal-meta auth-creature-caption"><span>MONITORING CREW ONLINE</span><span>4 ACTIVE</span></div>
+      </div>
+      <div class="auth-briefing-footer">AUTHORIZED PERSONNEL ONLY <span>•</span> RC4 CONTROL NETWORK</div>
+    </div>
+
+    <div class="auth-panel">
+      <div class="auth-mobile-brand auth-brand">
+        <img src="/favicon.png" alt="Grid Risk Advisor" class="auth-brand-mark"/>
+        <span>GRID RISK ADVISOR</span>
+      </div>
+      <div class="auth-form-wrap">
+        <div class="auth-form-heading">
+          <div class="auth-eyebrow" id="auth-eyebrow">OPERATOR CONSOLE / SIGN IN</div>
+          <h2 id="auth-title">Welcome back, operator.</h2>
+          <p id="auth-subtitle">Sign in to access live grid intelligence and dispatch controls.</p>
+        </div>
+        <div id="auth-error" class="auth-message auth-message-error" role="alert" hidden></div>
+        <div id="auth-success" class="auth-message auth-message-success" role="status" hidden></div>
+        <form id="auth-form" class="auth-form">
+          <div class="auth-field auth-signup-only" hidden>
+            <label for="auth-name">Operator name</label>
+            <div class="auth-input-wrap"><span class="material-symbols-outlined">badge</span><input id="auth-name" type="text" autocomplete="name" placeholder="e.g. Maya O'Connell"/></div>
+          </div>
+          <div class="auth-field">
+            <label for="auth-email">Work email</label>
+            <div class="auth-input-wrap"><span class="material-symbols-outlined">alternate_email</span><input id="auth-email" type="email" autocomplete="email" placeholder="operator@utility.example" required/></div>
+          </div>
+          <div class="auth-field">
+            <label for="auth-password">Password</label>
+            <div class="auth-input-wrap"><span class="material-symbols-outlined">lock</span><input id="auth-password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="8" required/><button id="auth-toggle-password" type="button" aria-label="Show password"><span class="material-symbols-outlined">visibility</span></button></div>
+          </div>
+          <div class="auth-options" id="auth-login-options"><label><input id="auth-remember" type="checkbox"/> <span>Keep me signed in</span></label><a href="#" id="auth-forgot">Reset credentials</a></div>
+          <div class="auth-options auth-signup-only" hidden><label><input id="auth-terms" type="checkbox" required/> <span>I agree to the operator access policy</span></label></div>
+          <button id="auth-submit" class="auth-submit" type="submit"><span id="auth-submit-label">Sign in to console</span><span class="material-symbols-outlined">arrow_forward</span></button>
+        </form>
+        <div class="auth-switch"><span id="auth-switch-copy">New to the command center?</span> <a href="#signup" id="auth-switch-link">Request operator access</a></div>
+        <div class="auth-status"><span class="auth-live-dot"></span>API LINK ENCRYPTED <span class="auth-status-divider"></span> SESSION TTL 24H</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════════════ FIXED TOP HEADER ═══════════════════════ -->
 <header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
   <div class="h-14 md:h-16 w-full px-space-sm md:px-gutter flex items-center justify-between gap-space-sm md:gap-space-md">
@@ -189,14 +246,17 @@
           <div id="notif-list" class="p-space-sm"></div>
         </div>
       </div>
+      <button onclick="Auth.logout()" class="w-9 h-9 md:w-8 md:h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-error-container hover:text-error text-on-surface transition-colors" type="button" title="Sign out" aria-label="Sign out">
+        <span class="material-symbols-outlined text-[18px]">logout</span>
+      </button>
       <div class="h-6 w-px bg-outline-variant mx-1 hidden lg:block"></div>
       <div class="hidden lg:flex items-center gap-space-sm pl-1">
         <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center border border-outline-variant flex-shrink-0">
           <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
         </div>
         <div class="flex flex-col text-left">
-          <span class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight">M. O'Connell</span>
-          <span class="font-label-sm text-[11px] text-on-surface-variant leading-tight">Lead Dispatcher - RC4</span>
+          <span id="operator-name" class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight">Operator</span>
+          <span id="operator-role" class="font-label-sm text-[11px] text-on-surface-variant leading-tight">Grid Operator</span>
         </div>
       </div>
     </div>
@@ -280,6 +340,7 @@
 <script src="/js/api.js"></script>
 <script src="/js/components.js"></script>
 <script src="/js/pages.js"></script>
+<script src="/js/auth.js?v=3"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
