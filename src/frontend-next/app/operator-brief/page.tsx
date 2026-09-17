@@ -7,12 +7,14 @@ import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
+import { useToast } from "@/context/ToastContext";
 
 export default function OperatorBriefPage() {
   const { data: brief, isLoading, refetch } = useQuery({
     queryKey: ["operator-brief"],
     queryFn: () => API.brief(),
   });
+  const { ok, err } = useToast();
 
   const { data: metrics } = useQuery({
     queryKey: ["model-metrics"],
@@ -25,6 +27,16 @@ export default function OperatorBriefPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleCopyText = async () => {
+    try {
+      const text = await API.briefText();
+      await navigator.clipboard.writeText(text);
+      ok("Brief copied to clipboard as text");
+    } catch (e: any) {
+      err("Failed to fetch brief text");
+    }
   };
 
   return (
@@ -47,6 +59,12 @@ export default function OperatorBriefPage() {
             className="h-8 px-3 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] flex items-center gap-1.5 shadow-sm"
           >
             <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Refresh
+          </button>
+          <button
+            onClick={handleCopyText}
+            className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] flex items-center gap-1.5 shadow-sm"
+          >
+            <FileText className="w-3.5 h-3.5 text-[#003820]" /> Copy Text
           </button>
           <button
             onClick={handlePrint}

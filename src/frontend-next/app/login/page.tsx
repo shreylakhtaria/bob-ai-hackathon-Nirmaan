@@ -13,8 +13,8 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { ok, err } = useToast();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@nirmaan.com");
+  const [password, setPassword] = useState("admin123");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +81,19 @@ export default function LoginPage() {
                 className="w-full h-9 pl-9 pr-3 bg-[#eff4ff] text-[#0b1c30] text-[12.5px] rounded-lg border border-[#c0c9c0]/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f5132]"
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[11.5px] text-[#707971]">
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-[#0b1c30]">
+              <input type="checkbox" className="w-3.5 h-3.5 rounded border-[#c0c9c0] text-[#0f5132] focus:ring-[#0f5132]" />
+              <span>Keep me signed in</span>
+            </label>
+            <a href="#" className="hover:text-[#003820] hover:underline" onClick={(e) => {
+              e.preventDefault();
+              err("Credential reset requires admin approval in simulation mode.");
+            }}>
+              Reset credentials
+            </a>
           </div>
 
           <button

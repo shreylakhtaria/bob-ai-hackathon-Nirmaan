@@ -24,6 +24,7 @@ interface SensorChartModalProps {
   unit: string;
   status: string;
   threshold: string;
+  trend?: number[];
 }
 
 export const SensorChartModal: React.FC<SensorChartModalProps> = ({
@@ -34,16 +35,20 @@ export const SensorChartModal: React.FC<SensorChartModalProps> = ({
   unit,
   status,
   threshold,
+  trend,
 }) => {
   if (!isOpen) return null;
 
-  // Generate 24 simulated telemetry points
-  const labels = Array.from({ length: 24 }, (_, i) => `${24 - i}h ago`).reverse();
+  // Use real telemetry trend if provided, otherwise fallback to base value (should not happen in prod)
   const base = parseFloat(String(value)) || 50;
-  const dataPoints = labels.map((_, i) => {
-    const variance = (Math.sin(i * 0.4) + Math.random() * 0.3) * (base * 0.15);
-    return Math.max(0, +(base - (24 - i) * 0.8 + variance).toFixed(1));
-  });
+  let dataPoints = trend || [];
+  
+  if (dataPoints.length === 0) {
+    dataPoints = Array.from({ length: 24 }).map(() => base);
+  }
+
+  // Generate labels based on the number of data points
+  const labels = Array.from({ length: dataPoints.length }, (_, i) => `${dataPoints.length - i}h ago`).reverse();
 
   const chartData = {
     labels,

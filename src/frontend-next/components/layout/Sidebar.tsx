@@ -81,7 +81,7 @@ export const Sidebar: React.FC<{ onOpenMetrics?: () => void }> = ({ onOpenMetric
           <div className="flex items-center justify-between font-mono text-[11px]">
             <span className="text-[#404942] uppercase">Telemetry Rows</span>
             <span className="font-semibold text-[#003820]">
-              {(stats.telemetryRows || 111100).toLocaleString()}
+              {(stats.telemetryRows || 111100).toLocaleString("en-US")}
             </span>
           </div>
           <div className="flex items-center justify-between font-mono text-[11px]">

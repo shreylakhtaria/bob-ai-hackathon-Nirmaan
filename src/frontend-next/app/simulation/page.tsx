@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Sliders, AlertTriangle, CloudRain, Play, ShieldAlert, Users, DollarSign } from "lucide-react";
+import { Sliders, Play, Server, AlertTriangle, Shield, CheckCircle2, CloudRain, Receipt } from "lucide-react";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
@@ -26,6 +26,13 @@ export default function SimulationPage() {
   const [assetSimResult, setAssetSimResult] = useState<SimulationResponse | null>(null);
   const [weatherSimResult, setWeatherSimResult] = useState<WeatherSimResponse | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [showRunsLog, setShowRunsLog] = useState(false);
+
+  const { data: auditLogs = [], isLoading: loadingAudit } = useQuery({
+    queryKey: ["audit-logs"],
+    queryFn: () => API.audit(40),
+    enabled: showRunsLog,
+  });
 
   const { data: assets = [] } = useQuery({
     queryKey: ["assets-list"],
@@ -75,43 +82,53 @@ export default function SimulationPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-[#c0c9c0]/60">
         <div>
           <div className="flex items-center gap-1 font-mono text-[10.5px] text-[#707971] uppercase tracking-wider mb-0.5">
-            <span>Digital Twin</span>
+            <span>Simulation</span>
             <span className="text-[#c0c9c0]">/</span>
-            <span className="text-[#003820] font-bold">What-If Simulation Engine</span>
+            <span className="text-[#003820] font-bold">Predictive Engine</span>
           </div>
           <h1 className="text-[22px] font-bold text-[#0b1c30] tracking-tight font-sans">
-            What-If Scenario Simulation &amp; Stress-Testing
+            Grid Contingency &amp; Weather Stress Simulator
           </h1>
           <p className="text-[12.5px] text-[#404942]">
             Evaluate cascading outage contingencies, neighbor feeder overloads, and storm impacts before they happen.
           </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="flex bg-[#eff4ff] p-1 rounded-lg border border-[#c0c9c0]/60 self-start md:self-auto font-mono text-[11px] font-bold">
+        <div className="flex items-center gap-2 self-start md:self-auto">
           <button
-            onClick={() => setActiveTab("asset")}
-            className={`px-3 py-1 rounded-md transition-all ${
-              activeTab === "asset"
-                ? "bg-[#0f5132] text-white shadow-sm"
-                : "text-[#404942] hover:text-[#0b1c30]"
-            }`}
+            onClick={() => setShowRunsLog(!showRunsLog)}
+            className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm"
           >
-            Asset Trip (N-1)
+            <Receipt className="w-3.5 h-3.5 text-[#003820]" />
+            {showRunsLog ? "Hide Runs Log" : "Runs Log"}
           </button>
-          <button
-            onClick={() => {
-              setActiveTab("weather");
-              if (!weatherSimResult) runWeatherSim(selectedArea, severity);
-            }}
-            className={`px-3 py-1 rounded-md transition-all ${
-              activeTab === "weather"
-                ? "bg-[#0f5132] text-white shadow-sm"
-                : "text-[#404942] hover:text-[#0b1c30]"
-            }`}
-          >
-            Weather Scenario
-          </button>
+
+          {/* Tab Toggle */}
+          <div className="flex bg-[#eff4ff] p-1 rounded-lg border border-[#c0c9c0]/60 font-mono text-[11px] font-bold">
+            <button
+              onClick={() => setActiveTab("asset")}
+              className={`px-3 py-1 rounded-md transition-all ${
+                activeTab === "asset"
+                  ? "bg-[#0f5132] text-white shadow-sm"
+                  : "text-[#404942] hover:text-[#0b1c30]"
+              }`}
+            >
+              Asset Trip (N-1)
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("weather");
+                if (!weatherSimResult) runWeatherSim(selectedArea, severity);
+              }}
+              className={`px-3 py-1 rounded-md transition-all ${
+                activeTab === "weather"
+                  ? "bg-[#0f5132] text-white shadow-sm"
+                  : "text-[#404942] hover:text-[#0b1c30]"
+              }`}
+            >
+              Weather Scenario
+            </button>
+          </div>
         </div>
       </div>
 
@@ -298,6 +315,40 @@ export default function SimulationPage() {
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Runs Log */}
+      {showRunsLog && (
+        <div className="mt-4 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 overflow-hidden animate-fade-in">
+          <div className="px-3.5 py-2.5 bg-[#dce9ff] flex items-center gap-2 border-b border-[#c0c9c0]/50">
+            <Receipt className="w-4 h-4 text-[#003820]" />
+            <span className="font-mono text-[11.5px] font-bold text-[#0b1c30] uppercase">
+              Engine &amp; Operator Runs Log
+            </span>
+          </div>
+          <div className="p-3.5 overflow-y-auto max-h-[320px]">
+            {loadingAudit ? (
+              <div className="text-center font-mono text-[11px] text-[#707971] py-4">Loading logs...</div>
+            ) : auditLogs.length > 0 ? (
+              <div className="space-y-1.5">
+                {auditLogs.map((log: any, idx: number) => (
+                  <div key={idx} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-[#eff4ff] last:border-0 font-sans text-[12px]">
+                    <span className="font-mono text-[10px] text-[#707971] whitespace-nowrap">{F.date(log.ts)}</span>
+                    <span className="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[#eff4ff] text-[#404942] whitespace-nowrap">
+                      {log.actor}
+                    </span>
+                    <span className="font-semibold text-[#0b1c30]">{log.action}</span>
+                    <span className="font-mono text-[11px] text-[#707971] truncate max-w-full">
+                      {JSON.stringify(log.detail)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center font-mono text-[11px] text-[#707971] py-4">No runs recorded yet</div>
             )}
           </div>
         </div>

@@ -127,7 +127,7 @@ export const Topbar: React.FC = () => {
                 GRID STATUS: ELEVATED RISK
               </span>
               <span className="text-[#c0c9c0]">|</span>
-              <span>API 200 OK &bull; Model LightGBM &bull; ROC-AUC 0.976 &bull; Grid Time: {clock}</span>
+              <span>Grid Time: {clock}</span>
             </div>
           </div>
         </div>

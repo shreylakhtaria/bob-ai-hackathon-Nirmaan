@@ -98,6 +98,7 @@ export const GridMapClient: React.FC = () => {
               weight: 1,
               fillOpacity: 0,
               className: "leaflet-pulse-ring",
+              interactive: false,
             }).addTo(map);
             (ring as any)._assetPriority = lvl;
             layersRef.current.assets.push(ring);

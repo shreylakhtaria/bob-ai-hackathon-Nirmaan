@@ -39,6 +39,26 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
   return res.json();
 }
 
+export async function apiTextRequest(endpoint: string, options: RequestInit = {}): Promise<string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("grid_auth_token") : null;
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(errorData.detail || `Request failed with status ${res.status}`);
+  }
+
+  return res.text();
+}
+
 export const API = {
   // Auth
   signup: (data: SignupRequest) =>
@@ -57,9 +77,15 @@ export const API = {
   assets: (query = "") => apiRequest<Asset[]>(`/assets${query}`),
   asset: (id: string) => apiRequest<AssetDetailResponse>(`/assets/${id}`),
   sensors: (id: string, hours = 24) => apiRequest<SensorResponse>(`/assets/${id}/sensors?hours=${hours}`),
+  assetHistory: (id: string) => apiRequest<any[]>(`/assets/${id}/history`),
 
   // Areas & Risk
   areas: () => apiRequest<AreaRisk[]>("/areas/risk"),
+  risks: (query = "") => apiRequest<any[]>(`/risks${query}`),
+  criticalRisks: () => apiRequest<any[]>("/risks/critical"),
+  weather: (area?: string) => apiRequest<any[]>(area ? `/weather?area=${area}` : "/weather"),
+  weatherSeries: (area: string, hours = 96) => apiRequest<any[]>(`/weather/series?area=${area}&hours=${hours}`),
+  incidents: (limit = 50) => apiRequest<any[]>(`/incidents?limit=${limit}`),
 
   // Maintenance & Crews
   maintenance: (query = "") => apiRequest<MaintenanceItem[]>(`/maintenance/priorities${query}`),
@@ -118,5 +144,6 @@ export const API = {
       body: JSON.stringify({ query }),
     }),
   brief: () => apiRequest<BriefResponse>("/brief"),
+  briefText: () => apiTextRequest("/brief/text"),
   exportUrl: (kind: string) => `/api/export/${kind}`,
 };

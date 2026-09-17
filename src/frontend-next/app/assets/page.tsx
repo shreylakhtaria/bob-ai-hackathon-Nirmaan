@@ -8,19 +8,18 @@ import {
   Search,
   ChevronRight,
   Send,
-  Calendar,
   Sliders,
   RotateCw,
-  Activity,
 } from "lucide-react";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { DebouncedInput } from "@/components/common/DebouncedInput";
 import { SensorChartModal } from "@/components/sensors/SensorChartModal";
+import { AssetSensorFeeds } from "@/components/sensors/AssetSensorFeeds";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
-import type { Asset, AssetDetailResponse } from "@/types/grid";
+import type { AssetDetailResponse } from "@/types/grid";
 
 const PAGE_SIZE = 12;
 
@@ -342,38 +341,12 @@ export default function AssetsPage() {
                 </button>
               </div>
 
-              {/* Sensor Telemetry Sparklines */}
-              <div>
-                <div className="font-mono text-[10.5px] uppercase font-bold text-[#404942] mb-1.5">
-                  Live Sensor Telemetry (Click to expand)
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(assetDetail.sensors_summary || {}).map(([key, s]) => (
-                    <div
-                      key={key}
-                      onClick={() => setModalSensor(s)}
-                      className="p-2 bg-[#eff4ff] rounded-md border border-[#c0c9c0]/40 hover:border-[#0f5132] cursor-pointer transition-all shadow-2xs"
-                    >
-                      <div className="flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-[#404942] uppercase truncate">{s.label}</span>
-                        <span className="font-bold text-[#0b1c30]">
-                          {s.latest} {s.unit}
-                        </span>
-                      </div>
-                      <div className="h-10 w-full mt-1">
-                        <svg className="w-full h-full" viewBox="0 0 160 40" preserveAspectRatio="none">
-                          <path
-                            d={s.path || "M0,20 L160,20"}
-                            fill="none"
-                            stroke={s.color || "#ba1a1a"}
-                            strokeWidth="2"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Sensor Telemetry */}
+              <AssetSensorFeeds 
+                assetId={selectedAssetId} 
+                sensorsSummary={assetDetail.sensors_summary || {}}
+                onSensorClick={(s) => setModalSensor(s)}
+              />
 
               {/* SHAP Risk Factors */}
               <div>
@@ -394,16 +367,17 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      {/* Sensor Zoom Modal */}
+      {/* Sensor Chart Modal */}
       {modalSensor && (
         <SensorChartModal
           isOpen={!!modalSensor}
           onClose={() => setModalSensor(null)}
           label={modalSensor.label}
-          value={modalSensor.latest}
+          value={modalSensor.latest || modalSensor.value}
           unit={modalSensor.unit}
           status={modalSensor.status}
           threshold={modalSensor.threshold}
+          trend={modalSensor.trend}
         />
       )}
     </div>

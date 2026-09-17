@@ -39,6 +39,16 @@ export default function MaintenancePage() {
     }
   };
 
+  const handleSchedule = async (assetId: string) => {
+    try {
+      const res = await API.schedule(assetId);
+      ok(res.message || `Scheduled job for ${assetId}`);
+      refetch();
+    } catch (e: any) {
+      err(e.message || "Schedule failed");
+    }
+  };
+
   if (isLoading) {
     return <ScadaSkeletonLoader />;
   }
@@ -143,6 +153,12 @@ export default function MaintenancePage() {
                         className="px-2 py-1 bg-[#ba1a1a] text-white font-mono text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity"
                       >
                         Dispatch
+                      </button>
+                      <button
+                        onClick={() => handleSchedule(item.asset_id)}
+                        className="px-2 py-1 bg-[#0f5132] text-white font-mono text-[10px] font-bold rounded uppercase hover:opacity-90 transition-opacity"
+                      >
+                        Schedule
                       </button>
                       <button
                         onClick={() => handleDefer(item.asset_id)}

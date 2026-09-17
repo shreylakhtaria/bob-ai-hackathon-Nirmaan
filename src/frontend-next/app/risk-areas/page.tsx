@@ -8,18 +8,41 @@ import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
+import { WeatherChart } from "@/components/sensors/WeatherChart";
 
 export default function RiskAreasPage() {
   const router = useRouter();
 
-  const { data: areas = [], isLoading, refetch } = useQuery({
+  const { data: areas = [], isLoading, refetch: refetchAreas } = useQuery({
     queryKey: ["risk-areas-list"],
     queryFn: () => API.areas(),
+  });
+
+  const { data: wxData = {} } = useQuery({
+    queryKey: ["weather-data"],
+    queryFn: async () => {
+      const wxArray = await API.weather();
+      // the api returns an array of weather data? Wait, in main frontend we saw `wx[a.area_id]`. Let's assume API.weather() returns a dict, but if it's an array we should map it.
+      // Wait, in main API.weather() might return a dict. Let's just return the raw response for now.
+      return Array.isArray(wxArray) ? Object.fromEntries(wxArray.map(w => [w.area_id, w])) : wxArray;
+    },
+  });
+
+  const worstArea = [...areas].sort((a, b) => (b.weather_risk || 0) - (a.weather_risk || 0))[0];
+
+  const { data: weatherSeries = [] } = useQuery({
+    queryKey: ["weather-series", worstArea?.area_id],
+    queryFn: () => API.weatherSeries(worstArea?.area_id || "", 96),
+    enabled: !!worstArea?.area_id,
   });
 
   if (isLoading) {
     return <ScadaSkeletonLoader />;
   }
+
+  const handleRefetch = () => {
+    refetchAreas();
+  };
 
   return (
     <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
@@ -39,11 +62,28 @@ export default function RiskAreasPage() {
           </p>
         </div>
         <button
-          onClick={() => refetch()}
+          onClick={handleRefetch}
           className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm self-start md:self-auto"
         >
           <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Refresh Matrix
         </button>
+      </div>
+
+      {/* Chart Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 mb-2">
+        <div className="lg:col-span-12">
+          <div className="bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 overflow-hidden">
+            <div className="px-3.5 py-2.5 bg-[#dce9ff] flex items-center gap-2 border-b border-[#c0c9c0]/50">
+              <CloudRain className="w-4 h-4 text-[#003820]" />
+              <span className="font-mono text-[11.5px] font-bold text-[#0b1c30] uppercase">
+                Weather Forecast — Worst Area ({worstArea?.area_id || "N/A"}) (96h)
+              </span>
+            </div>
+            <div className="p-3.5 h-[280px]">
+              <WeatherChart data={weatherSeries} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Areas Table */}
@@ -91,7 +131,14 @@ export default function RiskAreasPage() {
                   <td className="py-2.5 px-3">
                     <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#404942]">
                       <CloudRain className="w-3.5 h-3.5 text-[#0f5132]" />
-                      <span>{area.weather_risk} / 100</span>
+                      <div className="flex flex-col">
+                        <span>{area.weather_risk} / 100</span>
+                        {wxData[area.area_id] && (
+                          <span className="text-[9px] text-[#707971]">
+                            {Math.round(wxData[area.area_id].wind_speed || 0)} km/h {wxData[area.area_id].storm ? '⚡' : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-[#ba1a1a]">

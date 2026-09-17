@@ -46,7 +46,7 @@ export default function CrewsPage() {
     return <ScadaSkeletonLoader />;
   }
 
-  const crews = crewData?.crews || [];
+  const crews = Array.isArray(crewData) ? crewData : (crewData?.crews || []);
   const recs = recData?.recommendations || [];
 
   return (
