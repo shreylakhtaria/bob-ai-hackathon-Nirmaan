@@ -17,7 +17,8 @@ from . import config, db, errors
 from .deps import require_admin, require_any_role, require_operator
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
-                       operations as ops_svc, auth as auth_svc, ingest as ingest_svc)
+                       operations as ops_svc, auth as auth_svc, ingest as ingest_svc,
+                       resolution as resolution_svc, risk as risk_svc)
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -113,6 +114,14 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class CompleteWorkOrderRequest(BaseModel):
+    action_taken: Optional[str] = Field(default=None, max_length=500)
+    parts_replaced: Optional[str] = Field(default=None, max_length=300)
+    notes: Optional[str] = Field(default=None, max_length=1000)
+    # Constrained rather than free text so the maintenance record stays queryable.
+    result: str = Field(default="COMPLETED", pattern="^(COMPLETED|PARTIAL|NO_FAULT_FOUND)$")
 
 
 def _require_seeded():
@@ -584,6 +593,38 @@ async def ingest_commit(kind: str, file: UploadFile = File(...),
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Resolution workflow (maintenance completion -> risk recalculation)
+# ---------------------------------------------------------------------------
+@app.post("/api/work-orders/{wo_id}/complete")
+def wo_complete(wo_id: str, req: CompleteWorkOrderRequest,
+                current=Depends(require_any_role)):
+    """Close the loop: complete the work, record it, release the crew, re-derive risk.
+
+    Open to crew as well as operators — the crew who did the job is the right
+    person to report it done, and withholding that would push them to ask an
+    operator to file it for them, which is worse provenance, not better.
+    """
+    _require_seeded()
+    return resolution_svc.complete_work_order(
+        wo_id, current,
+        action_taken=req.action_taken, parts_replaced=req.parts_replaced,
+        notes=req.notes, result=req.result)
+
+
+@app.post("/api/risk/recalculate")
+def risk_recalculate(current=Depends(require_operator)):
+    """Force a full re-derivation of asset and area risk.
+
+    Operator/admin only: it rewrites every prediction row and takes several
+    seconds, so it is not something to leave open to incidental callers.
+    """
+    _require_seeded()
+    result = risk_svc.recalculate(reason=f"manual:{current['email']}")
+    db.audit(current["email"], "risk_recalculate", result)
+    return result
+
+
 # 404s
 # ---------------------------------------------------------------------------
 # The Next.js app (src/frontend-next) serves the UI and generates its own

@@ -58,17 +58,22 @@ def best_crew_for(asset):
     return crew, round(travel + (crew["base_response_min"] or 0), 1)
 
 
-def _insert_wo(**wo):
+def _insert_wo(conn=None, **wo):
+    """Insert a work order. Pass `conn` to enlist in an existing transaction;
+    without it the insert commits on its own."""
     wo.setdefault("wo_id", _wo_id())
     wo.setdefault("created_at", _now())
     wo.setdefault("status", "OPEN")
     cols = ("wo_id", "created_at", "asset_id", "area_id", "crew_id", "wo_type",
             "status", "priority", "scheduled_for", "eta_min", "notes")
     row = {c: wo.get(c) for c in cols}
-    with db.session() as conn:
-        conn.execute(
-            f"INSERT INTO work_orders({','.join(cols)}) "
-            f"VALUES({','.join(':' + c for c in cols)})", row)
+    sql = (f"INSERT INTO work_orders({','.join(cols)}) "
+           f"VALUES({','.join(':' + c for c in cols)})")
+    if conn is not None:
+        conn.execute(sql, row)
+    else:
+        with db.session() as c:
+            c.execute(sql, row)
     return row
 
 
@@ -93,14 +98,21 @@ def dispatch_crew(asset_id, crew_id=None):
         if not crew:
             return {"error": "No crew is currently AVAILABLE — free a crew or defer the job"}
 
-    wo = _insert_wo(asset_id=asset_id, area_id=asset["geographic_area"],
-                    crew_id=crew["crew_id"], wo_type="DISPATCH",
-                    priority=(pred or {}).get("priority") or "MEDIUM", eta_min=eta,
-                    notes=(pred or {}).get("recommended_action") or "Field inspection")
-
+    # One transaction: creating the work order and claiming the crew must not be
+    # separable. Previously a failure between them left an OPEN work order with
+    # the crew still AVAILABLE, so the same crew could be dispatched twice.
     with db.session() as conn:
-        conn.execute("UPDATE crews SET availability='ON_JOB', active_assignment=? WHERE crew_id=?",
-                     (asset_id, crew["crew_id"]))
+        claimed = conn.execute(
+            "UPDATE crews SET availability='ON_JOB', active_assignment=? "
+            "WHERE crew_id=? AND availability='AVAILABLE'",
+            (asset_id, crew["crew_id"])).rowcount
+        if not claimed:
+            # Someone else took this crew between selection and the write.
+            return {"error": f"Crew {crew['crew_id']} was claimed by another dispatch"}
+        wo = _insert_wo(conn, asset_id=asset_id, area_id=asset["geographic_area"],
+                        crew_id=crew["crew_id"], wo_type="DISPATCH",
+                        priority=(pred or {}).get("priority") or "MEDIUM", eta_min=eta,
+                        notes=(pred or {}).get("recommended_action") or "Field inspection")
 
     db.audit("operator", "dispatch_crew",
              {"asset_id": asset_id, "crew_id": crew["crew_id"], "eta_min": eta, "wo": wo["wo_id"]})
@@ -149,11 +161,13 @@ def reposition_crew(crew_id, area_id):
     if not area:
         return {"error": f"Area {area_id} not found"}
 
+    # Same transaction so the move and its record cannot diverge.
     with db.session() as conn:
         conn.execute("UPDATE crews SET current_area=?, latitude=?, longitude=? WHERE crew_id=?",
                      (area_id, area["lat"], area["lon"], crew_id))
-    wo = _insert_wo(asset_id=None, area_id=area_id, crew_id=crew_id, wo_type="PRE_POSITION",
-                    priority="HIGH", notes=f"Pre-positioned from {crew['current_area']} to {area_id}")
+        wo = _insert_wo(conn, asset_id=None, area_id=area_id, crew_id=crew_id,
+                        wo_type="PRE_POSITION", priority="HIGH",
+                        notes=f"Pre-positioned from {crew['current_area']} to {area_id}")
     db.audit("operator", "reposition_crew",
              {"crew_id": crew_id, "from": crew["current_area"], "to": area_id})
     return {"work_order": wo, "crew_id": crew_id, "from_area": crew["current_area"],
