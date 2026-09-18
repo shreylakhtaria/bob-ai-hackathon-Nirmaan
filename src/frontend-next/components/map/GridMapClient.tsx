@@ -2,6 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
+// Leaflet ships its own stylesheet; importing from the installed package keeps the
+// map self-contained instead of depending on a CDN <link> in the root layout.
+import "leaflet/dist/leaflet.css";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import type { RiskLevel } from "@/types/grid";

@@ -271,11 +271,14 @@ export const Topbar: React.FC = () => {
                 <User className="w-4 h-4" />
               </div>
               <div className="flex flex-col text-left">
+                {/* No signed-in user means no name to show. The old fallback
+                    invented an operator ("M. O'Connell / Lead Dispatcher"), which
+                    read as a real session on the login screen. */}
                 <span className="text-[12px] font-semibold text-[#0b1c30] leading-tight font-sans">
-                  {user ? user.email.split("@")[0] : "M. O'Connell"}
+                  {user ? user.display_name || user.email.split("@")[0] : "Not signed in"}
                 </span>
                 <span className="font-mono text-[10px] text-[#707971] leading-tight uppercase">
-                  {user ? `${user.role} - RC4` : "Lead Dispatcher - RC4"}
+                  {user ? user.role : "Operator console"}
                 </span>
               </div>
             </button>

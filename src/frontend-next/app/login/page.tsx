@@ -13,8 +13,10 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { ok, err } = useToast();
 
-  const [email, setEmail] = useState("admin@nirmaan.com");
-  const [password, setPassword] = useState("admin123");
+  // Start empty: prefilling real-looking credentials ships a working-looking
+  // admin password to every visitor in the client bundle.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

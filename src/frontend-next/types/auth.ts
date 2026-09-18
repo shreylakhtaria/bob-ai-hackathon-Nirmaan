@@ -1,5 +1,7 @@
 export interface User {
   id: number;
+  /** Backend defaults this to "Operator" when signup doesn't supply one. */
+  display_name?: string;
   email: string;
   role: 'operator' | 'admin';
   created_at: string;
