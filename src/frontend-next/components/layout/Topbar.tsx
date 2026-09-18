@@ -15,7 +15,7 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
 }) => {
   const router = useRouter();
   const { ok, warn, err } = useToast();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
 
   const [clock, setClock] = useState("--:--:--");
   const [exportOpen, setExportOpen] = useState(false);
@@ -46,11 +46,16 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
       .catch(() => {});
   };
 
+  // The chrome renders outside RequireAuth, so without this gate it polled
+  // before the session had been restored from the refresh cookie: every cold
+  // load spent a 401 and a retry on an alert list nobody could see yet.
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 20000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Dismiss dropdowns on outside click
   useEffect(() => {

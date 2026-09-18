@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutGrid,
   Cpu,
@@ -58,6 +59,7 @@ export const Sidebar: React.FC<{
   onClose?: () => void;
 }> = ({ onOpenMetrics, open = false, onClose }) => {
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   // Collapsed to an icon rail. Persisted because it is a workspace preference:
   // an operator who wants the map wide should not re-collapse it every visit.
   const [collapsed, setCollapsed] = useState(false);
@@ -96,7 +98,11 @@ export const Sidebar: React.FC<{
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Gated on the session: the rail renders outside RequireAuth, so without this
+  // it fetched before the refresh cookie had been exchanged and spent a 401 on
+  // every cold load.
   useEffect(() => {
+    if (!isAuthenticated) return;
     API.stats()
       .then((s) => {
         setStats({
@@ -105,7 +111,7 @@ export const Sidebar: React.FC<{
         });
       })
       .catch(() => setStats({}));
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <>
