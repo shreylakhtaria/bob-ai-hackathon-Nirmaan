@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from .. import config, db
-from . import briefing, maintenance
+from . import briefing, maintenance, resolution
 from .crew import SKILL_FOR_TYPE, _travel_min
 
 # How far ahead each priority band is scheduled when an operator books a job.
@@ -246,18 +246,54 @@ def list_work_orders(limit=100, status=None, asset_id=None):
     return db.query(sql, tuple(params))
 
 
-def release_crew(crew_id):
-    """Close a crew's active work order and return it to AVAILABLE."""
+def release_crew(crew_id, user=None, *, notes=None):
+    """Complete a crew's open work and return it to AVAILABLE.
+
+    This used to flip `work_orders.status` and `crews.availability` directly.
+    That produced the state an operator could see — the crew was free — with
+    none of the consequences: no maintenance record, no `last_maintenance_date`
+    stamp, and no re-derived risk, so the asset stayed exactly as critical on
+    the map as it had been before the repair. It was a second, weaker path to
+    the same transition, and the weaker one was the one wired to the UI.
+
+    It now delegates to the resolution service, which does the four writes in
+    one transaction and re-derives risk afterwards. A crew left ON_JOB with no
+    open work order — recoverable state, not a repair — is still just freed.
+    """
     crew = db.query_one("SELECT * FROM crews WHERE crew_id=?", (crew_id,))
     if not crew:
         return {"error": f"Crew {crew_id} not found"}
-    with db.session() as conn:
-        conn.execute("UPDATE work_orders SET status='CLOSED' WHERE crew_id=? AND status='OPEN'",
-                     (crew_id,))
-        conn.execute("UPDATE crews SET availability='AVAILABLE', active_assignment=NULL "
-                     "WHERE crew_id=?", (crew_id,))
-    db.audit("operator", "release_crew", {"crew_id": crew_id})
-    return {"crew_id": crew_id, "message": f"{crew_id} released and available"}
+
+    actor = user or {"email": "operator", "role": "operator"}
+    open_wos = db.query(
+        "SELECT wo_id FROM work_orders WHERE crew_id=? AND status IN ('OPEN','DEFERRED')",
+        (crew_id,))
+
+    if not open_wos:
+        with db.session() as conn:
+            conn.execute("UPDATE crews SET availability='AVAILABLE', active_assignment=NULL "
+                         "WHERE crew_id=?", (crew_id,))
+        db.audit(actor.get("email", "operator"), "release_crew",
+                 {"crew_id": crew_id, "work_orders": []})
+        return {"crew_id": crew_id, "completed": [],
+                "message": f"{crew_id} released and available"}
+
+    # Recalculate once, after the last one: it re-scores the whole population.
+    completed = [
+        resolution.complete_work_order(wo["wo_id"], actor, notes=notes,
+                                       recalculate=(i == len(open_wos) - 1))
+        for i, wo in enumerate(open_wos)
+    ]
+    last = completed[-1]
+    return {
+        "crew_id": crew_id,
+        "completed": [c["work_order"] for c in completed],
+        "risk_before": completed[0].get("risk_before"),
+        "risk_after": last.get("risk_after"),
+        "message": (f"{crew_id} completed {len(completed)} job"
+                    f"{'s' if len(completed) > 1 else ''} and is available — "
+                    "maintenance recorded and risk re-derived"),
+    }
 
 
 def system_stats():

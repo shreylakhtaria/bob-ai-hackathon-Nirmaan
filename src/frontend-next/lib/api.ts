@@ -167,8 +167,16 @@ export const API = {
       method: "POST",
       body: JSON.stringify({ crew_id: crewId, area_id: areaId }),
     }),
+  // Completes whatever the crew is on: records maintenance, stamps the asset
+  // and re-derives risk, so risk_before/risk_after show the operator what the
+  // repair actually changed rather than only freeing the crew.
   releaseCrew: (crewId: string) =>
-    apiRequest<{ message: string }>(`/crews/${crewId}/release`, { method: "POST" }),
+    apiRequest<{
+      message: string;
+      completed: string[];
+      risk_before?: { grid_impact_score?: number; priority?: string } | null;
+      risk_after?: { grid_impact_score?: number; priority?: string } | null;
+    }>(`/crews/${crewId}/release`, { method: "POST" }),
   emergency: (limit = 5) =>
     apiRequest<{ message: string; skipped: any[] }>(`/dispatch/emergency?limit=${limit}`, { method: "POST" }),
 

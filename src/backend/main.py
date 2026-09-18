@@ -535,7 +535,10 @@ def crew_reposition(req: RepositionRequest, current=Depends(require_operator)):
 
 @app.post("/api/crews/{crew_id}/release")
 def crew_release(crew_id: str, current=Depends(require_operator)):
-    return _ok_or_409(ops_svc.release_crew(crew_id))
+    """Complete whatever the crew is on and free it. Runs the full resolution
+    loop — maintenance history, asset stamp, risk recalculation — so the map
+    reflects the repair rather than just showing the crew as available."""
+    return _ok_or_409(ops_svc.release_crew(crew_id, current))
 
 
 @app.post("/api/dispatch/emergency")

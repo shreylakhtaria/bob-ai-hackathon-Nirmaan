@@ -188,6 +188,11 @@ release the crew — but only if that crew has no other open work order. Half
 applying these is the failure that matters: a closed work order with a crew still
 marked `ON_JOB` takes that crew out of service until someone notices.
 
+The operator reaches this from the Crews page: **Complete** on a crew's active
+assignment calls `POST /api/crews/{crew_id}/release`, which now runs the full
+resolution path for each open work order instead of flipping two columns. That
+shortcut was the reason a finished repair changed nothing on the map.
+
 Recalculation then runs **after the commit**:
 
 ```

@@ -194,3 +194,40 @@ def test_travel_time_survives_a_crew_with_no_coordinates():
     assert crew_svc._travel_min(40.7, -74.0, None, None) == crew_svc.UNKNOWN_TRAVEL_MIN
     # An unlocated crew must sort behind a located one, never ahead of it.
     assert crew_svc._travel_min(40.7, -74.0, 41.9, -72.7) < crew_svc.UNKNOWN_TRAVEL_MIN
+
+
+def test_release_runs_the_full_loop_not_a_shortcut():
+    """The Crews page's Release button used to close the work order and free the
+    crew without recording maintenance or re-deriving risk, so the asset stayed
+    exactly as critical on the map after the repair. It must go through the
+    resolution service now."""
+    wo_id, crew_id, asset_id = _dispatch()
+    before = db.query_one(
+        "SELECT COUNT(*) n FROM maintenance_history WHERE asset_id=?", (asset_id,))["n"]
+
+    out = ops.release_crew(crew_id, USER)
+
+    assert wo_id in out["completed"]
+    assert db.query_one("SELECT COUNT(*) n FROM maintenance_history WHERE asset_id=?",
+                        (asset_id,))["n"] == before + 1
+    assert db.query_one("SELECT last_maintenance_date FROM assets WHERE asset_id=?",
+                        (asset_id,))["last_maintenance_date"]
+    assert db.query_one("SELECT availability FROM crews WHERE crew_id=?",
+                        (crew_id,))["availability"] == "AVAILABLE"
+    assert out["risk_after"]
+
+
+def test_releasing_an_idle_crew_is_not_a_repair():
+    """A crew stuck ON_JOB with nothing open is recoverable state, not work
+    done — freeing it must not invent a maintenance record."""
+    crew = _free_a_crew()
+    with db.session() as conn:
+        conn.execute("UPDATE crews SET availability='ON_JOB' WHERE crew_id=?", (crew["crew_id"],))
+    before = db.query_one("SELECT COUNT(*) n FROM maintenance_history")["n"]
+
+    out = ops.release_crew(crew["crew_id"], USER)
+
+    assert out["completed"] == []
+    assert db.query_one("SELECT COUNT(*) n FROM maintenance_history")["n"] == before
+    assert db.query_one("SELECT availability FROM crews WHERE crew_id=?",
+                        (crew["crew_id"],))["availability"] == "AVAILABLE"

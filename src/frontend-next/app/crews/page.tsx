@@ -31,14 +31,28 @@ export default function CrewsPage() {
     }
   };
 
-  const handleRelease = async (crewId: string) => {
+  // Completing a job re-scores every asset, so it is not instant. The button
+  // reports what changed rather than only that the crew is free — an operator
+  // who closes a repair wants to see the risk come down.
+  const [completing, setCompleting] = React.useState<string | null>(null);
+
+  const handleComplete = async (crewId: string) => {
+    setCompleting(crewId);
     try {
       const res = await API.releaseCrew(crewId);
-      ok(res.message || `Crew ${crewId} released`);
+      const before = res.risk_before?.grid_impact_score;
+      const after = res.risk_after?.grid_impact_score;
+      const delta =
+        before != null && after != null
+          ? ` Grid impact ${before.toFixed(1)} → ${after.toFixed(1)}.`
+          : "";
+      ok((res.message || `Crew ${crewId} released`) + delta);
       refetchRoster();
       refetchRecs();
     } catch (e: any) {
-      err(e.message || "Failed to release crew");
+      err(e.message || "Failed to complete the job");
+    } finally {
+      setCompleting(null);
     }
   };
 
@@ -131,10 +145,16 @@ export default function CrewsPage() {
                         <div className="flex items-center justify-end gap-1.5 font-mono text-micro">
                           <span className="font-bold text-brand-ink">{c.active_assignment}</span>
                           <button
-                            onClick={() => handleRelease(c.crew_id)}
-                            className="px-1.5 py-0.5 bg-sunken hover:bg-header text-sev-critical rounded uppercase font-semibold"
+                            onClick={() => handleComplete(c.crew_id)}
+                            disabled={completing !== null}
+                            // The accessible name has to start with the visible
+                            // label, or voice control cannot address the button
+                            // by what it says.
+                            aria-label={`Complete ${c.active_assignment} — records maintenance, stamps the asset and re-derives risk`}
+                            title="Closes the work order: records maintenance, stamps the asset and re-derives risk"
+                            className="px-1.5 py-0.5 bg-sunken hover:bg-header text-brand-ink rounded uppercase font-semibold disabled:opacity-50"
                           >
-                            Release
+                            {completing === c.crew_id ? "Completing…" : "Complete"}
                           </button>
                         </div>
                       ) : (
