@@ -3,13 +3,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Download, Bell, User, LogOut, Check } from "lucide-react";
+import { AlertTriangle, Download, Bell, User, LogOut, Check, Menu, X } from "lucide-react";
 import { DebouncedInput } from "@/components/common/DebouncedInput";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 
-export const Topbar: React.FC = () => {
+export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> = ({
+  onToggleNav,
+  navOpen = false,
+}) => {
   const router = useRouter();
   const { ok, warn, err } = useToast();
   const { user, logout } = useAuth();
@@ -105,35 +108,45 @@ export const Topbar: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#c0c9c0]">
-      <div className="h-16 w-full px-4 flex items-center justify-between gap-4">
-        {/* Brand & Status */}
-        <div className="flex items-center gap-3.5 min-w-fit">
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-[#c0c9c0]/60 relative">
-            <Image src="/favicon.png" alt="Grid Logo" width={32} height={32} className="object-cover" />
+    <header className="fixed top-0 left-0 right-0 z-50 bg-panel border-b border-line">
+      <div className="h-topbar w-full pl-3 pr-4 sm:pr-5 flex items-center gap-3 lg:gap-5">
+        {/* Below lg the nav is a drawer, so it needs a way in. */}
+        <button
+          onClick={onToggleNav}
+          aria-label={navOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={navOpen}
+          className="lg:hidden w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-line-strong bg-panel hover:bg-sunken text-ink"
+        >
+          {navOpen ? <X className="w-4 h-4" aria-hidden="true" /> : <Menu className="w-4 h-4" aria-hidden="true" />}
+        </button>
+
+        {/* Brand */}
+        <div className="flex items-center gap-3 min-w-fit lg:w-[14.25rem]">
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-line relative">
+            <Image src="/favicon.png" alt="" width={32} height={32} className="object-cover" />
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] font-bold tracking-tight text-[#0b1c30] uppercase font-sans">
-                Grid Equipment Failure &amp; Outage Advisor
-              </span>
-              <span className="font-mono text-[10px] px-1.5 py-0.5 bg-[#dce9ff] text-[#0b1c30] rounded border border-[#c0c9c0] font-medium tracking-wide uppercase">
-                SCADA / ML-EMS SYNCED
-              </span>
-            </div>
-            <div className="flex items-center gap-2 font-mono text-[11px] text-[#404942] font-medium mt-0.5">
-              <span className="inline-flex items-center gap-1.5 text-[#ba1a1a] font-semibold bg-[#ffdad6]/50 px-2 py-0.5 rounded border border-[#ba1a1a]/30">
-                <span className="inline-block w-2 h-2 rounded-full bg-[#ba1a1a] animate-pulse" />
-                GRID STATUS: ELEVATED RISK
-              </span>
-              <span className="text-[#c0c9c0]">|</span>
-              <span>Grid Time: {clock}</span>
-            </div>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="text-label font-semibold tracking-tight text-ink truncate">
+              Grid Risk Advisor
+            </span>
+            <span className="font-mono text-micro text-ink-3 truncate">
+              Grid time {clock}
+            </span>
           </div>
         </div>
 
+        {/* Grid state. This is the one piece of status that changes how an
+            operator reads every other number on the screen, so it sits beside
+            the mark rather than in a corner — and it is written out, not just
+            coloured. */}
+        <div className="hidden lg:flex items-center gap-2 rounded-lg border border-sev-elevated/30 bg-sev-elevated-tint pl-2.5 pr-3 py-1.5 shrink-0">
+          <span className="w-2 h-2 rounded-full bg-sev-elevated shrink-0" aria-hidden="true" />
+          <span className="text-micro uppercase tracking-wide text-ink-3">Grid status</span>
+          <span className="text-label font-semibold text-sev-elevated">Elevated risk</span>
+        </div>
+
         {/* Global Search Bar */}
-        <div className="flex-1 max-w-md mx-2">
+        <div className="hidden md:block flex-1 min-w-0 max-w-lg">
           <DebouncedInput
             value=""
             onChange={handleGlobalSearch}
@@ -142,56 +155,58 @@ export const Topbar: React.FC = () => {
         </div>
 
         {/* Action Controls & Operator Profile */}
-        <div className="flex items-center gap-2.5 min-w-fit">
+        <div className="flex items-center gap-2 min-w-fit ml-auto">
           <button
             onClick={handleEmergencyDispatch}
-            className="h-8 px-3.5 bg-[#ba1a1a] text-white font-mono text-[11px] font-bold rounded-md border border-[#ba1a1a] hover:opacity-90 transition-opacity flex items-center gap-1.5 uppercase tracking-wider shadow-sm"
+            className="min-h-9 px-3.5 bg-sev-critical text-white text-label font-semibold rounded-lg border border-sev-critical hover:bg-[#8e0f0b] flex items-center gap-2 shadow-panel"
           >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Emergency Dispatch
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Dispatch crews</span>
           </button>
 
           {/* Export Dropdown */}
-          <div className="relative" ref={exportRef}>
+          <div className="relative hidden sm:block" ref={exportRef}>
             <button
               onClick={() => setExportOpen(!exportOpen)}
-              className="h-8 px-3 bg-white text-[#0b1c30] font-mono text-[11px] font-semibold rounded-md border border-[#c0c9c0] hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm"
+              aria-haspopup="menu"
+              aria-expanded={exportOpen}
+              className="min-h-9 px-3 bg-panel text-ink text-label font-medium rounded-lg border border-line-strong hover:bg-sunken flex items-center gap-2"
             >
-              <Download className="w-3.5 h-3.5 text-[#707971]" />
-              Export Log
+              <Download className="w-4 h-4 text-ink-3" aria-hidden="true" />
+              Export
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-9 w-52 bg-white border border-[#c0c9c0] rounded-lg shadow-xl z-50 py-1 font-mono text-[11px] animate-fade-in">
-                <div className="px-3 py-1 text-[9.5px] uppercase tracking-wider text-[#707971] font-bold">
+              <div role="menu" className="absolute right-0 top-11 w-56 bg-panel border border-line rounded-xl shadow-overlay z-50 p-1.5 text-label animate-fade-in">
+                <div className="px-2.5 pt-1 pb-1.5 text-micro uppercase tracking-wider text-ink-3 font-semibold">
                   Download CSV
                 </div>
                 <button
                   onClick={() => downloadCsv("maintenance")}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30]"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
                 >
                   Maintenance queue
                 </button>
                 <button
                   onClick={() => downloadCsv("assets")}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30]"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
                 >
                   Asset register
                 </button>
                 <button
                   onClick={() => downloadCsv("work_orders")}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30]"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
                 >
                   Work orders
                 </button>
                 <button
                   onClick={() => downloadCsv("alerts")}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30]"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
                 >
                   Alerts
                 </button>
                 <button
                   onClick={() => downloadCsv("audit")}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30]"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
                 >
                   Audit log
                 </button>
@@ -203,52 +218,59 @@ export const Topbar: React.FC = () => {
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen(!notifOpen)}
-              className="w-8 h-8 flex items-center justify-center rounded-md border border-[#c0c9c0] hover:bg-[#eff4ff] text-[#0b1c30] transition-colors relative shadow-sm"
-              title="Notifications"
+              aria-haspopup="dialog"
+              aria-expanded={notifOpen}
+              aria-label={
+                unackedCount > 0
+                  ? `Alerts: ${unackedCount} unacknowledged`
+                  : "Alerts: none unacknowledged"
+              }
+              className="w-9 h-9 flex items-center justify-center rounded-lg border border-line-strong bg-panel hover:bg-sunken text-ink relative"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4" aria-hidden="true" />
               {unackedCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#ba1a1a] text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                <span aria-hidden="true" className="absolute -top-1 -right-1 bg-sev-critical text-white font-mono text-[0.625rem] min-w-[1.125rem] h-[1.125rem] px-1 rounded-full flex items-center justify-center font-semibold ring-2 ring-panel">
                   {unackedCount}
                 </span>
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-9 w-80 max-h-[60vh] overflow-y-auto bg-white border border-[#c0c9c0] rounded-lg shadow-xl z-50 animate-fade-in">
-                <div className="px-3.5 py-2 bg-[#dce9ff] border-b border-[#c0c9c0] flex items-center justify-between sticky top-0">
-                  <span className="font-mono text-[11px] font-bold uppercase text-[#0b1c30]">
-                    Unacknowledged Alerts
-                  </span>
-                  <span className="font-mono text-[10px] text-[#707971]">{unackedCount} open</span>
+              <div className="absolute right-0 top-11 w-[22rem] max-h-[60vh] overflow-y-auto bg-panel border border-line rounded-xl shadow-overlay z-50 animate-fade-in">
+                <div className="px-4 py-2.5 bg-panel border-b border-line flex items-center justify-between sticky top-0">
+                  <span className="text-label font-semibold text-ink">Unacknowledged alerts</span>
+                  <span className="font-mono text-micro text-ink-3">{unackedCount} open</span>
                 </div>
                 <div className="p-2 space-y-2">
                   {alerts.length === 0 ? (
-                    <div className="text-center py-4 font-mono text-[11px] text-[#707971]">
-                      All alerts acknowledged
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-label font-medium text-ink">Nothing outstanding</p>
+                      <p className="mt-0.5 text-micro text-ink-3">
+                        Every alert has been acknowledged.
+                      </p>
                     </div>
                   ) : (
                     alerts.slice(0, 10).map((a) => (
                       <div
                         key={a.alert_id}
-                        className="p-2 bg-[#f8f9ff] border border-[#c0c9c0]/60 rounded-md flex flex-col gap-1 text-[11.5px]"
+                        className="p-3 bg-canvas border border-line rounded-lg flex flex-col gap-1.5"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-[#0b1c30]">{a.title}</span>
-                          <span className="font-mono text-[9px] text-[#707971]">
+                          <span className="text-label font-semibold text-ink">{a.title}</span>
+                          <span className="font-mono text-micro text-ink-3 shrink-0">
                             {new Date(a.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#404942]">{a.reason}</p>
+                        <p className="text-micro text-ink-2 leading-snug">{a.reason}</p>
                         <div className="flex justify-end mt-1">
                           {!a.acknowledged ? (
                             <button
                               onClick={() => handleAckAlert(a.alert_id)}
-                              className="px-2 py-0.5 bg-[#baeed9] text-[#002117] font-mono text-[9.5px] font-bold rounded uppercase hover:opacity-90 flex items-center gap-1"
+                              className="min-h-8 px-2.5 rounded-lg border border-line-strong bg-panel text-ink text-micro font-semibold hover:bg-sunken flex items-center gap-1.5"
                             >
-                              <Check className="w-3 h-3" /> Ack
+                              <Check className="w-3.5 h-3.5" aria-hidden="true" /> Acknowledge
                             </button>
                           ) : (
-                            <span className="font-mono text-[9.5px] text-[#707971]">Acknowledged</span>
+                            <span className="text-micro text-ink-3">Acknowledged</span>
                           )}
                         </div>
                       </div>
@@ -259,34 +281,36 @@ export const Topbar: React.FC = () => {
             )}
           </div>
 
-          <div className="h-6 w-px bg-[#c0c9c0] mx-0.5" />
+          <div className="h-6 w-px bg-line mx-1" aria-hidden="true" />
 
           {/* User Profile / Auth */}
           <div className="relative" ref={userRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 pl-1 hover:opacity-90"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              className="flex items-center gap-2.5 rounded-lg pl-1 pr-2 min-h-9 hover:bg-sunken"
             >
-              <div className="w-8 h-8 rounded-full bg-[#0f5132] text-white flex items-center justify-center border border-[#c0c9c0] flex-shrink-0 shadow-sm">
-                <User className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center shrink-0">
+                <User className="w-4 h-4" aria-hidden="true" />
               </div>
-              <div className="flex flex-col text-left">
+              <div className="hidden xl:flex flex-col text-left">
                 {/* No signed-in user means no name to show. The old fallback
                     invented an operator ("M. O'Connell / Lead Dispatcher"), which
                     read as a real session on the login screen. */}
-                <span className="text-[12px] font-semibold text-[#0b1c30] leading-tight font-sans">
+                <span className="text-label font-semibold text-ink leading-tight">
                   {user ? user.display_name || user.email.split("@")[0] : "Not signed in"}
                 </span>
-                <span className="font-mono text-[10px] text-[#707971] leading-tight uppercase">
+                <span className="text-micro text-ink-3 leading-tight">
                   {user ? user.role : "Operator console"}
                 </span>
               </div>
             </button>
 
             {userMenuOpen && user && (
-              <div className="absolute right-0 top-10 w-44 bg-white border border-[#c0c9c0] rounded-lg shadow-xl z-50 py-1 font-mono text-[11px] animate-fade-in">
-                <div className="px-3 py-1.5 border-b border-[#c0c9c0]/50 text-[#707971]">
-                  Signed in as <strong className="text-[#0b1c30]">{user.email}</strong>
+              <div role="menu" className="absolute right-0 top-11 w-56 bg-panel border border-line rounded-xl shadow-overlay z-50 p-1.5 text-label animate-fade-in">
+                <div className="px-2.5 py-2 mb-1 border-b border-line text-micro text-ink-3">
+                  Signed in as <strong className="font-semibold text-ink">{user.email}</strong>
                 </div>
                 <button
                   onClick={() => {
@@ -294,9 +318,9 @@ export const Topbar: React.FC = () => {
                     setUserMenuOpen(false);
                     ok("Logged out successfully");
                   }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#ffdad6]/40 text-[#ba1a1a] flex items-center gap-1.5 font-bold"
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sev-critical-tint text-sev-critical flex items-center gap-2 font-medium"
                 >
-                  <LogOut className="w-3.5 h-3.5" /> Logout
+                  <LogOut className="w-4 h-4" aria-hidden="true" /> Sign out
                 </button>
               </div>
             )}

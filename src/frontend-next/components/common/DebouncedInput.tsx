@@ -36,7 +36,7 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = ({
   return (
     <div className="relative flex items-center w-full">
       {showIcon && (
-        <Search className="absolute left-2.5 w-4 h-4 text-[#707971] pointer-events-none" />
+        <Search className="absolute left-2.5 w-4 h-4 text-ink-3 pointer-events-none" />
       )}
       <input
         {...props}
@@ -45,7 +45,7 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = ({
         placeholder={placeholder}
         className={`w-full h-8 ${
           showIcon ? "pl-8" : "pl-3"
-        } pr-3 bg-[#eff4ff] text-[#0b1c30] text-[12.5px] rounded-md border border-[#c0c9c0]/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f5132] focus:border-[#0f5132] transition-colors placeholder:text-[#707971] ${className}`}
+        } pr-3 bg-sunken text-ink text-label rounded-lg border border-line focus:bg-panel focus:ring-1 focus:ring-brand focus:border-brand transition-colors placeholder:text-ink-3 ${className}`}
       />
     </div>
   );

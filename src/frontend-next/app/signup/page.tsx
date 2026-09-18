@@ -39,44 +39,44 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center font-sans">
-      <div className="bg-white rounded-xl shadow-xl border border-[#c0c9c0]/80 p-8 w-full max-w-md space-y-6">
+    <div className="w-full max-w-sm">
+      <div className="space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl overflow-hidden mx-auto shadow-sm border border-[#c0c9c0]/60 relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl overflow-hidden mx-auto shadow-panel border border-line relative flex items-center justify-center">
             <Image src="/favicon.png" alt="Logo" width={48} height={48} className="object-cover" />
           </div>
-          <h1 className="text-[20px] font-bold text-[#0b1c30] uppercase font-mono tracking-tight">
+          <h1 className="text-title font-semibold text-ink tracking-tight">
             Register Operator
           </h1>
-          <p className="text-[12px] text-[#707971]">
+          <p className="text-label text-ink-3">
             Create a new operator account for grid command center access
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-mono text-[#404942] uppercase font-bold mb-1">
+            <label className="block text-label font-medium text-ink mb-1.5">
               Work Email
             </label>
             <div className="relative flex items-center">
-              <Mail className="w-4 h-4 text-[#707971] absolute left-3 pointer-events-none" />
+              <Mail className="w-4 h-4 text-ink-3 absolute left-3 pointer-events-none" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="new.operator@gridops.power"
-                className="w-full h-9 pl-9 pr-3 bg-[#eff4ff] text-[#0b1c30] text-[12.5px] rounded-lg border border-[#c0c9c0]/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f5132]"
+                className="w-full h-9 pl-9 pr-3 bg-sunken text-ink text-label rounded-lg border border-line focus:bg-panel focus:ring-1 focus:ring-brand"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono text-[#404942] uppercase font-bold mb-1">
+            <label className="block text-label font-medium text-ink mb-1.5">
               Create Password (min 8 characters)
             </label>
             <div className="relative flex items-center">
-              <Lock className="w-4 h-4 text-[#707971] absolute left-3 pointer-events-none" />
+              <Lock className="w-4 h-4 text-ink-3 absolute left-3 pointer-events-none" />
               <input
                 type="password"
                 required
@@ -84,17 +84,17 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-9 pl-9 pr-3 bg-[#eff4ff] text-[#0b1c30] text-[12.5px] rounded-lg border border-[#c0c9c0]/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f5132]"
+                className="w-full h-9 pl-9 pr-3 bg-sunken text-ink text-label rounded-lg border border-line focus:bg-panel focus:ring-1 focus:ring-brand"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono text-[#404942] uppercase font-bold mb-1">
+            <label className="block text-label font-medium text-ink mb-1.5">
               Confirm Password
             </label>
             <div className="relative flex items-center">
-              <Lock className="w-4 h-4 text-[#707971] absolute left-3 pointer-events-none" />
+              <Lock className="w-4 h-4 text-ink-3 absolute left-3 pointer-events-none" />
               <input
                 type="password"
                 required
@@ -102,7 +102,7 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-9 pl-9 pr-3 bg-[#eff4ff] text-[#0b1c30] text-[12.5px] rounded-lg border border-[#c0c9c0]/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f5132]"
+                className="w-full h-9 pl-9 pr-3 bg-sunken text-ink text-label rounded-lg border border-line focus:bg-panel focus:ring-1 focus:ring-brand"
               />
             </div>
           </div>
@@ -110,15 +110,15 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-9 bg-[#0f5132] text-white font-mono text-[12px] font-bold uppercase rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+            className="w-full h-9 bg-brand text-white text-label font-semibold uppercase rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel disabled:opacity-50"
           >
             <UserPlus className="w-4 h-4" /> Create Account
           </button>
         </form>
 
-        <div className="pt-2 text-center border-t border-[#c0c9c0]/40 text-[11.5px] text-[#707971]">
+        <div className="pt-2 text-center border-t border-line text-micro text-ink-3">
           Already have credentials?{" "}
-          <Link href="/login" className="text-[#003820] font-bold hover:underline">
+          <Link href="/login" className="text-brand-ink font-bold hover:underline">
             Sign In
           </Link>
         </div>

@@ -21,7 +21,7 @@ interface WeatherChartProps {
 
 export const WeatherChart: React.FC<WeatherChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return <div className="h-full flex items-center justify-center text-[12px] text-[#707971] font-mono">No weather data available</div>;
+    return <div className="h-full flex items-center justify-center text-label text-ink-3 font-mono">No weather data available</div>;
   }
 
   const reversed = [...data].reverse();

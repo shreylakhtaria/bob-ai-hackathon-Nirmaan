@@ -8,14 +8,19 @@ interface RiskBadgeProps {
 }
 
 export const RiskBadge: React.FC<RiskBadgeProps> = ({ level = "LOW", className = "" }) => {
-  const { container, dot } = F.riskBadgeClass(level);
+  const { ink, tint, text } = F.sev(level);
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mono text-[10.5px] font-bold uppercase tracking-tight ${container} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-micro font-semibold uppercase tracking-wide ${className}`}
+      style={{ backgroundColor: tint, color: ink, borderColor: `${ink}33` }}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${dot} ${level === "CRITICAL" ? "animate-pulse" : ""}`} />
-      {level}
+      <span
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+        style={{ backgroundColor: ink }}
+        aria-hidden="true"
+      />
+      {text}
     </span>
   );
 };

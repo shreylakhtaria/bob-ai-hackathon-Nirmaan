@@ -52,18 +52,18 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
 
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between mb-3 border-b border-[#c0c9c0]/40 pb-2">
+      <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-1.5">
-          <Activity className="w-4 h-4 text-[#003820]" />
-          <span className="font-bold text-[#0b1c30] text-[15px]">Real-Time Sensor Feeds</span>
+          <Activity className="w-4 h-4 text-brand-ink" />
+          <span className="font-bold text-ink text-lede">Real-Time Sensor Feeds</span>
         </div>
-        <div className="inline-flex bg-[#eff4ff] rounded p-0.5 font-mono text-[10px] text-[#404942]">
+        <div className="inline-flex bg-sunken rounded p-0.5 font-mono text-micro text-ink-2">
           {RANGES.map((r) => (
             <button
               key={r.value}
               onClick={() => setHours(r.value)}
               className={`px-1.5 py-0.5 rounded transition-all ${
-                hours === r.value ? "bg-[#dce9ff] text-[#0b1c30] font-bold shadow-sm" : "hover:text-[#0b1c30]"
+                hours === r.value ? "bg-header text-ink font-bold shadow-panel" : "hover:text-ink"
               }`}
             >
               {r.label}
@@ -73,7 +73,7 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
       </div>
 
       {isLoading ? (
-        <div className="h-48 flex items-center justify-center font-mono text-[11px] text-[#707971]">
+        <div className="h-48 flex items-center justify-center font-mono text-micro text-ink-3">
           Loading telemetry...
         </div>
       ) : (
@@ -129,23 +129,23 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
                   threshold: summary.threshold || "--",
                   trend: vals 
                 })}
-                className="bg-[#eff4ff] border border-[#c0c9c0]/40 rounded-lg p-2.5 shadow-sm hover:border-[#0f5132] cursor-pointer transition-all"
+                className="bg-sunken border border-line rounded-lg p-2.5 shadow-panel hover:border-brand cursor-pointer transition-all"
               >
                 <div className="flex items-start justify-between mb-1">
                   <div>
-                    <div className="font-mono text-[10px] uppercase font-bold text-[#404942] tracking-wider">
+                    <div className="text-micro uppercase font-semibold text-ink-2 tracking-wider">
                       {m.title}
                     </div>
-                    <div className="font-mono text-[9px] text-[#707971]">
+                    <div className="font-mono text-micro text-ink-3">
                       {hours}h range {min.toFixed(m.dec)}-{max.toFixed(m.dec)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-[14px] font-bold" style={{ color }}>
+                    <div className="font-mono text-body font-bold" style={{ color }}>
                       {latest.toFixed(m.dec)}
-                      <span className="text-[10px] ml-0.5">{m.unit}</span>
+                      <span className="text-micro ml-0.5">{m.unit}</span>
                     </div>
-                    <div className="font-mono text-[9px] font-bold" style={{ color }}>
+                    <div className="font-mono text-micro font-bold" style={{ color }}>
                       {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%
                     </div>
                   </div>
@@ -158,7 +158,7 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
           })}
         </div>
       )}
-      <div className="mt-2 font-mono text-[10px] text-[#707971]">
+      <div className="mt-2 font-mono text-micro text-ink-3">
         {sensors.length} telemetry samples &middot; GET /api/assets/{assetId}/sensors?hours={hours}
       </div>
     </div>

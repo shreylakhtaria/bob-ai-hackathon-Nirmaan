@@ -66,12 +66,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               {t.kind === "err" && <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />}
               {(t.kind === "warn" || t.kind === "info") && <Info className="w-3.5 h-3.5 stroke-[2.5]" />}
             </div>
-            <div className="flex-1 leading-snug text-[#0b1c30] text-[13.5px] font-medium tracking-tight">
+            <div className="flex-1 leading-snug text-ink text-label font-medium tracking-tight">
               {t.message}
             </div>
             <button
               onClick={() => removeToast(t.id)}
-              className="text-[#707971] hover:text-[#0b1c30] p-1 rounded hover:bg-[#eff4ff] transition-colors"
+              className="text-ink-3 hover:text-ink p-1 rounded hover:bg-sunken transition-colors"
               title="Dismiss"
             >
               <X className="w-4 h-4" />

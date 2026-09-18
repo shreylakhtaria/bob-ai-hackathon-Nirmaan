@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -24,20 +25,53 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Sign-in and registration sat inside the full operator shell, so a visitor
+  // who was not signed in still saw a nine-item nav, a live asset count and an
+  // "Emergency dispatch" button. That claims an operational session that does
+  // not exist, and offers an irreversible action to someone with no account.
+  // Auth routes get the bare frame.
+  const isAuthRoute = pathname === "/login" || pathname === "/signup";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          <Topbar />
-          <Sidebar onOpenMetrics={() => setMetricsOpen(true)} />
-          <div className="pl-64 flex flex-col min-h-screen">
-            <Breadcrumb />
-            <main className="w-full pt-24 px-4 pb-8 bg-[#f8f9ff] flex-1">
+          {isAuthRoute ? (
+            <main className="min-h-screen bg-canvas flex items-center justify-center px-5 py-12">
               {children}
             </main>
-          </div>
-          <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+          ) : (
+            <>
+              {/* A console is driven from the keyboard during an incident;
+                  without this, reaching the content means tabbing the whole
+                  nav on every page. */}
+              <a
+                href="#main"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-panel focus:px-4 focus:py-2 focus:text-label focus:font-semibold focus:text-ink focus:shadow-overlay"
+              >
+                Skip to content
+              </a>
+              <Topbar onToggleNav={() => setNavOpen((v) => !v)} navOpen={navOpen} />
+              <Sidebar
+                onOpenMetrics={() => setMetricsOpen(true)}
+                open={navOpen}
+                onClose={() => setNavOpen(false)}
+              />
+              <div className="lg:pl-60 flex flex-col min-h-screen">
+                <Breadcrumb />
+                <main
+                  id="main"
+                  className="w-full px-5 pb-10 bg-canvas flex-1 pt-[calc(var(--spacing-topbar)+var(--spacing-crumb)+1.25rem)]"
+                >
+                  {children}
+                </main>
+              </div>
+              <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+            </>
+          )}
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

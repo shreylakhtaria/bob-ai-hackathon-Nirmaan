@@ -79,17 +79,17 @@ export default function SimulationPage() {
   return (
     <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-[#c0c9c0]/60">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-line">
         <div>
-          <div className="flex items-center gap-1 font-mono text-[10.5px] text-[#707971] uppercase tracking-wider mb-0.5">
+          <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-0.5">
             <span>Simulation</span>
-            <span className="text-[#c0c9c0]">/</span>
-            <span className="text-[#003820] font-bold">Predictive Engine</span>
+            <span className="text-line">/</span>
+            <span className="text-brand-ink font-bold">Predictive Engine</span>
           </div>
-          <h1 className="text-[22px] font-bold text-[#0b1c30] tracking-tight font-sans">
+          <h1 className="text-title font-bold text-ink tracking-tight font-sans">
             Grid Contingency &amp; Weather Stress Simulator
           </h1>
-          <p className="text-[12.5px] text-[#404942]">
+          <p className="text-label text-ink-2">
             Evaluate cascading outage contingencies, neighbor feeder overloads, and storm impacts before they happen.
           </p>
         </div>
@@ -97,20 +97,20 @@ export default function SimulationPage() {
         <div className="flex items-center gap-2 self-start md:self-auto">
           <button
             onClick={() => setShowRunsLog(!showRunsLog)}
-            className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm"
+            className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel"
           >
-            <Receipt className="w-3.5 h-3.5 text-[#003820]" />
+            <Receipt className="w-3.5 h-3.5 text-brand-ink" />
             {showRunsLog ? "Hide Runs Log" : "Runs Log"}
           </button>
 
           {/* Tab Toggle */}
-          <div className="flex bg-[#eff4ff] p-1 rounded-lg border border-[#c0c9c0]/60 font-mono text-[11px] font-bold">
+          <div className="flex bg-sunken p-1 rounded-lg border border-line font-mono text-micro font-bold">
             <button
               onClick={() => setActiveTab("asset")}
-              className={`px-3 py-1 rounded-md transition-all ${
+              className={`px-3 py-1 rounded-lg transition-all ${
                 activeTab === "asset"
-                  ? "bg-[#0f5132] text-white shadow-sm"
-                  : "text-[#404942] hover:text-[#0b1c30]"
+                  ? "bg-brand text-white shadow-panel"
+                  : "text-ink-2 hover:text-ink"
               }`}
             >
               Asset Trip (N-1)
@@ -120,10 +120,10 @@ export default function SimulationPage() {
                 setActiveTab("weather");
                 if (!weatherSimResult) runWeatherSim(selectedArea, severity);
               }}
-              className={`px-3 py-1 rounded-md transition-all ${
+              className={`px-3 py-1 rounded-lg transition-all ${
                 activeTab === "weather"
-                  ? "bg-[#0f5132] text-white shadow-sm"
-                  : "text-[#404942] hover:text-[#0b1c30]"
+                  ? "bg-brand text-white shadow-panel"
+                  : "text-ink-2 hover:text-ink"
               }`}
             >
               Weather Scenario
@@ -136,19 +136,19 @@ export default function SimulationPage() {
         /* Asset Trip Simulation (N-1 Contingency) */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
           {/* Controls (4 cols) */}
-          <div className="lg:col-span-4 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 p-3.5 space-y-3">
-            <div className="font-mono text-[11.5px] font-bold uppercase text-[#0b1c30] pb-1 border-b border-[#c0c9c0]/40">
+          <div className="lg:col-span-4 bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
+            <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
               Select Trip Candidate
             </div>
             <div>
-              <label className="block text-[11px] font-mono text-[#707971] mb-1">Target Asset ID</label>
+              <label className="block text-micro font-mono text-ink-3 mb-1">Target Asset ID</label>
               <select
                 value={selectedAsset}
                 onChange={(e) => {
                   setSelectedAsset(e.target.value);
                   runAssetSim(e.target.value);
                 }}
-                className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono rounded-md border border-[#c0c9c0]/60"
+                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
                 {assets.map((a) => (
                   <option key={a.asset_id} value={a.asset_id}>
@@ -161,15 +161,15 @@ export default function SimulationPage() {
             <button
               disabled={isSimulating}
               onClick={() => runAssetSim(selectedAsset)}
-              className="w-full h-8 bg-[#0f5132] text-white font-mono text-[11px] font-bold rounded-md uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+              className="w-full min-h-9 bg-brand text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel disabled:opacity-50"
             >
               <Play className="w-3.5 h-3.5" /> Run N-1 Simulation
             </button>
 
             {assetSimResult && (
-              <div className="p-3 bg-[#eff4ff] rounded-md border border-[#c0c9c0]/50 space-y-2 text-[11.5px]">
-                <div className="font-bold text-[#0b1c30]">Simulated Asset Specs:</div>
-                <div className="font-mono text-[11px] text-[#404942]">
+              <div className="p-3 bg-sunken rounded-lg border border-line space-y-2 text-micro">
+                <div className="font-bold text-ink">Simulated Asset Specs:</div>
+                <div className="font-mono text-micro text-ink-2">
                   Type: <strong>{assetSimResult.simulated_asset?.asset_type}</strong>
                   <br />
                   Location: <strong>{assetSimResult.simulated_asset?.geographic_area}</strong>
@@ -186,52 +186,52 @@ export default function SimulationPage() {
             {assetSimResult ? (
               <>
                 {/* Impact KPI Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                  <div className="bg-white p-3 rounded-lg border border-[#c0c9c0]/50 shadow-sm">
-                    <div className="text-[10px] font-mono text-[#707971] uppercase">Direct Outage</div>
-                    <div className="text-[17px] font-mono font-bold text-[#ba1a1a]">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
+                    <div className="text-micro text-ink-3 uppercase">Direct Outage</div>
+                    <div className="text-lede font-mono font-bold text-sev-critical">
                       {F.num(assetSimResult.contingency_impact?.direct_customers_interrupted)}
                     </div>
-                    <div className="text-[10px] text-[#707971]">Customers lost</div>
+                    <div className="text-micro text-ink-3">Customers lost</div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#c0c9c0]/50 shadow-sm">
-                    <div className="text-[10px] font-mono text-[#707971] uppercase">Cascading Risk</div>
+                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
+                    <div className="text-micro text-ink-3 uppercase">Cascading Risk</div>
                     <div className="mt-0.5">
                       <RiskBadge level={assetSimResult.contingency_impact?.cascading_risk_level} />
                     </div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#c0c9c0]/50 shadow-sm">
-                    <div className="text-[10px] font-mono text-[#707971] uppercase">Overloaded Assets</div>
-                    <div className="text-[17px] font-mono font-bold text-[#ba1a1a]">
+                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
+                    <div className="text-micro text-ink-3 uppercase">Overloaded Assets</div>
+                    <div className="text-lede font-mono font-bold text-sev-critical">
                       {assetSimResult.contingency_impact?.overloaded_neighbor_assets?.length || 2}
                     </div>
-                    <div className="text-[10px] text-[#707971]">Adjacent lines</div>
+                    <div className="text-micro text-ink-3">Adjacent lines</div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#c0c9c0]/50 shadow-sm">
-                    <div className="text-[10px] font-mono text-[#707971] uppercase">Est. Economic Loss</div>
-                    <div className="text-[17px] font-mono font-bold text-[#0b1c30]">
+                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
+                    <div className="text-micro text-ink-3 uppercase">Est. Economic Loss</div>
+                    <div className="text-lede font-mono font-bold text-ink">
                       ${F.num(assetSimResult.contingency_impact?.estimated_economic_impact_usd || 1200000)}
                     </div>
                   </div>
                 </div>
 
                 {/* Overloaded Lines & Mitigation Plan */}
-                <div className="bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 p-3.5 space-y-3">
-                  <div className="font-mono text-[11.5px] font-bold uppercase text-[#0b1c30] pb-1 border-b border-[#c0c9c0]/40">
+                <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
+                  <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
                     Recommended Dispatch &amp; Switching Mitigation
                   </div>
                   <div className="space-y-2">
                     {(assetSimResult.mitigation_steps || []).map((step) => (
                       <div
                         key={step.step}
-                        className="p-2.5 bg-[#f8f9ff] rounded-md border border-[#c0c9c0]/40 flex items-start gap-2.5 text-[12px]"
+                        className="p-2.5 bg-canvas rounded-lg border border-line flex items-start gap-2.5 text-label"
                       >
-                        <span className="w-5 h-5 rounded-full bg-[#003820] text-white font-mono text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="w-5 h-5 rounded-full bg-brand-ink text-white font-mono text-micro font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                           {step.step}
                         </span>
                         <div className="flex-1">
-                          <div className="font-semibold text-[#0b1c30]">{step.action}</div>
-                          <div className="font-mono text-[10px] text-[#707971]">
+                          <div className="font-semibold text-ink">{step.action}</div>
+                          <div className="font-mono text-micro text-ink-3">
                             Expected response time: {step.expected_response_min} min
                           </div>
                         </div>
@@ -241,7 +241,7 @@ export default function SimulationPage() {
                 </div>
               </>
             ) : (
-              <div className="p-8 bg-white rounded-lg border border-[#c0c9c0]/60 text-center font-mono text-[11px] text-[#707971]">
+              <div className="p-8 bg-panel rounded-lg border border-line text-center font-mono text-micro text-ink-3">
                 Running contingency analysis…
               </div>
             )}
@@ -250,16 +250,16 @@ export default function SimulationPage() {
       ) : (
         /* Weather Stress-Test Scenario */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-          <div className="lg:col-span-4 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 p-3.5 space-y-3">
-            <div className="font-mono text-[11.5px] font-bold uppercase text-[#0b1c30] pb-1 border-b border-[#c0c9c0]/40">
+          <div className="lg:col-span-4 bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
+            <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
               Storm Simulation Controls
             </div>
             <div>
-              <label className="block text-[11px] font-mono text-[#707971] mb-1">Target Geographic Area</label>
+              <label className="block text-micro font-mono text-ink-3 mb-1">Target Geographic Area</label>
               <select
                 value={selectedArea}
                 onChange={(e) => setSelectedArea(e.target.value)}
-                className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono rounded-md border border-[#c0c9c0]/60"
+                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
                 {areas.map((a) => (
                   <option key={a.area_id} value={a.area_id}>
@@ -269,11 +269,11 @@ export default function SimulationPage() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-mono text-[#707971] mb-1">Storm Severity Tier</label>
+              <label className="block text-micro font-mono text-ink-3 mb-1">Storm Severity Tier</label>
               <select
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value)}
-                className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono rounded-md border border-[#c0c9c0]/60"
+                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
                 <option value="MODERATE">Moderate Storm (Score 50-65)</option>
                 <option value="SEVERE">Severe Storm (Score 65-85)</option>
@@ -283,7 +283,7 @@ export default function SimulationPage() {
             <button
               disabled={isSimulating}
               onClick={() => runWeatherSim(selectedArea, severity)}
-              className="w-full h-8 bg-[#ba1a1a] text-white font-mono text-[11px] font-bold rounded-md uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+              className="w-full min-h-9 bg-sev-critical text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel disabled:opacity-50"
             >
               <CloudRain className="w-3.5 h-3.5" /> Simulate Storm Impact
             </button>
@@ -291,25 +291,25 @@ export default function SimulationPage() {
 
           <div className="lg:col-span-8 flex flex-col gap-3">
             {weatherSimResult && (
-              <div className="bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 p-3.5 space-y-3">
-                <div className="flex items-center justify-between pb-1 border-b border-[#c0c9c0]/40">
-                  <span className="font-mono text-[12px] font-bold text-[#0b1c30]">
+              <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
+                <div className="flex items-center justify-between pb-1 border-b border-line">
+                  <span className="font-mono text-label font-bold text-ink">
                     Storm Impact Summary: {weatherSimResult.area_id}
                   </span>
-                  <span className="font-mono text-[11px] text-[#ba1a1a] font-bold">
+                  <span className="font-mono text-micro text-sev-critical font-bold">
                     Outage Prob: {F.pct(weatherSimResult.updated_outage_probability)}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-[12px]">
-                  <div className="p-2.5 bg-[#eff4ff] rounded-md border border-[#c0c9c0]/40">
-                    <span className="font-mono text-[10px] text-[#707971] uppercase">Affected Assets</span>
-                    <div className="font-mono text-[16px] font-bold text-[#0b1c30]">
+                <div className="grid grid-cols-2 gap-3 text-label">
+                  <div className="p-2.5 bg-sunken rounded-lg border border-line">
+                    <span className="text-micro text-ink-3 uppercase">Affected Assets</span>
+                    <div className="font-mono text-lede font-bold text-ink">
                       {weatherSimResult.affected_assets_count || 14}
                     </div>
                   </div>
-                  <div className="p-2.5 bg-[#ffdad6]/50 rounded-md border border-[#ba1a1a]/30">
-                    <span className="font-mono text-[10px] text-[#ba1a1a] uppercase">Critical Breakdown Risk</span>
-                    <div className="font-mono text-[16px] font-bold text-[#ba1a1a]">
+                  <div className="p-2.5 bg-sev-critical-tint/50 rounded-lg border border-sev-critical/30">
+                    <span className="text-micro text-sev-critical uppercase">Critical Breakdown Risk</span>
+                    <div className="font-mono text-lede font-bold text-sev-critical">
                       {weatherSimResult.critical_assets_count || 4}
                     </div>
                   </div>
@@ -322,33 +322,33 @@ export default function SimulationPage() {
 
       {/* Runs Log */}
       {showRunsLog && (
-        <div className="mt-4 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 overflow-hidden animate-fade-in">
-          <div className="px-3.5 py-2.5 bg-[#dce9ff] flex items-center gap-2 border-b border-[#c0c9c0]/50">
-            <Receipt className="w-4 h-4 text-[#003820]" />
-            <span className="font-mono text-[11.5px] font-bold text-[#0b1c30] uppercase">
+        <div className="mt-4 bg-panel rounded-xl shadow-panel border border-line overflow-hidden animate-fade-in">
+          <div className="px-3.5 py-2.5 bg-header flex items-center gap-2 border-b border-line">
+            <Receipt className="w-4 h-4 text-brand-ink" />
+            <span className="text-micro font-semibold text-ink uppercase">
               Engine &amp; Operator Runs Log
             </span>
           </div>
           <div className="p-3.5 overflow-y-auto max-h-[320px]">
             {loadingAudit ? (
-              <div className="text-center font-mono text-[11px] text-[#707971] py-4">Loading logs...</div>
+              <div className="text-center font-mono text-micro text-ink-3 py-4">Loading logs...</div>
             ) : auditLogs.length > 0 ? (
               <div className="space-y-1.5">
                 {auditLogs.map((log: any, idx: number) => (
-                  <div key={idx} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-[#eff4ff] last:border-0 font-sans text-[12px]">
-                    <span className="font-mono text-[10px] text-[#707971] whitespace-nowrap">{F.date(log.ts)}</span>
-                    <span className="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[#eff4ff] text-[#404942] whitespace-nowrap">
+                  <div key={idx} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-sunken last:border-0 font-sans text-label">
+                    <span className="font-mono text-micro text-ink-3 whitespace-nowrap">{F.date(log.ts)}</span>
+                    <span className="text-micro font-semibold uppercase px-1.5 py-0.5 rounded bg-sunken text-ink-2 whitespace-nowrap">
                       {log.actor}
                     </span>
-                    <span className="font-semibold text-[#0b1c30]">{log.action}</span>
-                    <span className="font-mono text-[11px] text-[#707971] truncate max-w-full">
+                    <span className="font-semibold text-ink">{log.action}</span>
+                    <span className="font-mono text-micro text-ink-3 truncate max-w-full">
                       {JSON.stringify(log.detail)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center font-mono text-[11px] text-[#707971] py-4">No runs recorded yet</div>
+              <div className="text-center font-mono text-micro text-ink-3 py-4">No runs recorded yet</div>
             )}
           </div>
         </div>

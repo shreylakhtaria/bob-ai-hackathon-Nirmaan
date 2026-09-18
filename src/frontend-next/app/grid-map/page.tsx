@@ -16,14 +16,14 @@ export default function GridMapPage() {
   return (
     <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#c0c9c0]/60">
+      <div className="flex items-center justify-between pb-2 border-b border-line">
         <div>
-          <div className="flex items-center gap-1 font-mono text-[10.5px] text-[#707971] uppercase tracking-wider mb-0.5">
+          <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-0.5">
             <span>Spatial Telemetry</span>
-            <span className="text-[#c0c9c0]">/</span>
-            <span className="text-[#003820] font-bold">Interactive Grid Map</span>
+            <span className="text-line">/</span>
+            <span className="text-brand-ink font-bold">Interactive Grid Map</span>
           </div>
-          <h1 className="text-[22px] font-bold text-[#0b1c30] tracking-tight font-sans">
+          <h1 className="text-title font-bold text-ink tracking-tight font-sans">
             Regional Grid GIS &amp; Weather Geospatial Map
           </h1>
         </div>

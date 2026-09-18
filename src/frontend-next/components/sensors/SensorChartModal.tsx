@@ -84,22 +84,22 @@ export const SensorChartModal: React.FC<SensorChartModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
-      <div className="bg-white rounded-xl shadow-2xl border border-[#c0c9c0] w-full max-w-2xl overflow-hidden flex flex-col">
-        <div className="px-4 py-3 bg-[#dce9ff] border-b border-[#c0c9c0] flex items-center justify-between">
+      <div className="bg-panel rounded-xl shadow-overlay border border-line w-full max-w-2xl overflow-hidden flex flex-col">
+        <div className="px-4 py-3 bg-header border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-[#003820]" />
+            <Activity className="w-5 h-5 text-brand-ink" />
             <div>
-              <h3 className="text-[14px] font-bold text-[#0b1c30] uppercase font-mono">
+              <h3 className="text-body font-semibold text-ink uppercase">
                 {label} Telemetry &mdash; 24h Trend
               </h3>
-              <span className="text-[11px] text-[#404942] font-mono">
+              <span className="text-micro text-ink-2 font-mono">
                 Current: {value} {unit} &bull; Threshold: {threshold}
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#e5eeff] text-[#0b1c30]"
+            aria-label="Close chart" className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-sunken text-ink"
           >
             <X className="w-4 h-4" />
           </button>
@@ -111,9 +111,9 @@ export const SensorChartModal: React.FC<SensorChartModalProps> = ({
           </div>
         </div>
 
-        <div className="px-4 py-2.5 bg-[#f8f9ff] border-t border-[#c0c9c0]/50 flex items-center justify-between font-mono text-[11px] text-[#404942]">
+        <div className="px-4 py-2.5 bg-canvas border-t border-line flex items-center justify-between font-mono text-micro text-ink-2">
           <span>Sampling: 1-minute SCADA poll</span>
-          <span className="text-[#003820] font-bold">Status: {status}</span>
+          <span className="text-brand-ink font-bold">Status: {status}</span>
         </div>
       </div>
     </div>

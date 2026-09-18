@@ -1,155 +1,278 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════════════════════════════════
+   NIRMAAN GRID CONSOLE — DESIGN TOKENS
+   ----------------------------------------------------------------------
+   One rule governs colour here, borrowed from the mimic boards in a real
+   control room: saturated colour means alarm state and nothing else.
+   Chrome, structure and text are achromatic slate. The severity ramp
+   (normal → watch → elevated → critical) is the only place hue appears,
+   so a red tile is the only red thing on the screen.
+
+   Every content/surface pair below is measured, not estimated:
+   ink/canvas 16.9:1 · secondary/canvas 8.7:1 · muted/canvas 5.5:1 ·
+   severity inks 6.7–8.7:1 on canvas, 5.8–7.8:1 on their own tints.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Surfaces ── */
+  --color-canvas:      #f4f6fb;  /* app background            */
+  --color-panel:       #ffffff;  /* cards, panels, menus      */
+  --color-sunken:      #e9eef7;  /* wells, inputs, empty rows */
+  --color-header:      #dce6f5;  /* panel header strips       */
+  --color-rail:        #edf1f9;  /* sidebar / chrome rails    */
+
+  /* ── Content ── */
+  --color-ink:         #0b1524;  /* primary text     18.3:1 on panel */
+  --color-ink-2:       #3d4757;  /* secondary text    9.4:1 on panel */
+  --color-ink-3:       #5a6575;  /* muted / captions  5.9:1 on panel */
+
+  /* ── Lines ── */
+  --color-line:        #d3dae6;  /* hairline separators */
+  --color-line-strong: #aeb9ca;  /* control borders     */
+
+  /* ── Brand: institutional green. Appears in the mark and in
+        "healthy / confirmed" only — never as a generic accent. ── */
+  --color-brand:       #0f5132;
+  --color-brand-ink:   #073925;
+
+  /* ── Severity ramp: the ONLY hues in the system ── */
+  --color-sev-normal:      #0f5132;
+  --color-sev-normal-tint: #d7f0e2;
+  --color-sev-watch:       #7a4d00;
+  --color-sev-watch-tint:  #fbeccb;
+  --color-sev-elevated:      #9a3412;
+  --color-sev-elevated-tint: #fbe0d2;
+  --color-sev-critical:      #a8130e;
+  --color-sev-critical-tint: #fcdcda;
+
+  /* ── Focus: a single blue, reserved for keyboard focus so it can never
+        be confused with a severity state ── */
+  --color-focus: #1d6fe0;
+
+  /* ── Type ── */
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Scale in rem so it honours the browser's font-size setting.
+     Floor is 0.75rem (12px) — nothing in the UI is smaller. */
+  --text-micro:   0.75rem;    /* 12px — dense table meta, badges */
+  --text-label:   0.8125rem;  /* 13px — labels, nav, controls    */
+  --text-body:    0.875rem;   /* 14px — body copy                */
+  --text-lede:    0.9375rem;  /* 15px — intro lines              */
+  --text-metric:  1.75rem;    /* 28px — KPI figures              */
+  --text-title:   1.5rem;     /* 24px — page titles              */
+
+  /* ── Elevation: flat by default. Panels sit on the canvas, they
+        don't float above it. Only true overlays get real shadow. ── */
+  --shadow-panel:   0 1px 2px rgba(11, 21, 36, 0.04);
+  --shadow-raised:  0 2px 8px -2px rgba(11, 21, 36, 0.10), 0 1px 2px rgba(11, 21, 36, 0.05);
+  --shadow-overlay: 0 16px 40px -8px rgba(11, 21, 36, 0.20), 0 4px 10px -2px rgba(11, 21, 36, 0.08);
+
+  /* ── Shell metrics: one source of truth, so no page hardcodes
+        a magic top padding again ── */
+  --spacing-topbar: 3.5rem;
+  --spacing-crumb:  2rem;
+}
+
 @layer base {
-  :root {
-    --font-ibm-plex: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-jetbrains: "JetBrains Mono", monospace;
+  html {
+    /* Never lock the root size — Dynamic-Type equivalent on the web is the
+       browser's own font-size setting, and a px root would ignore it. */
+    -webkit-text-size-adjust: 100%;
   }
 
-  html, body {
+  body {
     margin: 0;
     padding: 0;
-    background-color: #f8f9ff;
-    color: #0b1c30;
-    font-family: var(--font-ibm-plex);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  /* Tabular figures everywhere a number can change in place, so digits
+     don't jitter as telemetry ticks. */
+  .font-mono, code, kbd, samp {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  /* ── Focus: visible, consistent, keyboard-only ──
+     A console is driven from the keyboard during an incident. Every
+     focusable thing gets the same ring, and it is never suppressed. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  :focus:not(:focus-visible) { outline: none; }
 }
 
-/* ── Custom Scrollbars ── */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: #c0c9c0;
-  border-radius: 3px;
+  background: #c2cbd9;
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar-thumb:hover { background: #a7b2c3; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Global Micro-Transitions ── */
-button {
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+/* ── Motion ──
+   Transitions name their properties: `all` animates layout and is what
+   makes a dense table feel soupy under load. */
+button, a, input, select, textarea, [role="button"] {
+  transition: background-color 0.14s ease, border-color 0.14s ease,
+              color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease,
+              transform 0.14s ease;
 }
-button:not(:disabled):active {
-  transform: scale(0.98);
+button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
+  transform: translateY(0.5px);
 }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ── Top Toast Notifications (Image 1 reference) ── */
+/* ── Severity driver strip — the signature element ──
+   Three segments, widths proportional to each SHAP contributor, shown in
+   the asset row itself so the "why" is legible at list level and not only
+   on a detail page. */
+.driver-strip {
+  display: flex;
+  height: 6px;
+  width: 100%;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--color-sunken);
+}
+.driver-strip > span { display: block; height: 100%; }
+.driver-strip > span + span { border-left: 1px solid rgba(255, 255, 255, 0.85); }
+
+/* ── Toasts ── */
 .toast-host {
   position: fixed;
-  top: 18px;
+  top: 1rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 99999;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   pointer-events: none;
   width: auto;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 2rem);
 }
-
 .toast-card {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  background: #ffffff;
-  padding: 10px 18px;
-  border-radius: 8px;
-  box-shadow: 0 10px 28px -4px rgba(11, 28, 48, 0.12), 0 4px 10px -2px rgba(11, 28, 48, 0.05);
-  font-family: var(--font-ibm-plex);
-  font-size: 13.5px;
+  gap: 0.75rem;
+  background: var(--color-panel);
+  padding: 0.625rem 1rem 0.625rem 0.875rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-left-width: 3px;
+  box-shadow: var(--shadow-overlay);
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
   font-weight: 500;
-  color: #0b1c30;
-  min-width: 310px;
-  max-width: 600px;
-  animation: toast-slide-down 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--color-ink);
+  min-width: 20rem;
+  max-width: 34rem;
+  animation: toast-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   box-sizing: border-box;
 }
-
-.toast-ok { border: 1.5px solid #005234; }
-.toast-warn, .toast-info { border: 1.5px solid #376757; }
-.toast-err { border: 1.5px solid #ba1a1a; }
+.toast-ok   { border-left-color: var(--color-sev-normal); }
+.toast-warn { border-left-color: var(--color-sev-watch); }
+.toast-info { border-left-color: var(--color-focus); }
+.toast-err  { border-left-color: var(--color-sev-critical); }
 
 .toast-circle-icon {
-  width: 22px;
-  height: 22px;
+  width: 1.25rem; height: 1.25rem;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.toast-circle-icon.ok { border: 1.5px solid #005234; color: #005234; }
-.toast-circle-icon.warn, .toast-circle-icon.info { border: 1.5px solid #376757; color: #376757; }
-.toast-circle-icon.err { border: 1.5px solid #ba1a1a; color: #ba1a1a; }
+.toast-circle-icon.ok   { color: var(--color-sev-normal);   background: var(--color-sev-normal-tint); }
+.toast-circle-icon.warn { color: var(--color-sev-watch);    background: var(--color-sev-watch-tint); }
+.toast-circle-icon.info { color: var(--color-focus);        background: var(--color-sunken); }
+.toast-circle-icon.err  { color: var(--color-sev-critical); background: var(--color-sev-critical-tint); }
 
-@keyframes toast-slide-down {
-  from { opacity: 0; transform: translateY(-20px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+.toast-leaving { opacity: 0 !important; transform: translateY(-10px) scale(0.98) !important; }
 
-.toast-leaving {
-  opacity: 0 !important;
-  transform: translateY(-16px) scale(0.96) !important;
-}
-
-/* ── Skeleton Loading Shimmer & Fade (Image 4 reference) ── */
+/* ── Skeletons ── */
 @keyframes skeleton-shimmer {
-  0% { background-position: -200% 0; }
+  0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-.sk-shimmer {
-  background: linear-gradient(90deg, #e5eeff 25%, #f4f8ff 50%, #e5eeff 75%);
+.sk-shimmer, .sk-shimmer-dark {
+  background: linear-gradient(90deg, #e4eaf4 25%, #f2f5fa 50%, #e4eaf4 75%);
   background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite linear;
-  border-radius: 4px;
+  animation: skeleton-shimmer 1.6s infinite linear;
+  border-radius: 6px;
 }
 .sk-shimmer-dark {
-  background: linear-gradient(90deg, #d3e4fe 25%, #eaf1ff 50%, #d3e4fe 75%);
+  background: linear-gradient(90deg, #d6dfee 25%, #e8eef8 50%, #d6dfee 75%);
   background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite linear;
-  border-radius: 4px;
 }
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-/* ── Leaflet GIS Map Styling ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ── Leaflet ── */
 .leaflet-container {
-  background: #e5eeff !important;
-  font-family: var(--font-ibm-plex) !important;
+  background: var(--color-sunken) !important;
+  font-family: var(--font-sans) !important;
 }
 .leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  color: #0b1c30 !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 8px 24px rgba(11, 28, 48, 0.14) !important;
-  border: 1px solid #c0c9c0 !important;
-  font-family: var(--font-ibm-plex) !important;
-  font-size: 12px !important;
+  background: var(--color-panel) !important;
+  color: var(--color-ink) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-overlay) !important;
+  border: 1px solid var(--color-line) !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-micro) !important;
 }
-.leaflet-popup-tip { background: #ffffff !important; }
+.leaflet-popup-tip { background: var(--color-panel) !important; }
 
 @keyframes map-ring {
-  0% { opacity: 0.7; transform: scale(1); }
-  100% { opacity: 0; transform: scale(2.2); }
+  0%   { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(2.2); }
 }
 .leaflet-pulse-ring {
-  animation: map-ring 1.5s ease-out infinite;
+  animation: map-ring 1.6s ease-out infinite;
   transform-box: fill-box;
   transform-origin: center;
 }
 
-/* ── Print / PDF styling ── */
+/* ── Reduced motion ──
+   Nothing in this console carries meaning through movement alone: the
+   pulsing dot is always paired with a written state. So when motion is
+   turned down, it all stops and nothing is lost. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .sk-shimmer, .sk-shimmer-dark { background: #e4eaf4; }
+  .leaflet-pulse-ring { display: none; }
+}
+
+/* ── Print ── */
 @media print {
   body { background: #ffffff !important; color: #000000 !important; }
   aside, header, button, .topbar-right, .no-print, .toast-host { display: none !important; }

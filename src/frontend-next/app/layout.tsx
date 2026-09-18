@@ -1,6 +1,26 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+
+// globals.css named IBM Plex and JetBrains Mono for months without either one
+// ever being loaded, so every visitor saw the system fallback. IBM Plex is the
+// right family for this product rather than a default: it was drawn for
+// technical and industrial interfaces, and its mono shares the sans skeleton,
+// so figures in a table and prose beside them read as one voice.
+const plexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-plex-sans",
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
+  display: "swap",
+});
 
 // No fixed production hostname exists yet (see demo/live-demo-url.txt), so rather
 // than hardcoding a domain — a wrong canonical is worse than none — this reads
@@ -81,8 +101,8 @@ const structuredData = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-[#f8f9ff] text-[#0b1c30] antialiased min-h-screen">
+    <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
+      <body className="bg-canvas text-ink antialiased min-h-screen">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

@@ -11,6 +11,7 @@ import {
   Sliders,
   RotateCw,
 } from "lucide-react";
+import { DriverStrip } from "@/components/common/DriverStrip";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { DebouncedInput } from "@/components/common/DebouncedInput";
 import { SensorChartModal } from "@/components/sensors/SensorChartModal";
@@ -108,30 +109,30 @@ export default function AssetsPage() {
   return (
     <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-[#c0c9c0]/60">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-line">
         <div>
-          <div className="flex items-center gap-1 font-mono text-[10.5px] text-[#707971] uppercase tracking-wider mb-0.5">
+          <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-0.5">
             <span>Substation Ops</span>
-            <span className="text-[#c0c9c0]">/</span>
-            <span className="text-[#003820] font-bold">Health Register &amp; Diagnostics</span>
+            <span className="text-line">/</span>
+            <span className="text-brand-ink font-bold">Health Register &amp; Diagnostics</span>
           </div>
-          <h1 className="text-[22px] font-bold text-[#0b1c30] tracking-tight font-sans">
+          <h1 className="text-title font-bold text-ink tracking-tight font-sans">
             Assets Register &amp; Health Diagnostics
           </h1>
-          <p className="text-[12.5px] text-[#404942]">
+          <p className="text-label text-ink-2">
             Comprehensive electrical infrastructure register, sensor telemetry, and diagnostic health indexing.
           </p>
         </div>
         <button
           onClick={() => refetch()}
-          className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm self-start md:self-auto"
+          className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel self-start md:self-auto"
         >
-          <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Force SCADA Resync
+          <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Force SCADA Resync
         </button>
       </div>
 
       {/* Filter Ribbon */}
-      <div className="bg-white p-3.5 rounded-lg shadow-sm border border-[#c0c9c0]/60">
+      <div className="bg-panel p-3.5 rounded-xl shadow-panel border border-line">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
           <div className="md:col-span-4">
             <DebouncedInput
@@ -150,7 +151,7 @@ export default function AssetsPage() {
                 setAreaFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono rounded-md border border-[#c0c9c0]/60 focus:outline-none"
+              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
             >
               <option value="">All Areas</option>
               {areaIds.map((a) => (
@@ -167,7 +168,7 @@ export default function AssetsPage() {
                 setTypeFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono rounded-md border border-[#c0c9c0]/60 focus:outline-none"
+              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
             >
               <option value="">All Asset Types</option>
               {assetTypes.map((t) => (
@@ -184,7 +185,7 @@ export default function AssetsPage() {
                 setPriFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full h-8 px-2 bg-[#eff4ff] text-[#0b1c30] text-[12px] font-mono font-medium rounded-md border border-[#c0c9c0]/60 focus:outline-none"
+              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono font-medium rounded-lg border border-line"
             >
               <option value="">All Risk Tiers</option>
               <option value="CRITICAL">Critical Risk (&gt;85%)</option>
@@ -193,7 +194,7 @@ export default function AssetsPage() {
               <option value="LOW">Nominal (&lt;25%)</option>
             </select>
           </div>
-          <div className="md:col-span-2 flex items-center justify-end font-mono text-[11px] text-[#707971]">
+          <div className="md:col-span-2 flex items-center justify-end font-mono text-micro text-ink-3">
             {filteredAssets.length} assets shown
           </div>
         </div>
@@ -202,11 +203,11 @@ export default function AssetsPage() {
       {/* Main Split Layout: Table (7 cols) + Diagnostics Drawer (5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
         {/* Table View */}
-        <div className="lg:col-span-7 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 overflow-hidden flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-panel rounded-xl shadow-panel border border-line overflow-hidden flex flex-col justify-between">
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-sans text-[12.5px]">
+            <table className="w-full text-left font-sans text-label">
               <thead>
-                <tr className="bg-[#eff4ff] text-[#404942] font-mono text-[10px] uppercase tracking-wider border-b border-[#c0c9c0]/40">
+                <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
                   <th className="py-2.5 px-3">Asset ID</th>
                   <th className="py-2.5 px-3">Type &amp; Substation</th>
                   <th className="py-2.5 px-3">Risk Tier</th>
@@ -216,28 +217,28 @@ export default function AssetsPage() {
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#eff4ff]">
+              <tbody className="divide-y divide-sunken">
                 {paginatedAssets.map((asset) => {
                   const isSelected = asset.asset_id === selectedAssetId;
                   return (
                     <tr
                       key={asset.asset_id}
                       onClick={() => setSelectedAssetId(asset.asset_id)}
-                      className={`hover:bg-[#eff4ff] cursor-pointer transition-colors ${
-                        isSelected ? "bg-[#baeed9]/20 font-semibold" : ""
+                      className={`hover:bg-sunken cursor-pointer transition-colors ${
+                        isSelected ? "bg-sev-normal-tint/20 font-semibold" : ""
                       }`}
                     >
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`w-1 h-4 rounded-full ${isSelected ? "bg-[#003820]" : "bg-transparent"}`}
+                            className={`w-1 h-4 rounded-full ${isSelected ? "bg-brand-ink" : "bg-transparent"}`}
                           />
-                          <span className="font-mono font-bold text-[#003820]">{asset.asset_id}</span>
+                          <span className="font-mono font-bold text-brand-ink">{asset.asset_id}</span>
                         </div>
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="font-semibold text-[#0b1c30] text-[12px]">{asset.asset_type}</div>
-                        <div className="text-[10px] text-[#707971] font-mono">
+                        <div className="font-semibold text-ink text-label">{asset.asset_type}</div>
+                        <div className="text-micro text-ink-3 font-mono">
                           {asset.geographic_area || asset.area}
                         </div>
                       </td>
@@ -245,20 +246,20 @@ export default function AssetsPage() {
                         <RiskBadge level={asset.priority || "LOW"} />
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-[#ba1a1a]">
+                        <div className="flex items-center gap-1.5 font-mono text-micro font-bold text-sev-critical">
                           {F.pct(asset.failure_probability)}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#0b1c30]">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-ink">
                         {F.score(asset.grid_impact_score)}
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        <span className="font-mono text-[9.5px] px-1.5 py-0.5 bg-[#eff4ff] text-[#404942] rounded uppercase">
+                        <span className="text-micro px-1.5 py-0.5 bg-sunken text-ink-2 rounded uppercase">
                           {asset.current_status || "IN_SERVICE"}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        <ChevronRight className="w-4 h-4 text-[#707971] inline" />
+                        <ChevronRight className="w-4 h-4 text-ink-3 inline" />
                       </td>
                     </tr>
                   );
@@ -268,7 +269,7 @@ export default function AssetsPage() {
           </div>
 
           {/* Pagination */}
-          <div className="px-3 py-2 bg-[#f8f9ff] border-t border-[#c0c9c0]/40 flex items-center justify-between font-mono text-[11px] text-[#404942]">
+          <div className="px-3 py-2 bg-canvas border-t border-line flex items-center justify-between font-mono text-micro text-ink-2">
             <span>
               Page {page + 1} of {totalPages}
             </span>
@@ -276,14 +277,14 @@ export default function AssetsPage() {
               <button
                 disabled={page === 0}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
-                className="px-2.5 py-1 bg-white border border-[#c0c9c0] rounded disabled:opacity-40"
+                className="px-2.5 py-1 bg-panel border border-line rounded disabled:opacity-40"
               >
                 Previous
               </button>
               <button
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                className="px-2.5 py-1 bg-white border border-[#c0c9c0] rounded disabled:opacity-40"
+                className="px-2.5 py-1 bg-panel border border-line rounded disabled:opacity-40"
               >
                 Next
               </button>
@@ -292,50 +293,50 @@ export default function AssetsPage() {
         </div>
 
         {/* Diagnostics Drawer (5 cols) */}
-        <div className="lg:col-span-5 bg-white rounded-lg shadow-sm border border-[#c0c9c0]/60 p-3.5 flex flex-col gap-3">
+        <div className="lg:col-span-5 bg-panel rounded-xl shadow-panel border border-line p-3.5 flex flex-col gap-3">
           {isDetailLoading || !assetDetail ? (
-            <div className="p-8 text-center font-mono text-[11px] text-[#707971]">
-              <RotateCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#003820]" />
+            <div className="p-8 text-center font-mono text-micro text-ink-3">
+              <RotateCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-ink" />
               Loading asset telemetry…
             </div>
           ) : (
             <>
               {/* Asset Identity Card */}
-              <div className="flex items-start justify-between pb-2 border-b border-[#c0c9c0]/40">
+              <div className="flex items-start justify-between pb-2 border-b border-line">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-[17px] font-bold text-[#003820] font-mono">{a?.asset_id}</h2>
+                    <h2 className="text-lede font-bold text-brand-ink font-mono">{a?.asset_id}</h2>
                     <RiskBadge level={lvl} />
                   </div>
-                  <div className="text-[11px] text-[#404942]">
+                  <div className="text-micro text-ink-2">
                     {a?.asset_type} &bull; {a?.geographic_area || a?.area} &bull; {F.num(a?.customers_served)} customers
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-mono text-[16px] font-bold text-[#ba1a1a]">
+                  <div className="font-mono text-lede font-bold text-sev-critical">
                     {fp.toFixed(1)}%
                   </div>
-                  <div className="font-mono text-[9px] text-[#707971] uppercase">Failure Probability</div>
+                  <div className="text-micro text-ink-3 uppercase">Failure Probability</div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-2 font-mono text-[10.5px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-micro">
                 <button
                   onClick={() => handleDispatch(selectedAssetId)}
-                  className="h-7 bg-[#ba1a1a] text-white font-bold rounded uppercase hover:opacity-90 flex items-center justify-center gap-1 shadow-sm"
+                  className="min-h-8 bg-sev-critical text-white font-semibold rounded uppercase hover:opacity-90 flex items-center justify-center gap-1 shadow-panel"
                 >
                   <Send className="w-3 h-3" /> Dispatch
                 </button>
                 <button
                   onClick={() => router.push(`/simulation?asset=${selectedAssetId}`)}
-                  className="h-7 bg-[#eff4ff] text-[#0b1c30] border border-[#c0c9c0] font-bold rounded uppercase hover:bg-[#dce9ff] flex items-center justify-center gap-1"
+                  className="min-h-8 bg-sunken text-ink border border-line font-semibold rounded uppercase hover:bg-header flex items-center justify-center gap-1"
                 >
                   <Sliders className="w-3 h-3" /> Simulate
                 </button>
                 <button
                   onClick={() => ok(`Diagnostics for ${selectedAssetId} copied to clipboard`)}
-                  className="h-7 bg-[#eff4ff] text-[#0b1c30] border border-[#c0c9c0] font-bold rounded uppercase hover:bg-[#dce9ff] flex items-center justify-center gap-1"
+                  className="min-h-8 bg-sunken text-ink border border-line font-semibold rounded uppercase hover:bg-header flex items-center justify-center gap-1"
                 >
                   Export Log
                 </button>
@@ -348,19 +349,67 @@ export default function AssetsPage() {
                 onSensorClick={(s) => setModalSensor(s)}
               />
 
-              {/* SHAP Risk Factors */}
+              {/* ── Why this asset is at risk ──
+                  This is the product's actual claim: not just a score but the
+                  reason behind it. It used to render as four lines of
+                  "label · val: 3.2 · z=1.8", which is the model's vocabulary,
+                  not an operator's. Now the contribution is drawn, the biggest
+                  driver reads first, and the raw figures sit underneath for
+                  anyone who wants them. */}
               <div>
-                <div className="font-mono text-[10.5px] uppercase font-bold text-[#404942] mb-1.5">
-                  Top SHAP Risk Factors (Model Drivers)
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <h3 className="text-label font-semibold text-ink">Why this asset is at risk</h3>
+                  <span className="text-micro text-ink-3">Model drivers (SHAP)</span>
                 </div>
-                <div className="space-y-1.5">
-                  {(p?.shap_factors || []).slice(0, 4).map((f, i) => (
-                    <div key={i} className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-[#0b1c30]">{f.label}</span>
-                      <span className="text-[#707971] text-[10px]">val: {f.value} &bull; z={f.z}</span>
-                    </div>
-                  ))}
-                </div>
+
+                <DriverStrip
+                  level={p?.risk_level || p?.priority}
+                  showLegend={false}
+                  className="mb-3"
+                  drivers={(p?.shap_factors || []).map((f) => ({
+                    name: f.label,
+                    value: Number(f.shap ?? f.importance ?? f.z ?? 0),
+                  }))}
+                />
+
+                <ul className="space-y-2">
+                  {(p?.shap_factors || []).slice(0, 4).map((f, i) => {
+                    const factors = p?.shap_factors || [];
+                    const mags = factors.map((x) =>
+                      Math.abs(Number(x.shap ?? x.importance ?? x.z ?? 0))
+                    );
+                    const max = Math.max(...mags, 1);
+                    const mag = Math.abs(Number(f.shap ?? f.importance ?? f.z ?? 0));
+                    const { ink } = F.sev(p?.risk_level || p?.priority);
+                    return (
+                      <li key={i}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-label text-ink truncate">{f.label}</span>
+                          <span className="font-mono text-micro text-ink-3 shrink-0">
+                            {f.value}
+                            {f.z != null && <span className="text-line-strong"> · z {f.z}</span>}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full rounded-full bg-sunken overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.max(3, (mag / max) * 100)}%`,
+                              backgroundColor: ink,
+                              opacity: 1 - i * 0.18,
+                            }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {!(p?.shap_factors || []).length && (
+                  <p className="text-label text-ink-3">
+                    No driver breakdown available for this asset yet.
+                  </p>
+                )}
               </div>
             </>
           )}

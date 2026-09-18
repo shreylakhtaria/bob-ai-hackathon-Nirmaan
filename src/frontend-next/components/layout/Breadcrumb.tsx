@@ -18,25 +18,24 @@ const CRUMB_TITLES: Record<string, string> = {
 export const Breadcrumb: React.FC = () => {
   const pathname = usePathname();
   const segment = pathname.split("/").filter(Boolean)[0] || "overview";
-  const title = CRUMB_TITLES[segment] || segment.toUpperCase();
+  const title = CRUMB_TITLES[segment] || segment;
 
   return (
-    <div className="fixed top-16 left-64 right-0 z-30 bg-[#f8f9ff] border-b border-[#c0c9c0] h-8 px-4 flex items-center justify-between select-none">
-      <div className="flex items-center gap-1.5 font-mono text-[11px]">
-        <span className="text-[#404942] uppercase">GridOps Regional Node</span>
-        <span className="text-[#c0c9c0]">/</span>
-        <span className="text-[#0b1c30] font-semibold uppercase">220 Assets &bull; 8 Crews</span>
-        <span className="text-[#c0c9c0]">/</span>
-        <span className="text-[#003820] font-bold">{title}</span>
-      </div>
-      <div className="flex items-center gap-3 font-mono text-[11px]">
-        <span className="flex items-center gap-1 text-[#404942]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0f5132]" />
-          Telemetry Lock: <strong className="text-[#0b1c30]">100.00%</strong>
+    <div className="fixed top-topbar left-0 lg:left-60 right-0 z-30 h-crumb bg-canvas/85 backdrop-blur-sm border-b border-line px-5 flex items-center justify-between select-none">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-micro min-w-0">
+        <span className="text-ink-3 shrink-0">GridOps Regional Node</span>
+        <span className="text-line-strong shrink-0" aria-hidden="true">/</span>
+        <span className="text-ink font-medium truncate">{title}</span>
+      </nav>
+      <div className="flex items-center gap-4 text-micro shrink-0">
+        <span className="flex items-center gap-1.5 text-ink-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-sev-normal" aria-hidden="true" />
+          Telemetry lock
+          <strong className="font-mono font-semibold text-ink">100.0%</strong>
         </span>
-        <span className="text-[#c0c9c0]">|</span>
-        <span className="text-[#404942]">
-          LATENCY: <strong className="text-[#0b1c30]">51ms</strong>
+        <span className="text-line-strong" aria-hidden="true">|</span>
+        <span className="text-ink-3">
+          Latency <strong className="font-mono font-semibold text-ink">51 ms</strong>
         </span>
       </div>
     </div>

@@ -25,59 +25,54 @@ export const F = {
         });
   },
 
-  riskColor: (lvl?: RiskLevel | string) => {
-    switch (lvl) {
-      case "CRITICAL": return "#ba1a1a";
-      case "HIGH": return "#376757";
-      case "ELEVATED": return "#376757";
-      case "MEDIUM": return "#707971";
-      case "LOW":
-      case "NORMAL": return "#0f5132";
-      default: return "#707971";
-    }
-  },
-
-  riskBg: (lvl?: RiskLevel | string) => {
-    switch (lvl) {
-      case "CRITICAL": return "#ffdad6";
-      case "HIGH":
-      case "ELEVATED": return "#dce9ff";
-      case "MEDIUM": return "#e5eeff";
-      case "LOW":
-      case "NORMAL": return "#baeed9";
-      default: return "#e5eeff";
-    }
-  },
-
-  riskBadgeClass: (lvl?: RiskLevel | string) => {
-    switch (lvl) {
+  /**
+   * The severity ramp — one function, used by every component that shows a
+   * risk state, so a level can never render as two different colours on two
+   * different screens.
+   *
+   * The old mapping was not a ramp: HIGH resolved to #376757 and LOW/NORMAL to
+   * #0f5132 — both greens — while MEDIUM was grey. Severity therefore did not
+   * read as a progression, which is the one thing a risk colour has to do.
+   * This is monotonic in hue (green → amber → orange → red) and roughly level
+   * in luminance, so it reads by hue rather than by "one is darker", and every
+   * ink clears 6.7:1 on the canvas and 5.8:1 on its own tint.
+   */
+  sev: (lvl?: RiskLevel | string) => {
+    switch ((lvl || "").toString().toUpperCase()) {
       case "CRITICAL":
-        return {
-          container: "bg-[#ffdad6] text-[#93000a] border border-[#ba1a1a]/30",
-          dot: "bg-[#ba1a1a]",
-        };
+      case "SEVERE":
+        return { ink: "#a8130e", tint: "#fcdcda", text: "Critical", key: "critical" };
       case "HIGH":
       case "ELEVATED":
-        return {
-          container: "bg-[#d3e4fe] text-[#0b1c30] border border-[#c0c9c0]",
-          dot: "bg-[#376757]",
-        };
+        return { ink: "#9a3412", tint: "#fbe0d2", text: "Elevated", key: "elevated" };
       case "MEDIUM":
-        return {
-          container: "bg-[#e5eeff] text-[#404942] border border-[#c0c9c0]",
-          dot: "bg-[#707971]",
-        };
+      case "MODERATE":
+      case "WATCH":
+        return { ink: "#7a4d00", tint: "#fbeccb", text: "Watch", key: "watch" };
       case "LOW":
       case "NORMAL":
-        return {
-          container: "bg-[#baeed9] text-[#002117] border border-[#376757]/30",
-          dot: "bg-[#0f5132]",
-        };
+      case "HEALTHY":
+      case "OK":
+        return { ink: "#0f5132", tint: "#d7f0e2", text: "Normal", key: "normal" };
       default:
-        return {
-          container: "bg-[#e5eeff] text-[#404942] border border-[#c0c9c0]",
-          dot: "bg-[#707971]",
-        };
+        return { ink: "#5a6575", tint: "#e9eef7", text: lvl ? String(lvl) : "Unknown", key: "unknown" };
     }
+  },
+
+  riskColor: (lvl?: RiskLevel | string) => F.sev(lvl).ink,
+
+  riskBg: (lvl?: RiskLevel | string) => F.sev(lvl).tint,
+
+  /** Kept for pages still calling it; now derived from the single ramp above. */
+  riskBadgeClass: (lvl?: RiskLevel | string) => {
+    const { key } = F.sev(lvl);
+    const map: Record<string, { container: string; dot: string }> = {
+      critical: { container: "bg-sev-critical-tint text-sev-critical border border-sev-critical/30", dot: "bg-sev-critical" },
+      elevated: { container: "bg-sev-elevated-tint text-sev-elevated border border-sev-elevated/30", dot: "bg-sev-elevated" },
+      watch:    { container: "bg-sev-watch-tint text-sev-watch border border-sev-watch/30",          dot: "bg-sev-watch" },
+      normal:   { container: "bg-sev-normal-tint text-sev-normal border border-sev-normal/30",       dot: "bg-sev-normal" },
+      unknown:  { container: "bg-sunken text-ink-3 border border-line",                              dot: "bg-ink-3" },
+    };
+    return map[key];
   },
 };

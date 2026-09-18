@@ -158,23 +158,23 @@ export const GridMapClient: React.FC = () => {
   return (
     <div className="flex flex-col gap-3.5 w-full font-sans">
       {/* Layer Toggles */}
-      <div className="bg-white p-3 rounded-lg shadow-sm border border-[#c0c9c0]/60 flex items-center justify-between font-mono text-[11px] text-[#404942]">
+      <div className="bg-panel p-3 rounded-xl shadow-panel border border-line flex items-center justify-between font-mono text-micro text-ink-2">
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={filterCriticalOnly}
               onChange={(e) => setFilterCriticalOnly(e.target.checked)}
-              className="rounded border-[#c0c9c0] text-[#0f5132] focus:ring-[#0f5132]"
+              className="rounded border-line text-brand focus:ring-brand"
             />
-            <span className="font-bold text-[#ba1a1a]">Only Critical Assets (Trips)</span>
+            <span className="font-bold text-sev-critical">Only Critical Assets (Trips)</span>
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={filterShowWeather}
               onChange={(e) => setFilterShowWeather(e.target.checked)}
-              className="rounded border-[#c0c9c0] text-[#0f5132] focus:ring-[#0f5132]"
+              className="rounded border-line text-brand focus:ring-brand"
             />
             <span>Weather Storm Zones</span>
           </label>
@@ -183,7 +183,7 @@ export const GridMapClient: React.FC = () => {
               type="checkbox"
               checked={filterShowCrews}
               onChange={(e) => setFilterShowCrews(e.target.checked)}
-              className="rounded border-[#c0c9c0] text-[#0f5132] focus:ring-[#0f5132]"
+              className="rounded border-line text-brand focus:ring-brand"
             />
             <span>Field Crew Locations</span>
           </label>
@@ -194,7 +194,7 @@ export const GridMapClient: React.FC = () => {
       {/* Map Container */}
       <div
         ref={mapContainerRef}
-        className="w-full h-[520px] rounded-lg border border-[#c0c9c0] shadow-sm overflow-hidden"
+        className="w-full h-[520px] rounded-lg border border-line shadow-panel overflow-hidden"
       />
     </div>
   );
