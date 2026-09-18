@@ -60,6 +60,7 @@ class RepositionRequest(BaseModel):
 
 
 class SignupRequest(BaseModel):
+    display_name: str = Field(default="Operator", min_length=2, max_length=80)
     email: str
     password: str = Field(min_length=8)
 
@@ -89,7 +90,7 @@ def health():
 # ---------------------------------------------------------------------------
 @app.post("/api/auth/signup")
 def auth_signup(req: SignupRequest):
-    user = auth_svc.signup(req.email, req.password)
+    user = auth_svc.signup(req.display_name, req.email, req.password)
     return {"token": auth_svc.issue_token(user), "user": auth_svc.public_user(user)}
 
 

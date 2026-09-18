@@ -16,11 +16,11 @@ team:
     email: "23cs046@charusat.edu.in"   # REQUIRED — e.g., "alice.chen@ibm.com"
   members:
     - name: "Aaleya Boxwala"           # REQUIRED — Team member 1
-      email: ""
+      email: "23CS039@charusat.edu.in"
     - name: "FarhaanAli Vohra"         # Add more members by copying the two lines above
-      email: ""
+      email: "23CS013@charusat.edu.in"
     - name: "Shrey Lakhataria"
-      email: ""
+      email: "23ce145@charusat.edu.in"
 
 submission:
   title: "Grid Risk Command Center"    # REQUIRED — Project display name, e.g., "SmartOps Dashboard"

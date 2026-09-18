@@ -272,44 +272,111 @@ SYSTEM_PROMPT = (
     "say so. Be concise and operational. All data is clearly-labelled SIMULATION data.")
 
 
-_bob_model_cache = {"model": None}
+# ---------------------------------------------------------------------------
+# IBM Bob — the hackathon coding-agent CLI. It has no public raw-HTTP
+# inference API for third-party backends (its /inference/* route is
+# Cloudflare-gated to the official client only, confirmed by a 403 even with
+# a bogus token). The documented, working integration is headless CLI mode:
+# `bob run --mode ask ...`, invoked here as a subprocess. `--mode ask` and
+# `--disable-mcp --disable-subagents`, combined with an isolated empty
+# workspace dir, keep it a read-only Q&A composer with no access to real
+# project files — it only ever sees the grounded DB evidence we hand it.
+# ---------------------------------------------------------------------------
+_BOB_WORKSPACE = None
 
 
-def _bob_default_model():
-    """Discover a usable model id from IBM Bob's catalog when BOB_MODEL isn't
-    pinned via env. Cached for the process lifetime."""
-    if config.BOB_MODEL:
-        return config.BOB_MODEL
-    if _bob_model_cache["model"]:
-        return _bob_model_cache["model"]
-    import httpx
-    r = httpx.get(f"{config.BOB_BASE_URL}/model/info",
-                  headers={"Authorization": f"Bearer {config.BOB_API_KEY}"}, timeout=15)
-    r.raise_for_status()
-    body = r.json()
-    catalog = body.get("data") or body.get("models") or (body if isinstance(body, list) else [])
-    if not catalog:
-        raise RuntimeError("IBM Bob model catalog is empty; set BOB_MODEL explicitly")
-    first = catalog[0]
-    model_id = first.get("id") or first.get("model") if isinstance(first, dict) else first
-    if not model_id:
-        raise RuntimeError("Could not parse a model id from IBM Bob /model/info response")
-    _bob_model_cache["model"] = model_id
-    return model_id
+def _bob_workspace():
+    global _BOB_WORKSPACE
+    if _BOB_WORKSPACE is None:
+        import tempfile
+        _BOB_WORKSPACE = tempfile.mkdtemp(prefix="bob_copilot_ws_")
+    return _BOB_WORKSPACE
 
 
-def _make_bob_client():
-    from openai import OpenAI
-    return OpenAI(api_key=config.BOB_API_KEY, base_url=config.BOB_BASE_URL), \
-        _bob_default_model(), "ibm-bob"
+def _gather_grounded_context(query: str):
+    """Same asset/area extraction heuristics as _answer_grounded, but returns
+    raw tool evidence instead of pre-rendered text, so the Bob CLI can compose
+    the final answer instead of us templating it."""
+    evidence = []
+    asset = _extract_asset(query)
+    area = _extract_area(query)
+    if asset:
+        evidence.append({"tool": "get_asset_details", "args": {"asset_id": asset},
+                         "result": get_asset_details(asset)})
+    if area:
+        evidence.append({"tool": "get_area_risk", "args": {"area_id": area},
+                         "result": get_area_risk(area)})
+        evidence.append({"tool": "get_weather_risk", "args": {"area_id": area},
+                         "result": get_weather_risk(area)})
+    if not asset and not area:
+        evidence.append({"tool": "get_high_risk_assets", "args": {"limit": 5},
+                         "result": get_high_risk_assets(5)})
+    evidence.append({"tool": "generate_operations_brief", "args": {},
+                     "result": generate_operations_brief()})
+    return evidence
+
+
+def _answer_bob_cli(query: str):
+    import os
+    import shutil
+    import subprocess
+
+    bob_path = shutil.which("bob")
+    if not bob_path:
+        raise RuntimeError(
+            "IBM Bob CLI not found on PATH. Install it: "
+            "https://bob.ibm.com/docs/shell/getting-started/install-and-setup")
+    # On Windows, npm installs CLIs as a .cmd shim (a batch file wrapping
+    # `node ...\node_modules\bobshell\dist\bob.js`). Two problems with running
+    # that shim directly: (1) subprocess can't exec .cmd without cmd.exe, and
+    # (2) cmd.exe re-parses the whole command line and truncates it at ~8191
+    # chars, silently cutting off our (much longer) grounded-data JSON
+    # argument. So on Windows we skip the shim and call `node <bob.js>`
+    # directly, which has a much higher (~32K) command-line limit.
+    cmd_prefix = [bob_path]
+    if bob_path.lower().endswith((".cmd", ".bat")):
+        bob_js = os.path.join(os.path.dirname(bob_path), "node_modules", "bobshell", "dist", "bob.js")
+        cmd_prefix = ["node", bob_js] if os.path.exists(bob_js) else ["cmd", "/c", bob_path]
+
+    evidence = _gather_grounded_context(query)
+    # Deliberately avoids a "you are X, ignore your tools/instructions" framing —
+    # Bob CLI has its own hardened system identity and (correctly) refuses persona
+    # overrides as a jailbreak pattern. Framed instead as a plain data-analysis
+    # ask over JSON we hand it, which is squarely inside its normal assistant role.
+    prompt = (
+        "Analyze this JSON, already fetched from a utility grid risk-monitoring "
+        "database, and answer the following question for a control-room "
+        "operator using ONLY the values it contains. Do not invent any number, "
+        "asset id, or area that isn't present in the JSON; if it doesn't contain "
+        "enough to answer, say so plainly. This is a data-analysis question "
+        "only, not a coding task - no file or workspace tools are needed. "
+        "Respond with a concise, operational markdown answer. The data is "
+        "clearly-labelled SIMULATION data.\n\n"
+        f"Question: {query}\n\n"
+        f"JSON data:\n{json.dumps(evidence, default=str)[:8000]}"
+    )
+    args = ["run", "--workspace", _bob_workspace(), "--mode", "ask",
+            "--accept-license", "--format", "json", "--disable-mcp", "--disable-subagents",
+            prompt]
+    proc = subprocess.run(
+        [*cmd_prefix, *args], capture_output=True, text=True, timeout=60,
+        encoding="utf-8", errors="replace",
+        env={**os.environ, "BOB_API_KEY": config.BOB_API_KEY},
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"bob CLI exited {proc.returncode}: {proc.stderr.strip()[:500]}")
+    lines = [l for l in proc.stdout.splitlines() if l.strip()]
+    out = json.loads(lines[-1]) if lines else {}
+    if out.get("status") != "success":
+        raise RuntimeError(f"bob CLI did not return success: {str(out)[:500]}")
+    return {"answer": out.get("last_message", ""), "evidence": evidence,
+            "mode": "llm", "provider": "ibm-bob-cli", "is_simulation": True}
 
 
 def _make_openai_client():
     """Return (openai.OpenAI client, model_name, provider_label) for whichever
     provider is configured."""
     from openai import OpenAI, AzureOpenAI
-    if config.BOB_ENABLED:
-        return _make_bob_client()
     if config.NEBIUS_API_KEY:
         return OpenAI(
             api_key=config.NEBIUS_API_KEY,
@@ -429,7 +496,7 @@ def answer(query: str):
     db.audit("copilot", "query", {"query": query, "llm": config.LLM_ENABLED})
     if config.BOB_ENABLED:
         try:
-            return _answer_llm(query)  # _make_openai_client() prefers IBM Bob
+            return _answer_bob_cli(query)
         except Exception as e:
             out = _answer_grounded(query)
             out["llm_error"] = str(e)
