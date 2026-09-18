@@ -147,6 +147,12 @@ LLM_ENABLED = bool(
 API_TITLE = "Grid Risk Command Center API"
 API_VERSION = "1.0.0"
 
+# Absolute origin used for canonical / Open Graph / sitemap URLs, e.g.
+# "https://grid.example.com". Leave blank to derive it from each incoming request,
+# which is correct for local runs; set it explicitly behind a TLS-terminating proxy
+# (where the request itself still looks like plain http) or on a fixed domain.
+SITE_BASE_URL = os.getenv("SITE_BASE_URL", "")
+
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------

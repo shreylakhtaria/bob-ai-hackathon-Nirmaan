@@ -6,10 +6,11 @@ Run:  uvicorn backend.main:app --reload --port 8000
 """
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse,
+                               Response)
 from pydantic import BaseModel, Field
 
 from . import config, db
@@ -430,16 +431,87 @@ def export(kind: str):
 # ---------------------------------------------------------------------------
 # Static frontend (mounted last so it doesn't shadow /api)
 # ---------------------------------------------------------------------------
+def _base_url(request) -> str:
+    """Absolute origin used for canonical/og/sitemap URLs.
+
+    The app has no fixed production hostname yet, so rather than hardcoding one we
+    derive it from the incoming request (correct on localhost and on whatever domain
+    it is eventually deployed to). Set SITE_BASE_URL to override — needed behind a
+    reverse proxy that terminates TLS, where the request still looks like http.
+    """
+    if config.SITE_BASE_URL:
+        return config.SITE_BASE_URL.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+def _render_index(request) -> HTMLResponse:
+    """Serve the SPA shell with __BASE_URL__ resolved to the live origin."""
+    index = config.FRONTEND_DIR / "index.html"
+    html = index.read_text(encoding="utf-8").replace("__BASE_URL__", _base_url(request))
+    return HTMLResponse(html)
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def spa_index(request: Request):
+    return _render_index(request)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt(request: Request):
+    # The console itself is behind a login, so there is nothing useful for a crawler
+    # past the entry page, and the JSON API should never be crawled. This still lets
+    # the sign-in page be indexed; to keep the app out of search results entirely,
+    # change the Disallow line to: Disallow: /
+    body = (
+        "User-agent: *\n"
+        "Disallow: /api/\n"
+        "\n"
+        f"Sitemap: {_base_url(request)}/sitemap.xml\n"
+    )
+    return PlainTextResponse(body)
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml(request: Request):
+    # One entry by design: this is a single-page app with hash-based routing, so every
+    # view lives under the same URL (/#assets, /#crews, ...). Fragments are not
+    # separately indexable, so listing them would be padding, not a real sitemap.
+    base = _base_url(request)
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        f"    <loc>{base}/</loc>\n"
+        "    <changefreq>daily</changefreq>\n"
+        "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "</urlset>\n"
+    )
+    return Response(content=body, media_type="application/xml")
+
+
 if config.FRONTEND_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(config.FRONTEND_DIR), html=True), name="frontend")
+    # html=False on purpose: with html=True, StaticFiles answers *every* unmatched
+    # path with 404.html itself, including /api/*, so API clients would get an HTML
+    # error page instead of JSON. Letting it raise a plain 404 hands control to the
+    # not_found handler below, which distinguishes API from page requests. The
+    # index-serving that html=True provided is covered by the spa_index route above.
+    app.mount("/", StaticFiles(directory=str(config.FRONTEND_DIR), html=False), name="frontend")
 
 
 @app.exception_handler(404)
-def spa_fallback(request, exc):
-    # let API 404s be JSON; serve index for unknown non-api paths
+def not_found(request, exc):
+    """Real 404s.
+
+    This used to serve index.html with a 200 for every unknown path, which made the
+    app answer 200 OK for URLs that don't exist (a soft 404). The SPA routes on the
+    URL fragment (/#assets), never on the path, so no unknown path is ever a valid
+    app route and there is nothing to fall back to.
+    """
     if request.url.path.startswith("/api"):
         return JSONResponse({"detail": "Not found"}, status_code=404)
-    index = config.FRONTEND_DIR / "index.html"
-    if index.exists():
-        return FileResponse(str(index))
+    page = config.FRONTEND_DIR / "404.html"
+    if page.exists():
+        return FileResponse(str(page), status_code=404)
     return JSONResponse({"detail": "Not found"}, status_code=404)

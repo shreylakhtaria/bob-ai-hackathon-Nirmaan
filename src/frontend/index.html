@@ -6,6 +6,60 @@
   <title>Grid Equipment Failure &amp; Outage Advisor</title>
   <meta name="description" content="Grid Risk Command Center — SCADA/ML-powered asset health, failure prediction and operational decision support for power utilities."/>
 
+  <!-- Canonical + social cards.
+       __BASE_URL__ is substituted with the live origin by backend/main.py when it
+       serves this page, so nothing here hardcodes a domain. The project is not yet
+       deployed to a fixed hostname (see demo/live-demo-url.txt); this keeps the
+       absolute URLs correct on localhost today and on any domain later. -->
+  <link rel="canonical" href="__BASE_URL__/"/>
+
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="Grid Risk Advisor"/>
+  <meta property="og:title" content="Grid Equipment Failure &amp; Outage Advisor"/>
+  <meta property="og:description" content="Predict grid asset failures, explain the drivers, rank them by customer impact, and dispatch crews — an ML decision-support console for power utilities."/>
+  <meta property="og:url" content="__BASE_URL__/"/>
+  <meta property="og:image" content="__BASE_URL__/og-image.png"/>
+  <meta property="og:image:width" content="1440"/>
+  <meta property="og:image:height" content="900"/>
+  <meta property="og:image:alt" content="Grid Risk Advisor operations overview showing grid risk KPIs, critical assets and regional risk exposure."/>
+
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Grid Equipment Failure &amp; Outage Advisor"/>
+  <meta name="twitter:description" content="Predict grid asset failures, explain the drivers, rank them by customer impact, and dispatch crews — an ML decision-support console for power utilities."/>
+  <meta name="twitter:image" content="__BASE_URL__/og-image.png"/>
+  <meta name="twitter:image:alt" content="Grid Risk Advisor operations overview showing grid risk KPIs, critical assets and regional risk exposure."/>
+
+  <!-- Structured data. Deliberately SoftwareApplication: this is an operator console,
+       not a local business, storefront or organisation with a physical location, so
+       LocalBusiness/Product schema would be false markup. No ratings or prices are
+       claimed because none exist. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Grid Equipment Failure & Outage Advisor",
+    "alternateName": "Grid Risk Command Center",
+    "applicationCategory": "BusinessApplication",
+    "applicationSubCategory": "Utility grid asset monitoring and decision support",
+    "operatingSystem": "Web browser",
+    "url": "__BASE_URL__/",
+    "image": "__BASE_URL__/og-image.png",
+    "description": "Operator-facing decision-support console for electricity utilities: predicts grid equipment failures with LightGBM and anomaly detection, explains risk drivers with SHAP, ranks assets by grid impact, simulates outage scenarios, and records crew dispatch and maintenance actions.",
+    "featureList": [
+      "Asset failure prediction",
+      "SHAP-based risk driver explanations",
+      "Grid Impact Score prioritisation",
+      "What-if outage and severe weather simulation",
+      "Crew dispatch, scheduling and pre-positioning",
+      "Grounded AI operations copilot"
+    ],
+    "author": {
+      "@type": "Organization",
+      "name": "Team Nirmaan"
+    }
+  }
+  </script>
+
   <!-- Favicon matching product logo -->
   <link rel="icon" type="image/png" href="/favicon.png"/>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
@@ -335,8 +389,8 @@
 <!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- jsPDF (~124 KB with its autotable plugin) is deliberately NOT loaded here.
+     It is only needed for PDF export, so App._loadPdfLib() injects it on first use. -->
 <script src="/js/api.js"></script>
 <script src="/js/components.js"></script>
 <script src="/js/pages.js"></script>

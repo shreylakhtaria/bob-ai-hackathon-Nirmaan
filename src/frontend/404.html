@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Page Not Found · Grid Risk Advisor</title>
+  <meta name="description" content="The requested page does not exist in the Grid Risk Command Center console."/>
+  <meta name="robots" content="noindex, follow"/>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <!-- Intentionally self-contained: no CDN fonts/CSS, so the error page still
+       renders correctly if an external dependency is what failed. -->
+  <style>
+    :root {
+      --surface: #f8f9ff;
+      --surface-card: #ffffff;
+      --on-surface: #0b1c30;
+      --on-surface-variant: #404942;
+      --primary: #003820;
+      --primary-container: #0f5132;
+      --outline-variant: #c0c9c0;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      background: var(--surface);
+      color: var(--on-surface);
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--outline-variant);
+      border-radius: 12px;
+      box-shadow: 0 8px 28px rgba(11, 28, 48, 0.07);
+      max-width: 520px;
+      width: 100%;
+      padding: 40px 36px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .brand img { width: 32px; height: 32px; border-radius: 7px; }
+    .brand span {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+    .code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--primary-container);
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 27px;
+      line-height: 1.25;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      margin: 0 0 12px;
+    }
+    p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--on-surface-variant);
+      margin: 0 0 28px;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--outline-variant);
+      color: var(--on-surface);
+      background: var(--surface);
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+    a.btn:hover { background: #eff4ff; }
+    a.btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+    a.btn-primary:hover { background: var(--primary-container); }
+    .links {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--outline-variant);
+      font-size: 13px;
+      color: var(--on-surface-variant);
+    }
+    .links ul { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+    .links a { color: var(--primary-container); font-weight: 500; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <img src="/favicon.png" alt="Grid Risk Advisor logo"/>
+      <span>Grid Risk Advisor</span>
+    </div>
+
+    <div class="code">ERROR 404 · RESOURCE NOT FOUND</div>
+    <h1>That page isn&rsquo;t part of the console.</h1>
+    <p>
+      The address you requested doesn&rsquo;t match any view in the Grid Risk Command Center.
+      It may have been mistyped, or you may have followed an out-of-date link.
+    </p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="/">Return to the console</a>
+      <a class="btn" href="/#operator-brief">Open operator brief</a>
+    </div>
+
+    <nav class="links" aria-label="Console sections">
+      Jump straight to a section:
+      <ul>
+        <li><a href="/#overview">Overview</a></li>
+        <li><a href="/#assets">Assets</a></li>
+        <li><a href="/#risk-areas">Risk &amp; Areas</a></li>
+        <li><a href="/#maintenance">Maintenance</a></li>
+        <li><a href="/#crews">Crews</a></li>
+        <li><a href="/#grid-map">Grid Map</a></li>
+        <li><a href="/#simulation">Simulation</a></li>
+        <li><a href="/#copilot">Copilot</a></li>
+      </ul>
+    </nav>
+  </main>
+</body>
+</html>

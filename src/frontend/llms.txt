@@ -1,0 +1,59 @@
+# Grid Risk Command Center (Grid Equipment Failure & Outage Advisor)
+
+> An operator-facing decision-support console for electricity utilities. It predicts
+> which grid assets (transformers, substations, feeders, switchgear, circuit breakers)
+> are likely to fail, explains why, ranks them by real-world consequence, simulates
+> what happens if they do fail, and lets a control-room operator act on it — dispatch
+> a crew, schedule or defer a job, or pre-position crews ahead of severe weather.
+
+## Important context
+
+- **All data is simulation data.** There is no live SCADA/IoT connection. Sensor
+  telemetry, weather, incidents and crews are generated from a latent asset-health
+  model by a seed script. Every figure in the UI is labelled as simulation data.
+- **This is an internal, authenticated operator console**, not a public website or a
+  storefront. It sits behind a login and is not intended to be crawled or indexed.
+- It was built as a hackathon submission (IBM Bob AI Innovation Hackathon, team Nirmaan).
+
+## What it does
+
+- **Predict** — LightGBM classifier over 28 engineered features plus an IsolationForest
+  anomaly score, trained on a time-aware held-out split. The live model metrics
+  (ROC-AUC, PR-AUC, precision, recall, F1) are reported by the app itself at
+  `/api/model/metrics` rather than hardcoded.
+- **Explain** — per-asset SHAP attributions surfaced as human-readable risk drivers,
+  e.g. "partial-discharge rise (72h)".
+- **Prioritise** — a Grid Impact Score (0–100) blending failure probability,
+  asset criticality, customers served, downstream network exposure and weather risk.
+  Raw failure probability alone is a poor ranking signal; this is what drives the
+  maintenance queue.
+- **Simulate** — what-if modelling for a single asset failure or a severe weather
+  event, returning customers affected, downstream assets, nearest crew and estimated
+  outage duration.
+- **Act** — dispatch, schedule, defer, pre-position and acknowledge actions write real
+  work orders, change crew availability, and are recorded in an audit log.
+
+## AI copilot
+
+The operations copilot answers operator questions using only real backend tool results
+and cites the tool calls behind each answer. It runs against the IBM Bob CLI in headless
+mode (`bob run --mode ask`) when `BOB_API_KEY` is configured, falls back to IBM
+watsonx.ai or another configured provider, and otherwise falls back to a deterministic
+grounded router that answers from the same tools without a language model. It never
+invents asset ids, probabilities or customer counts.
+
+## Tech stack
+
+- Backend: Python, FastAPI, Pydantic, Uvicorn
+- Data: SQLite (stdlib `sqlite3`, no ORM)
+- ML: pandas, NumPy, scikit-learn, LightGBM, SHAP
+- Frontend: build-free static SPA — vanilla JavaScript, Tailwind (CDN), Leaflet, Chart.js
+- No React, no bundler, no build step
+
+## Key documentation
+
+- [README](https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan/blob/main/README.md): project overview and how to run
+- [Problem statement](https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan/blob/main/docs/problem-statement.md)
+- [Solution overview](https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan/blob/main/docs/solution-overview.md)
+- [Architecture](https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan/blob/main/docs/architecture.md)
+- [Setup guide](https://github.com/shreylakhtaria/bob-ai-hackathon-Nirmaan/blob/main/docs/setup-guide.md)

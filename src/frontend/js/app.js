@@ -122,9 +122,13 @@ const App = {
   _selectedAsset: null,
 
   buildNav() {
+    // Real href (not just onclick) so these behave like links: keyboard focus,
+    // middle-click / cmd-click to open in a new tab, and "copy link address".
+    // go() writes the same hash via replaceState before the browser follows the
+    // link, so the hash never actually changes twice and the page renders once.
     document.getElementById('nav').innerHTML = NAV.map(n =>
-      `<a id="nav-${n.id}" onclick="App.go('${n.id}')"
-          class="flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none">
+      `<a id="nav-${n.id}" href="#${n.id}" onclick="App.go('${n.id}')"
+          class="flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none no-underline">
         <span class="material-symbols-outlined text-[20px]">${n.icon}</span>${n.label}
       </a>`
     ).join('');
@@ -135,8 +139,11 @@ const App = {
     document.querySelectorAll('#nav a').forEach(a => {
       const isActive = a.id === 'nav-' + realId;
       a.className = isActive
-        ? 'flex items-center gap-space-md px-space-md py-2 rounded transition-colors bg-primary-container text-on-primary font-semibold cursor-pointer select-none'
-        : 'flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none';
+        ? 'flex items-center gap-space-md px-space-md py-2 rounded transition-colors bg-primary-container text-on-primary font-semibold cursor-pointer select-none no-underline'
+        : 'flex items-center gap-space-md px-space-md py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md font-medium cursor-pointer select-none no-underline';
+      // Exposes the current section to screen readers, not just via colour.
+      if (isActive) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     });
     const crumb = NAV.find(n => n.id === realId)?.crumb || realId;
     document.title = `${crumb} · Grid Risk Advisor`;
@@ -188,7 +195,28 @@ const App = {
     </div>`);
   },
 
-  _createPdf(title, subtitle) {
+  /* jsPDF + its autotable plugin are ~124 KB combined and are only needed when an
+     operator actually exports a PDF, so they are fetched on first use rather than
+     on every page load. The promise is cached so repeat exports don't refetch. */
+  _pdfLibPromise: null,
+  _loadPdfLib() {
+    if (this._pdfLibPromise) return this._pdfLibPromise;
+    const inject = src => new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error(`Could not load PDF library (${src}).`));
+      document.head.appendChild(s);
+    });
+    // autotable patches jsPDF, so it has to load after jsPDF has finished.
+    this._pdfLibPromise = inject('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      .then(() => inject('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'))
+      .catch(err => { this._pdfLibPromise = null; throw err; }); // clear cache so a retry can work
+    return this._pdfLibPromise;
+  },
+
+  async _createPdf(title, subtitle) {
+    await this._loadPdfLib();
     const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!JsPDF) throw new Error('PDF export library is not loaded.');
     const doc = new JsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
@@ -201,8 +229,8 @@ const App = {
     return doc;
   },
 
-  _startPdf(title, subtitle) {
-    const doc = this._createPdf(title, subtitle);
+  async _startPdf(title, subtitle) {
+    const doc = await this._createPdf(title, subtitle);
     this._pdfHeader(doc, title, subtitle);
     return {
       doc,
@@ -300,7 +328,7 @@ const App = {
   async exportOperationsLog() {
     try {
       const [summary, alerts, areas] = await Promise.all([API.summary(), API.alerts(), API.areas()]);
-      const state = this._startPdf(
+      const state = await this._startPdf(
         'Grid Operations Log',
         `Generated ${new Date().toLocaleString()} · Simulation data`
       );
@@ -364,7 +392,7 @@ const App = {
         API.crews(),
       ]);
       const crewsList = roster?.crews || roster || [];
-      const state = this._startPdf(
+      const state = await this._startPdf(
         'Maintenance Priority Schedule',
         `Generated ${new Date().toLocaleString()} · Impact-ranked queue`
       );
@@ -411,7 +439,7 @@ const App = {
   async exportOperatorBrief() {
     try {
       const [brief, metrics] = await Promise.all([API.brief(), API.metrics()]);
-      const state = this._startPdf(
+      const state = await this._startPdf(
         'Operator Brief',
         `Generated ${new Date().toLocaleString()} · Shift handover summary`
       );
