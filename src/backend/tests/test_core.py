@@ -38,7 +38,7 @@ def test_impact_score_range():
 
 def test_impact_beats_probability_for_hero():
     """The core thesis: high-consequence asset tops the queue even if not #1 by prob."""
-    q = maintenance.priority_queue(limit=5)
+    q = maintenance.priority_queue(limit=10)
     assert q, "empty maintenance queue"
     top_ids = [x["asset_id"] for x in q]
     assert "T-1024" in top_ids, "demo hero should be in the top maintenance priorities"

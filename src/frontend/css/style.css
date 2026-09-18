@@ -284,6 +284,14 @@ canvas { max-width: 100%; }
 }
 .animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
+/* ── Data Onboarding / SCADA stream packet animation ─────────────── */
+@keyframes packet-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+
 /* ── Table row selection ────────────────────────────────────────── */
 tr.row-selected > td:first-child { border-left: 3px solid #003820; }
 tr.row-selected { background-color: rgba(186,238,217,0.18) !important; }

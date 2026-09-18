@@ -16,6 +16,7 @@ from . import config, db
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
                        operations as ops_svc, auth as auth_svc)
+from .routers.ingest import router as ingest_router
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -23,6 +24,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
 
 # Keep the schema current (adds work_orders / alert-ack columns to older databases).
 db.init_db()
+
+app.include_router(ingest_router, prefix="/api/ingest", tags=["ingest"])
 
 
 # ---------------------------------------------------------------------------

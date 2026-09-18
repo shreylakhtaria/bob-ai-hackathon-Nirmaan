@@ -59,16 +59,16 @@ HIGH_IS_BAD.update({"oilq_last": False, "oilq_slope_72": False, "volt_min_24": F
 
 def _load_frames():
     sensors = pd.DataFrame(db.query("SELECT * FROM sensor_data"))
-    sensors["timestamp"] = pd.to_datetime(sensors["timestamp"], utc=True)
+    sensors["timestamp"] = pd.to_datetime(sensors["timestamp"], format="ISO8601", utc=True)
     sensors = sensors.sort_values(["asset_id", "timestamp"]).reset_index(drop=True)
 
     assets = pd.DataFrame(db.query("SELECT * FROM assets"))
     weather = pd.DataFrame(db.query("SELECT * FROM weather_data"))
-    weather["timestamp"] = pd.to_datetime(weather["timestamp"], utc=True)
+    weather["timestamp"] = pd.to_datetime(weather["timestamp"], format="ISO8601", utc=True)
     incidents = pd.DataFrame(db.query(
         "SELECT asset_id, incident_timestamp FROM incidents"))
     if not incidents.empty:
-        incidents["ts"] = pd.to_datetime(incidents["incident_timestamp"], utc=True)
+        incidents["ts"] = pd.to_datetime(incidents["incident_timestamp"], format="ISO8601", utc=True)
     return sensors, assets, weather, incidents
 
 
@@ -134,7 +134,7 @@ def _wx_next24(widx, area, as_of):
 def build_frames(snapshot_every_h=12, min_history_h=72):
     """Return (X_df, y, meta_df) training frame + a scoring frame at 'now'."""
     sensors, assets, weather, incidents = _load_frames()
-    now = pd.to_datetime(db.get_meta("now"), utc=True)
+    now = pd.to_datetime(db.get_meta("now"), format="ISO8601", utc=True)
     horizon = timedelta(hours=config.PREDICTION_HORIZON_HOURS)
     widx = _weather_forecast_lookup(weather)
 
@@ -155,20 +155,26 @@ def build_frames(snapshot_every_h=12, min_history_h=72):
     feats_all = sensors.groupby("asset_id", group_keys=False).apply(_rolling_features_wrap)
     feats_all = feats_all.reset_index(drop=True)
     # .values strips tz above -> re-attach UTC so comparisons stay consistent
-    feats_all["timestamp"] = pd.to_datetime(feats_all["timestamp"], utc=True)
+    feats_all["timestamp"] = pd.to_datetime(feats_all["timestamp"], format="ISO8601", utc=True)
 
     start = sensors["timestamp"].min() + timedelta(hours=min_history_h)
     train_rows, train_y, train_meta = [], [], []
     score_rows, score_meta = [], []
 
     for aid, g in feats_all.groupby("asset_id"):
+        if aid not in astatic.index:
+            continue   # telemetry for unknown/test asset_ids — skip silently
         g = g.sort_values("timestamp").reset_index(drop=True)
         st = astatic.loc[aid]
         age = year_now - int(st["installation_year"])
-        days_maint = (now - pd.to_datetime(st["last_maintenance_date"], utc=True)).days
+        lm_date = st["last_maintenance_date"] if "last_maintenance_date" in st and not pd.isna(st["last_maintenance_date"]) else None
+        if lm_date:
+            days_maint = (now - pd.to_datetime(lm_date, format="ISO8601", utc=True)).days
+        else:
+            days_maint = min(365, max(30, age * 180))
         crit = float(st["criticality_score"])
-        log_cust = float(np.log1p(st["customers_served"]))
-        downstream = float(st["downstream_assets"])
+        log_cust = float(np.log1p(st["customers_served"] if not pd.isna(st["customers_served"]) else 0))
+        downstream = float(st["downstream_assets"] if "downstream_assets" in st and not pd.isna(st["downstream_assets"]) else 0)
         area = st["geographic_area"]
         inc_ts = inc_by_asset.get(aid, np.array([], dtype="datetime64[ns]"))
 

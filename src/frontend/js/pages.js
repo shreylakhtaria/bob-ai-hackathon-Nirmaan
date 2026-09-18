@@ -1750,3 +1750,491 @@ Pages.openSensorModal = (label, value, unit, status, threshold) => {
   }
 };
 
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA ONBOARDING & CONNECTORS
+   ══════════════════════════════════════════════════════════════ */
+Pages.onboarding = async () => {
+  let status = { total_telemetry_rows: 0, onboarded_asset_count: 0, last_telemetry_at: null, last_rescore_at: null };
+  try {
+    const r = await API.copilot('ingestion status');
+    const ev = (r.evidence || []).find(e => e.tool === 'get_ingestion_status');
+    if (ev && ev.result) status = ev.result;
+  } catch (_) {}
+
+  // Check how many assets are missing sensor history (for backfill banner)
+  let assetsMissingSensors = 0;
+  try {
+    const all = await API.assets();
+    const withData = new Set((await API.get('/ingest/seed-telemetry')).existing_ids || []);
+    // Fallback: count via a quick check
+    assetsMissingSensors = 0; // will be shown after backfill if needed
+  } catch (_) {}
+
+  App.render(`
+  <div class="flex flex-col w-full gap-space-md" id="onboarding-root">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-space-xs">
+      <div>
+        <div class="font-label-sm text-[10px] text-on-surface-variant uppercase font-semibold tracking-wider mb-0.5">Enterprise Integration</div>
+        <h1 class="font-headline-xl text-headline-xl text-on-surface font-bold">Data Onboarding &amp; Connectors</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant">Upload asset manifests, add assets manually, stream SCADA telemetry, and trigger ML re-scoring.</p>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-sm">
+      ${C.kpi('sensors', 'Telemetry Rows', F.num(status.total_telemetry_rows), 'Total sensor readings', 'LOW')}
+      ${C.kpi('memory', 'Assets Onboarded', F.num(status.onboarded_asset_count), 'In asset register', 'LOW')}
+      ${C.kpi('update', 'Last Telemetry', F.date(status.last_telemetry_at), 'Most recent SCADA packet', 'MEDIUM')}
+      ${C.kpi('model_training', 'Last Re-Score', F.date(status.last_rescore_at), 'ML pipeline run', 'MEDIUM')}
+    </div>
+
+    <!-- Row 1: CSV Upload  +  Add Asset form -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
+
+      <!-- LEFT: Batch CSV/JSON Upload -->
+      <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 p-space-md flex flex-col gap-space-md">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">upload_file</span>
+            <span class="font-headline-md text-headline-md font-bold text-on-surface uppercase">Batch CSV / JSON Upload</span>
+          </div>
+          <button id="btn-download-tpl" type="button"
+            class="h-7 px-space-sm bg-surface-container text-on-surface-variant border border-outline-variant rounded font-label-sm text-[10px] flex items-center gap-1.5 hover:bg-surface-container-high uppercase tracking-wide">
+            <span class="material-symbols-outlined text-[13px]">download</span>Sample CSV
+          </button>
+        </div>
+        <p class="font-body-sm text-[12px] text-on-surface-variant -mt-space-xs">
+          Drag &amp; drop a <strong>.csv</strong> or <strong>.json</strong> file to bulk-onboard assets.
+        </p>
+        <div id="csv-dropzone"
+          class="border-2 border-dashed border-outline-variant rounded-lg p-space-lg flex flex-col items-center justify-center gap-space-sm cursor-pointer hover:border-primary hover:bg-surface-container transition-colors"
+          style="min-height:110px">
+          <span class="material-symbols-outlined text-[32px] text-on-surface-variant">cloud_upload</span>
+          <span class="font-label-sm text-[11px] text-on-surface-variant text-center">Drop <strong>CSV</strong> or <strong>JSON</strong> here, or <u>click to browse</u></span>
+          <input type="file" id="csv-file-input" accept=".csv,.json" class="hidden">
+        </div>
+        <div id="csv-preview" class="hidden flex items-center justify-between gap-space-sm bg-surface-container rounded p-space-sm border border-outline-variant">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="material-symbols-outlined text-primary text-[16px]">description</span>
+            <span id="csv-filename" class="font-label-sm text-[11px] text-on-surface font-semibold truncate">—</span>
+          </div>
+          <span id="csv-rowcount" class="font-label-sm text-[10px] text-on-surface-variant whitespace-nowrap">0 rows</span>
+        </div>
+        <div id="csv-errors" class="hidden bg-error-container/20 border border-error/30 rounded p-space-sm max-h-28 overflow-y-auto">
+          <div class="font-label-sm text-[10px] text-error font-bold uppercase mb-1">Validation Errors</div>
+          <div id="csv-errors-list" class="space-y-0.5 font-label-sm text-[11px] text-on-surface-variant"></div>
+        </div>
+        <button id="btn-upload-csv" type="button" disabled
+          class="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed self-start">
+          <span class="material-symbols-outlined text-[15px]">upload</span>Ingest Assets
+        </button>
+      </div>
+
+      <!-- RIGHT: Add Single Asset form -->
+      <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 p-space-md flex flex-col gap-space-md">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[18px]">add_circle</span>
+          <span class="font-headline-md text-headline-md font-bold text-on-surface uppercase">Add / Update Asset</span>
+        </div>
+        <p class="font-body-sm text-[12px] text-on-surface-variant -mt-space-xs">
+          Manually register a single grid asset. Existing <code class="font-mono bg-surface px-1 rounded border border-outline-variant text-[10px]">asset_id</code> will be updated in-place.
+        </p>
+
+        <div class="grid grid-cols-2 gap-x-space-sm gap-y-space-xs">
+          <!-- asset_id -->
+          <div class="col-span-2 flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Asset ID <span class="text-error">*</span></label>
+            <input id="af-asset-id" type="text" placeholder="e.g. AST-021" maxlength="32"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-outline"/>
+          </div>
+          <!-- asset_type -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Type <span class="text-error">*</span></label>
+            <select id="af-asset-type"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-body-sm text-[12px] text-on-surface focus:outline-none focus:border-primary">
+              <option value="">— select —</option>
+              <option>Transformer</option><option>CircuitBreaker</option>
+              <option>Substation</option><option>Switchgear</option><option>Feeder</option>
+            </select>
+          </div>
+          <!-- substation_id -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Substation ID <span class="text-error">*</span></label>
+            <input id="af-substation-id" type="text" placeholder="e.g. SUB-011"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- geographic_area -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Geographic Area <span class="text-error">*</span></label>
+            <input id="af-geographic-area" type="text" placeholder="e.g. Vadodara North"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-body-sm text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- latitude / longitude -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Latitude <span class="text-error">*</span></label>
+            <input id="af-latitude" type="number" step="0.0001" placeholder="22.3222"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Longitude <span class="text-error">*</span></label>
+            <input id="af-longitude" type="number" step="0.0001" placeholder="73.155"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- customers_served -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Customers Served <span class="text-error">*</span></label>
+            <input id="af-customers-served" type="number" min="0" placeholder="1840"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- criticality_score -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Criticality (0–10) <span class="text-error">*</span></label>
+            <input id="af-criticality-score" type="number" min="0" max="10" step="0.1" placeholder="8.7"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- installation_year -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Installation Year <span class="text-error">*</span></label>
+            <input id="af-installation-year" type="number" min="1950" max="2099" placeholder="2014"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+          <!-- rated_capacity -->
+          <div class="flex flex-col gap-0.5">
+            <label class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wide font-semibold">Rated Capacity (MVA) <span class="text-error">*</span></label>
+            <input id="af-rated-capacity" type="number" min="0.1" step="0.5" placeholder="25"
+              class="h-8 px-space-sm bg-surface border border-outline-variant rounded font-mono text-[12px] text-on-surface focus:outline-none focus:border-primary placeholder:text-outline"/>
+          </div>
+        </div>
+
+        <!-- Inline validation error -->
+        <div id="af-error" class="hidden text-error font-label-sm text-[11px] -mt-space-xs"></div>
+
+        <!-- Submit -->
+        <div class="flex gap-space-sm items-center mt-auto pt-space-xs border-t border-outline-variant">
+          <button id="btn-add-asset" type="button"
+            class="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity">
+            <span class="material-symbols-outlined text-[15px]">add</span>Save Asset
+          </button>
+          <button id="btn-clear-asset-form" type="button"
+            class="h-8 px-space-sm bg-surface-container text-on-surface-variant border border-outline-variant rounded font-label-sm text-[11px] hover:bg-surface-container-high transition-colors">
+            Clear
+          </button>
+          <label class="flex items-center gap-1.5 ml-auto cursor-pointer select-none">
+            <input type="checkbox" id="af-auto-backfill" checked class="accent-primary w-3.5 h-3.5"/>
+            <span class="font-label-sm text-[11px] text-on-surface-variant">Auto-backfill sensor history</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: SCADA Stream  +  Backfill banner -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
+
+      <!-- LEFT: SCADA Telemetry Stream -->
+      <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 p-space-md flex flex-col gap-space-md">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">sensors</span>
+            <span class="font-headline-md text-headline-md font-bold text-on-surface uppercase">Live SCADA Telemetry Stream</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-primary animate-pulse inline-block"></span>
+            <span class="font-label-sm text-[10px] text-primary font-bold uppercase tracking-wide">LIVE</span>
+          </div>
+        </div>
+        <p class="font-body-sm text-[12px] text-on-surface-variant -mt-space-xs">
+          DNP3 / Modbus / MQTT packets persisted to <code class="font-mono bg-surface px-1 rounded border border-outline-variant text-[10px]">sensor_data</code> in real time.
+        </p>
+        <div id="scada-stream" class="flex flex-col gap-space-xs overflow-y-auto" style="max-height:240px;min-height:100px">
+          <div class="flex items-center justify-center h-16 text-on-surface-variant font-label-sm text-label-sm">
+            <span class="material-symbols-outlined text-[18px] animate-pulse mr-1">wifi_tethering</span>Awaiting packets…
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Backfill + Re-score -->
+      <div class="flex flex-col gap-space-md">
+
+        <!-- Backfill panel -->
+        <div class="bg-surface-container-lowest rounded shadow-sm border border-outline-variant/50 p-space-md flex flex-col gap-space-sm">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">history</span>
+            <span class="font-headline-md text-headline-md font-bold text-on-surface uppercase">Backfill Sensor History</span>
+          </div>
+          <p class="font-body-sm text-[12px] text-on-surface-variant">
+            Newly onboarded assets have no sensor history, so risk scores show <strong>LOW 0%</strong>.
+            This generates <strong>21 days</strong> of realistic synthetic telemetry using the same physics model as the simulator, then re-scores immediately.
+          </p>
+          <div class="flex items-center gap-space-sm flex-wrap">
+            <button id="btn-backfill" type="button"
+              class="h-8 px-space-md bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity">
+              <span class="material-symbols-outlined text-[15px]">auto_fix_high</span>Backfill &amp; Score New Assets
+            </button>
+            <span class="font-label-sm text-[11px] text-on-surface-variant">Only assets with 0 sensor rows are affected.</span>
+          </div>
+          <div id="backfill-result" class="hidden bg-surface-container rounded p-space-sm border border-outline-variant font-label-sm text-[11px] text-on-surface-variant"></div>
+        </div>
+
+        <!-- Re-score panel -->
+        <div class="bg-surface-container-low border border-outline-variant rounded p-space-md flex flex-col gap-space-sm">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">model_training</span>
+            <span class="font-headline-md text-headline-md font-bold text-on-surface uppercase">ML Re-Score Pipeline</span>
+          </div>
+          <p class="font-label-sm text-[11px] text-on-surface-variant">
+            Feature engineering → LightGBM → Grid Impact → Area Risk. Runs on all assets with sensor data.
+          </p>
+          <button id="btn-rescore" type="button"
+            class="h-8 px-space-md bg-error text-on-error font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 uppercase hover:opacity-90 transition-opacity self-start">
+            <span class="material-symbols-outlined text-[15px]">bolt</span>Ingest &amp; Re-score Grid
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>`);
+
+  _onboarding_init();
+};
+
+/* Internal: wire all interactivity for the onboarding page */
+function _onboarding_init() {
+  const dropzone   = document.getElementById('csv-dropzone');
+  const fileInput  = document.getElementById('csv-file-input');
+  const preview    = document.getElementById('csv-preview');
+  const filename   = document.getElementById('csv-filename');
+  const rowcount   = document.getElementById('csv-rowcount');
+  const errBox     = document.getElementById('csv-errors');
+  const errList    = document.getElementById('csv-errors-list');
+  const btnUpload  = document.getElementById('btn-upload-csv');
+  const btnTpl     = document.getElementById('btn-download-tpl');
+  const btnRescore = document.getElementById('btn-rescore');
+  const btnBackfill = document.getElementById('btn-backfill');
+  const backfillResult = document.getElementById('backfill-result');
+
+  if (!dropzone) return;
+
+  let _selectedFile = null;
+  let _scadaTimer   = null;
+
+  // ── Template download ──────────────────────────────────────────────────────
+  btnTpl.addEventListener('click', () => {
+    downloadFile(API.ingestTemplate(), 'asset_template.csv');
+    Toast.info('Downloading asset_template.csv…');
+  });
+
+  // ── Dropzone ───────────────────────────────────────────────────────────────
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('border-primary','bg-surface-container'); });
+  dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('border-primary','bg-surface-container'); });
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('border-primary','bg-surface-container');
+    const f = e.dataTransfer?.files?.[0]; if (f) _handleFile(f);
+  });
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { if (fileInput.files?.[0]) _handleFile(fileInput.files[0]); });
+
+  function _handleFile(file) {
+    _selectedFile = file;
+    filename.textContent = file.name;
+    preview.classList.remove('hidden');
+    errBox.classList.add('hidden');
+    errList.innerHTML = '';
+    btnUpload.disabled = false;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      if (file.name.endsWith('.json')) {
+        try { const arr = JSON.parse(text); rowcount.textContent = `${Array.isArray(arr) ? arr.length : 1} record(s)`; }
+        catch (_) { rowcount.textContent = 'Invalid JSON'; btnUpload.disabled = true; }
+      } else {
+        rowcount.textContent = `${Math.max(0, text.split('\n').filter(l => l.trim()).length - 1)} data rows`;
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  btnUpload.addEventListener('click', async () => {
+    if (!_selectedFile) return;
+    btnUpload.disabled = true;
+    btnUpload.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>Ingesting…';
+    errBox.classList.add('hidden'); errList.innerHTML = '';
+    try {
+      let result;
+      if (_selectedFile.name.endsWith('.json')) {
+        const records = JSON.parse(await _selectedFile.text());
+        result = await API.ingestAssetsJson(Array.isArray(records) ? records : [records]);
+      } else {
+        const fd = new FormData(); fd.append('file', _selectedFile);
+        result = await API.ingestAssetsCsv(fd);
+      }
+      const { inserted = 0, updated = 0, errors = [] } = result;
+      if (errors.length) {
+        errList.innerHTML = errors.map(e => `<div>Row ${e.row}: ${F.esc(e.reason)}</div>`).join('');
+        errBox.classList.remove('hidden');
+        Toast.warn(`${inserted + updated} ingested — ${errors.length} row error(s)`);
+      } else {
+        Toast.ok(`✓ Ingested ${inserted} new + ${updated} updated assets`);
+      }
+    } catch (e) { Toast.err(`Upload failed: ${e.message}`); }
+    finally {
+      btnUpload.disabled = false;
+      btnUpload.innerHTML = '<span class="material-symbols-outlined text-[15px]">upload</span>Ingest Assets';
+    }
+  });
+
+  // ── Add single asset form ──────────────────────────────────────────────────
+  const btnAdd   = document.getElementById('btn-add-asset');
+  const btnClear = document.getElementById('btn-clear-asset-form');
+  const afError  = document.getElementById('af-error');
+
+  function _gv(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+  btnClear.addEventListener('click', () => {
+    ['af-asset-id','af-asset-type','af-substation-id','af-geographic-area',
+     'af-latitude','af-longitude','af-customers-served','af-criticality-score',
+     'af-installation-year','af-rated-capacity'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    afError.classList.add('hidden');
+  });
+
+  btnAdd.addEventListener('click', async () => {
+    afError.classList.add('hidden');
+
+    // Client-side validation
+    const record = {
+      asset_id:          _gv('af-asset-id'),
+      asset_type:        _gv('af-asset-type'),
+      substation_id:     _gv('af-substation-id'),
+      geographic_area:   _gv('af-geographic-area'),
+      latitude:          parseFloat(_gv('af-latitude')),
+      longitude:         parseFloat(_gv('af-longitude')),
+      customers_served:  parseInt(_gv('af-customers-served'), 10),
+      criticality_score: parseFloat(_gv('af-criticality-score')),
+      installation_year: parseInt(_gv('af-installation-year'), 10),
+      rated_capacity:    parseFloat(_gv('af-rated-capacity')),
+    };
+
+    const missing = Object.entries(record)
+      .filter(([, v]) => v === '' || v === null || Number.isNaN(v))
+      .map(([k]) => k.replace(/_/g, ' '));
+    if (missing.length) {
+      afError.textContent = `Missing or invalid: ${missing.join(', ')}`;
+      afError.classList.remove('hidden');
+      return;
+    }
+    if (record.criticality_score < 0 || record.criticality_score > 10) {
+      afError.textContent = 'Criticality score must be between 0 and 10';
+      afError.classList.remove('hidden');
+      return;
+    }
+
+    btnAdd.disabled = true;
+    btnAdd.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>Saving…';
+
+    try {
+      const res = await API.ingestAssetSingle(record);
+      const verb = res.inserted ? 'Added' : 'Updated';
+      Toast.ok(`✓ ${verb} asset ${res.asset_id}`);
+
+      // Auto-backfill sensor history if checked
+      const autoBackfill = document.getElementById('af-auto-backfill')?.checked;
+      if (autoBackfill) {
+        Toast.info('Generating sensor history & re-scoring…');
+        const bf = await API.seedTelemetry({ asset_ids: [record.asset_id] });
+        Toast.ok(`✓ Backfilled ${bf.rows_inserted.toLocaleString()} sensor rows · ${bf.scored} assets scored`);
+      }
+
+      // Clear form on success
+      btnClear.click();
+    } catch (e) {
+      afError.textContent = e.message;
+      afError.classList.remove('hidden');
+    } finally {
+      btnAdd.disabled = false;
+      btnAdd.innerHTML = '<span class="material-symbols-outlined text-[15px]">add</span>Save Asset';
+    }
+  });
+
+  // ── Backfill button ────────────────────────────────────────────────────────
+  btnBackfill.addEventListener('click', async () => {
+    btnBackfill.disabled = true;
+    btnBackfill.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>Backfilling…';
+    backfillResult.classList.add('hidden');
+    try {
+      const r = await API.seedTelemetry({});
+      if (r.seeded === 0) {
+        backfillResult.textContent = 'All assets already have sensor history — nothing to backfill.';
+      } else {
+        backfillResult.textContent =
+          `✓ Backfilled ${r.seeded} asset(s) · ${(r.rows_inserted || 0).toLocaleString()} rows inserted · ${r.scored || 0} assets re-scored`;
+        Toast.ok(`✓ Backfill complete — ${r.seeded} asset(s) now have sensor history`);
+      }
+      backfillResult.classList.remove('hidden');
+    } catch (e) {
+      Toast.err(`Backfill failed: ${e.message}`);
+    } finally {
+      btnBackfill.disabled = false;
+      btnBackfill.innerHTML = '<span class="material-symbols-outlined text-[15px]">auto_fix_high</span>Backfill &amp; Score New Assets';
+    }
+  });
+
+  // ── SCADA stream ───────────────────────────────────────────────────────────
+  const _ASSET_POOL = ['T-1024','T-0055','T-0112','T-0087','T-0203','CB-0041','CB-0078','SS-0015','SS-0033','FDR-0009'];
+
+  async function _emitPacket() {
+    if (!document.getElementById('scada-stream')) { clearInterval(_scadaTimer); return; }
+    const asset_id = _ASSET_POOL[Math.floor(Math.random() * _ASSET_POOL.length)];
+    const now      = new Date().toISOString();
+    const temp     = (55 + Math.random() * 40).toFixed(1);
+    const load     = (40 + Math.random() * 55).toFixed(1);
+    const vib      = (0.5 + Math.random() * 4).toFixed(2);
+    let ingested = false;
+    try {
+      await API.ingestTelemetry({ asset_id, timestamp: now, temperature: parseFloat(temp), load_percentage: parseFloat(load), vibration: parseFloat(vib) });
+      ingested = true;
+    } catch (_) {}
+    const card = document.createElement('div');
+    card.className = 'packet-card flex items-center justify-between gap-space-sm bg-surface-container rounded p-space-sm border border-outline-variant/60';
+    card.style.animation = 'packet-slide-in 0.25s ease';
+    card.innerHTML = `
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-2 h-2 rounded-full ${ingested ? 'bg-primary' : 'bg-error'} flex-shrink-0"></span>
+        <span class="font-mono text-[11px] font-bold text-on-surface">${F.esc(asset_id)}</span>
+        <span class="font-mono text-[10px] text-on-surface-variant truncate">${F.date(now)}</span>
+      </div>
+      <div class="flex items-center gap-space-sm flex-shrink-0">
+        <span class="font-mono text-[10px] text-on-surface-variant">${temp}°C</span>
+        <span class="font-mono text-[10px] text-on-surface-variant">${load}% load</span>
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-label-sm text-[10px] font-bold ${ingested ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container'}">
+          ${ingested ? '✓ ingested' : '✗ error'}</span>
+      </div>`;
+    const container = document.getElementById('scada-stream');
+    if (!container) return;
+    const ph = container.querySelector('.items-center.justify-center');
+    if (ph) ph.remove();
+    container.insertBefore(card, container.firstChild);
+    while (container.children.length > 8) container.removeChild(container.lastChild);
+  }
+  _emitPacket();
+  _scadaTimer = setInterval(_emitPacket, 1800);
+
+  // ── Re-score button ────────────────────────────────────────────────────────
+  btnRescore.addEventListener('click', async () => {
+    btnRescore.disabled = true;
+    btnRescore.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>Scoring…';
+    try {
+      const r = await API.rescoreGrid({});
+      Toast.ok(`✓ Re-scored ${r.scored} assets across ${r.areas_updated} areas`);
+    } catch (e) { Toast.err(`Re-score failed: ${e.message}`); }
+    finally {
+      btnRescore.disabled = false;
+      btnRescore.innerHTML = '<span class="material-symbols-outlined text-[15px]">bolt</span>Ingest &amp; Re-score Grid';
+    }
+  });
+}

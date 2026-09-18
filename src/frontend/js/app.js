@@ -10,6 +10,7 @@ const NAV = [
   { id: 'simulation',     icon: 'tune',           label: 'Simulation',      crumb: 'What-If Simulation' },
   { id: 'copilot',        icon: 'terminal',       label: 'Copilot',         crumb: 'AI Operations Copilot' },
   { id: 'operator-brief', icon: 'assignment',     label: 'Operator Brief',  crumb: 'Operator Brief' },
+  { id: 'onboarding',     icon: 'upload_file',    label: 'Data Onboarding', crumb: 'Data Onboarding & Connectors' },
 ];
 
 /* ─── Leaflet map singleton ─── */
@@ -464,6 +465,7 @@ const App = {
         case 'simulation':     await Pages.simulation(arg);     break;
         case 'copilot':        await Pages.copilot();           break;
         case 'operator-brief': await Pages.operatorBrief();     break;
+        case 'onboarding':     await Pages.onboarding();        break;
         default:               await Pages.overview();
       }
     } catch (e) {

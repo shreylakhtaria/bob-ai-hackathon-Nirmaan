@@ -92,6 +92,30 @@ const API = {
   ackAlert:            (id)      => API.post(`/alerts/${id}/ack`),
   briefText:           ()        => API.text('/brief/text'),
   exportUrl:           (kind)    => '/api/export/' + kind,
+
+  /* ── Data Onboarding & SCADA Ingestion ── */
+  ingestTemplate:      ()        => '/api/ingest/template',
+  ingestAssetsJson:    (records) => API.post('/ingest/assets/json', records),
+  ingestAssetSingle:   (record)  => API.post('/ingest/assets/single', record),
+  ingestTelemetry:     (packet)  => API.post('/ingest/telemetry', packet),
+  rescoreGrid:         (body)    => API.post('/ingest/re-score', body || {}),
+  seedTelemetry:       (body)    => API.post('/ingest/seed-telemetry', body || {}),
+
+  async ingestAssetsCsv(formData) {
+    const t0 = performance.now();
+    const r = await fetch('/api/ingest/assets/csv', {
+      method: 'POST',
+      headers: API._headers(),   // intentionally no Content-Type — browser sets multipart boundary
+      body: formData,
+    });
+    API.lastLatencyMs = Math.round(performance.now() - t0);
+    API.lastStatus = r.status;
+    if (!r.ok) {
+      if (r.status === 401) API._handleUnauthorized();
+      throw new Error(API._detail(await r.text()));
+    }
+    return r.json();
+  },
 };
 
 /* ─── Toast notifications (Image 1 reference, replaces native browser alert()) ─── */

@@ -75,6 +75,19 @@ def generate_operations_brief():
     return briefing.generate_brief()
 
 
+def get_ingestion_status():
+    """Return ingestion statistics: last telemetry timestamp, row count, asset count, last re-score."""
+    ts_row = db.query_one("SELECT MAX(timestamp) AS last_ts, COUNT(*) AS total FROM sensor_data")
+    asset_row = db.query_one("SELECT COUNT(*) AS cnt FROM assets")
+    last_rescore = db.get_meta("last_rescore_at", None)
+    return {
+        "last_telemetry_at": (ts_row or {}).get("last_ts"),
+        "total_telemetry_rows": (ts_row or {}).get("total", 0),
+        "onboarded_asset_count": (asset_row or {}).get("cnt", 0),
+        "last_rescore_at": last_rescore,
+    }
+
+
 TOOLS = {
     "get_high_risk_assets": get_high_risk_assets,
     "get_asset_details": get_asset_details,
@@ -86,6 +99,7 @@ TOOLS = {
     "simulate_asset_failure": simulate_asset_failure,
     "simulate_weather_event": simulate_weather_event,
     "generate_operations_brief": generate_operations_brief,
+    "get_ingestion_status": get_ingestion_status,
 }
 
 # OpenAI function schema (used only in LLM mode)
@@ -119,6 +133,10 @@ TOOL_SCHEMA = [
             "area_id": {"type": "string"}, "event": {"type": "string"}}, "required": ["area_id"]}}},
     {"type": "function", "function": {
         "name": "generate_operations_brief", "description": "Whole-grid operations briefing.",
+        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "get_ingestion_status",
+        "description": "Returns data ingestion statistics: last telemetry timestamp, total telemetry rows, number of onboarded assets, and last re-score timestamp.",
         "parameters": {"type": "object", "properties": {}}}},
 ]
 
@@ -241,6 +259,18 @@ def _answer_grounded(query: str):
             f"impact {x['grid_impact_score']:.0f}, {x['customers_served']:,} customers ({x['priority']})"
             for x in r)
         return _wrap(f"**Assets most likely to fail this week:**\n{lines}", evidence)
+
+    # ---- ingestion status ----
+    if re.search(r"ingest|telemetry|onboard|last.*(update|ingest)|when.*ingest|how many.*asset", q):
+        r = ev("get_ingestion_status", {}, get_ingestion_status())
+        last_ts = r.get("last_telemetry_at") or "unknown"
+        rescore = r.get("last_rescore_at") or "never"
+        txt = (f"**Data ingestion status:**\n"
+               f"- Total telemetry rows: **{r['total_telemetry_rows']:,}**\n"
+               f"- Last telemetry received: **{last_ts}**\n"
+               f"- Onboarded assets: **{r['onboarded_asset_count']:,}**\n"
+               f"- Last grid re-score: **{rescore}**")
+        return _wrap(txt, evidence)
 
     # ---- summarise / brief (default) ----
     return _brief_answer(evidence, ev)
