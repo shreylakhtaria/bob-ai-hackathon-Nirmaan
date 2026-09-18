@@ -56,6 +56,10 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 - **Authentication & RBAC** — split access/refresh tokens in HttpOnly cookies with CSRF
   double-submit, PBKDF2 password hashing and three roles (admin / operator / crew)
   derived server-side from the signed token. Every one of the 40+ API routes is guarded.
+- **IBM Carbon throughout** — the UI Shell, buttons, tables, tiles, tags, inputs,
+  selects, search, modals, notifications, skeletons and icons are all `@carbon/react`,
+  running on a custom Carbon theme so the components arrive in this console's
+  control-room palette instead of IBM blue. See [`docs/design-system.md`](docs/design-system.md).
 - **CSV data onboarding** — bring your own crew and asset records. Every file is
   validated as a dry run first: you see exactly which rows are rejected, with line
   number, field and value, before anything is written.
@@ -78,7 +82,7 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 | **IBM Technologies** | **IBM Bob** (headless CLI, `bob run --mode ask`) · **IBM watsonx.ai** `/ml/v1/text/chat` tool-calling API (default model `ibm/granite-3-8b-instruct`), authenticated via IBM Cloud IAM · IBM Plex type |
 | **AI / LLM copilot** | IBM Bob first, then watsonx.ai, then Nebius / OpenAI / Azure OpenAI as alternates; grounded local tool-router when no key is set |
 | **Databases** | SQLite (documented one-line swap to PostgreSQL, see [`docs/architecture.md`](docs/architecture.md)) |
-| **Frontend & UI** | Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · TanStack Query · Leaflet (map) · Chart.js (sensor trends) |
+| **Frontend & UI** | Next.js 16 (App Router) · React 19 · TypeScript · **IBM Carbon Design System** (`@carbon/react` components on a custom Carbon theme, `@carbon/icons-react`, IBM Plex) · Tailwind v4 for layout · TanStack Query · Leaflet (map) · Chart.js (sensor trends) |
 | **Security** | Split access/refresh tokens, PBKDF2-HMAC-SHA256, HttpOnly cookies, CSRF double-submit, role-based route guards, slowapi rate limiting |
 | **AI / ML** | Pandas, NumPy, Scikit-learn, LightGBM, IsolationForest, SHAP |
 | **Ops** | Docker, docker-compose |
@@ -97,6 +101,7 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 │   ├── solution-overview.md
 │   ├── architecture.md
 │   ├── security.md       # auth, RBAC, MCP tools, CSV format, risk recalc
+│   ├── design-system.md  # IBM Carbon: what it owns, the theme, the build step
 │   └── setup-guide.md
 ├── demo/                 # Demo artifacts
 │   ├── screenshots/      # App screenshots
@@ -175,11 +180,6 @@ Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 - The crew pre-positioning optimiser is a greedy heuristic, not a full OR-Tools LP solve.
 - Work orders model dispatch/scheduling state but there is no downstream CMMS
   (Maximo/SAP PM) integration — exports are CSV.
-- The UI is built on **IBM Plex** type and a purpose-built control-room token system,
-  not the `@carbon/react` component library. `@carbon/react` is a dependency but has
-  zero imports: adopting its components means loading Carbon's global stylesheet, which
-  fights the Tailwind `@theme` tokens this console's density and colour rules are built
-  on. Treat the Carbon alignment as typographic, not component-level.
 - The data layer is raw parameterised `sqlite3` throughout (~134 statements), not an
   ORM. Every query is parameterised and schema changes go through `db.SCHEMA`, but
   there is no migration tool.
