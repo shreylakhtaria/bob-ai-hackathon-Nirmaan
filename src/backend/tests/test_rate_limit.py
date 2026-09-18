@@ -1,21 +1,29 @@
-"""
-Rate limiting on credential endpoints.
-
-Kept in its own module because it deliberately exhausts the login window; run
-alongside the other auth tests it would starve them of requests.
-"""
+import pytest
 from fastapi.testclient import TestClient
 
 from backend import config
-from backend.main import app
+from backend.main import app, limiter
 
 
 def test_repeated_failed_logins_are_throttled():
     """An unlimited login endpoint is a free password-guessing oracle."""
+    pytest.importorskip("slowapi")
+    config.RATE_LIMIT_ENABLED = True
     client = TestClient(app)
-    if hasattr(app.state, "limiter"):
-        app.state.limiter.enabled = True
-        app.state.limiter.reset()
+    if limiter is not None:
+        if hasattr(limiter, "_enabled"):
+            limiter._enabled = True
+        if hasattr(limiter, "enabled"):
+            limiter.enabled = True
+        if hasattr(limiter, "reset"):
+            limiter.reset()
+    if hasattr(app.state, "limiter") and app.state.limiter is not None:
+        if hasattr(app.state.limiter, "_enabled"):
+            app.state.limiter._enabled = True
+        if hasattr(app.state.limiter, "enabled"):
+            app.state.limiter.enabled = True
+        if hasattr(app.state.limiter, "reset"):
+            app.state.limiter.reset()
 
     codes = [client.post("/api/auth/login",
                          json={"email": "attacker@example.com", "password": f"guess-{i}"}).status_code

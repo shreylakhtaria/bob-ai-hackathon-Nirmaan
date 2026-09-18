@@ -59,16 +59,16 @@ HIGH_IS_BAD.update({"oilq_last": False, "oilq_slope_72": False, "volt_min_24": F
 
 def _load_frames():
     sensors = pd.DataFrame(db.query("SELECT * FROM sensor_data"))
-    sensors["timestamp"] = pd.to_datetime(sensors["timestamp"], utc=True)
+    sensors["timestamp"] = pd.to_datetime(sensors["timestamp"], format="ISO8601", utc=True)
     sensors = sensors.sort_values(["asset_id", "timestamp"]).reset_index(drop=True)
 
     assets = pd.DataFrame(db.query("SELECT * FROM assets"))
     weather = pd.DataFrame(db.query("SELECT * FROM weather_data"))
-    weather["timestamp"] = pd.to_datetime(weather["timestamp"], utc=True)
+    weather["timestamp"] = pd.to_datetime(weather["timestamp"], format="ISO8601", utc=True)
     incidents = pd.DataFrame(db.query(
         "SELECT asset_id, incident_timestamp FROM incidents"))
     if not incidents.empty:
-        incidents["ts"] = pd.to_datetime(incidents["incident_timestamp"], utc=True)
+        incidents["ts"] = pd.to_datetime(incidents["incident_timestamp"], format="ISO8601", utc=True)
     return sensors, assets, weather, incidents
 
 
@@ -162,13 +162,19 @@ def build_frames(snapshot_every_h=12, min_history_h=72):
     score_rows, score_meta = [], []
 
     for aid, g in feats_all.groupby("asset_id"):
+        if aid not in astatic.index:
+            continue
         g = g.sort_values("timestamp").reset_index(drop=True)
         st = astatic.loc[aid]
         age = year_now - int(st["installation_year"])
-        days_maint = (now - pd.to_datetime(st["last_maintenance_date"], utc=True)).days
+        lm_date = st["last_maintenance_date"] if "last_maintenance_date" in st and not pd.isna(st["last_maintenance_date"]) else None
+        if lm_date:
+            days_maint = (now - pd.to_datetime(lm_date, utc=True)).days
+        else:
+            days_maint = min(365, max(30, age * 180))
         crit = float(st["criticality_score"])
-        log_cust = float(np.log1p(st["customers_served"]))
-        downstream = float(st["downstream_assets"])
+        log_cust = float(np.log1p(st["customers_served"] if not pd.isna(st["customers_served"]) else 0))
+        downstream = float(st["downstream_assets"] if "downstream_assets" in st and not pd.isna(st["downstream_assets"]) else 0)
         area = st["geographic_area"]
         inc_ts = inc_by_asset.get(aid, np.array([], dtype="datetime64[ns]"))
 

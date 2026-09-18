@@ -245,6 +245,9 @@ def score_all():
                     top_risk_factors=excluded.top_risk_factors,
                     recommended_action=excluded.recommended_action""",
                 r)
+    from ..services import impact
+    impact.compute_impact()
+    impact.compute_area_risk()
     return {"scored": len(rows)}
 
 

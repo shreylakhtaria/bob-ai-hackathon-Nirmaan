@@ -75,6 +75,19 @@ def generate_operations_brief():
     return briefing.generate_brief()
 
 
+def get_ingestion_status():
+    """Return ingestion statistics: last telemetry timestamp, row count, asset count, last re-score."""
+    ts_row = db.query_one("SELECT MAX(timestamp) AS last_ts, COUNT(*) AS total FROM sensor_data")
+    asset_row = db.query_one("SELECT COUNT(*) AS cnt FROM assets")
+    last_rescore = db.get_meta("last_rescore_at", None)
+    return {
+        "last_telemetry_at": (ts_row or {}).get("last_ts"),
+        "total_telemetry_rows": (ts_row or {}).get("total", 0),
+        "onboarded_asset_count": (asset_row or {}).get("cnt", 0),
+        "last_rescore_at": last_rescore,
+    }
+
+
 TOOLS = {
     "get_high_risk_assets": get_high_risk_assets,
     "get_asset_details": get_asset_details,
@@ -86,6 +99,7 @@ TOOLS = {
     "simulate_asset_failure": simulate_asset_failure,
     "simulate_weather_event": simulate_weather_event,
     "generate_operations_brief": generate_operations_brief,
+    "get_ingestion_status": get_ingestion_status,
 }
 
 # OpenAI function schema (used only in LLM mode)
@@ -216,11 +230,16 @@ def _answer_grounded(query: str):
         bullets = "\n".join(
             f"- {f['label']}: {f['value']} ({'elevated' if f['direction']=='high' else 'degraded'})"
             for f in factors[:5]) or "- No dominant risk factors."
+        gis_val = float(p.get("grid_impact_score") or 0.0) if p else 0.0
+        fail_prob = float(p.get("failure_probability") or 0.0) if p else 0.0
+        priority_val = (p.get("priority") or "LOW") if p else "LOW"
+        window_val = (p.get("predicted_failure_window") or "beyond 72h") if p else "unknown"
+        action_val = (p.get("recommended_action") or "Routine inspection") if p else "None"
         txt = (f"**{asset}** ({a['asset_type']}, {a['geographic_area']}) is "
-               f"**{p['priority']}** - failure probability **{p['failure_probability']:.0%}** "
-               f"within {p['predicted_failure_window']}, grid impact **{p['grid_impact_score']:.0f}/100**, "
+               f"**{priority_val}** - failure probability **{fail_prob:.0%}** "
+               f"within {window_val}, grid impact **{gis_val:.0f}/100**, "
                f"serving {a['customers_served']:,} customers.\n\n**Why it is risky:**\n{bullets}\n\n"
-               f"**Recommended action:** {p['recommended_action']}")
+               f"**Recommended action:** {action_val}")
         return _wrap(txt, evidence)
 
     # ---- area / substation weather exposure ----
@@ -256,6 +275,18 @@ def _answer_grounded(query: str):
             f"impact {x['grid_impact_score']:.0f}, due {x['due_window']}: {x['recommended_action']}"
             for x in r)
         return _wrap(f"**Maintenance plan (next {config.PREDICTION_HORIZON_HOURS}h):**\n{lines}", evidence)
+
+    # ---- ingestion status ----
+    if any(w in q for w in ("ingest", "onboard", "telemetry status", "last telemetry")):
+        r = ev("get_ingestion_status", {}, get_ingestion_status())
+        last_ts = r["last_telemetry_at"] or "Never"
+        last_rescore = r["last_rescore_at"] or "Never"
+        txt = (f"**Data Ingestion & SCADA Status:**\n"
+               f"- Total Telemetry Readings: **{r['total_telemetry_rows']:,}**\n"
+               f"- Total Assets Onboarded: **{r['onboarded_asset_count']:,}**\n"
+               f"- Last Telemetry Packet: **{last_ts}**\n"
+               f"- Last ML Re-Score: **{last_rescore}**")
+        return _wrap(txt, evidence)
 
     # ---- summarise / brief (explicit) ----
     if any(w in q for w in ("summar", "brief", "overview", "overall", "today", "situation")):

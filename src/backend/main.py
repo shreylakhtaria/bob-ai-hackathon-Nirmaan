@@ -20,6 +20,7 @@ from .services import (impact as impact_svc, crew as crew_svc, simulation as sim
                        operations as ops_svc, auth as auth_svc, ingest as ingest_svc,
                        resolution as resolution_svc, risk as risk_svc,
                        mcp as mcp_svc)
+from .routers.ingest import router as ingest_router
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -32,6 +33,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", config.CSRF_HEADER_NAME],
 )
+
+app.include_router(ingest_router, prefix="/api/ingest", tags=["ingest"])
 
 errors.register(app)
 

@@ -63,12 +63,13 @@ def _demand_areas():
             "high_assets": 0, "top_asset": None, "top_gis": -1, "weather_risk": r["wr"],
             "skills": {}})
         d["lats"].append(r["lat"]); d["lons"].append(r["lon"])
-        d["weight"] += r["gis"]
+        gis = float(r["gis"] or 0.0)
+        d["weight"] += gis
         d["high_assets"] += 1
         skill = SKILL_FOR_TYPE.get(r["type"], "General")
-        d["skills"][skill] = d["skills"].get(skill, 0) + r["gis"]
-        if r["gis"] > d["top_gis"]:
-            d["top_gis"] = r["gis"]; d["top_asset"] = r["asset_id"]
+        d["skills"][skill] = d["skills"].get(skill, 0) + gis
+        if gis > d["top_gis"]:
+            d["top_gis"] = gis; d["top_asset"] = r["asset_id"]
     for d in by_area.values():
         d["lat"] = sum(d["lats"]) / len(d["lats"])
         d["lon"] = sum(d["lons"]) / len(d["lons"])
