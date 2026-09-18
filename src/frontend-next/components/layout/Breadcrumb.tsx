@@ -30,7 +30,9 @@ export const Breadcrumb: React.FC = () => {
         </BreadcrumbItem>
         <BreadcrumbItem isCurrentPage>{title}</BreadcrumbItem>
       </CarbonBreadcrumb>
-      <div className="flex items-center gap-4 text-micro shrink-0">
+      {/* Telemetry health is supplementary; on a phone the trail itself
+          needs the width. */}
+      <div className="hidden md:flex items-center gap-4 text-micro shrink-0">
         <span className="flex items-center gap-1.5 text-ink-3">
           <span className="w-1.5 h-1.5 rounded-full bg-sev-normal" aria-hidden="true" />
           Telemetry lock

@@ -179,17 +179,22 @@ export const CopilotWidget: React.FC = () => {
   return (
     <>
       {!open && (
-        <Button
-          ref={launcherRef}
-          onClick={() => setOpen(true)}
-          renderIcon={Chat}
-          iconDescription="Open grid copilot"
-          hasIconOnly
-          tooltipPosition="right"
-          // Bottom-left: the bottom-right corner is where the metrics drawer and
-          // table action buttons live, and covering those costs more than it saves.
-          className="!fixed bottom-5 left-5 z-[60] shadow-overlay"
-        />
+        // The positioning lives on a wrapper, not on the Button: Carbon wraps
+        // an icon-only button in a `.cds--popover-container` span for its
+        // tooltip, so `fixed` on the button positions it against that inline
+        // wrapper — which sits in normal flow, off-screen — instead of the
+        // viewport. `.copilot-anchor` in globals.css carries the placement,
+        // because it has to clear both the rail and Carbon's shell z-index.
+        <div className="copilot-anchor shadow-overlay">
+          <Button
+            ref={launcherRef}
+            onClick={() => setOpen(true)}
+            renderIcon={Chat}
+            iconDescription="Open grid copilot"
+            hasIconOnly
+            tooltipPosition="right"
+          />
+        </div>
       )}
 
       {open && (
@@ -198,7 +203,7 @@ export const CopilotWidget: React.FC = () => {
           role="dialog"
           aria-label="Grid operations copilot"
           aria-modal="false"
-          className="fixed bottom-5 left-5 z-[60] flex flex-col w-[min(24rem,calc(100vw-2.5rem))] h-[min(32rem,calc(100vh-6rem))] rounded-xl border border-line bg-panel shadow-overlay animate-fade-in"
+          className="copilot-anchor flex flex-col w-[min(24rem,calc(100vw-2.5rem))] h-[min(32rem,calc(100vh-6rem))] border border-line bg-panel shadow-overlay animate-fade-in"
         >
           <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-line">
             <div className="flex items-center gap-2 min-w-0">

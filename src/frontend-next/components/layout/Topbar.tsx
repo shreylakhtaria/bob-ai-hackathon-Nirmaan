@@ -172,7 +172,9 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
             <span className="text-label font-semibold tracking-tight truncate">
               Grid Risk Advisor
             </span>
-            <span className="font-mono text-micro text-ink-3 truncate font-normal">
+            {/* The clock is context, not identity: on a phone the product
+                name has to win the space. */}
+            <span className="hidden sm:block font-mono text-micro text-ink-3 truncate font-normal">
               Grid time {clock}
             </span>
           </span>

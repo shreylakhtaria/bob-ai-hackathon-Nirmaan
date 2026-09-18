@@ -326,6 +326,18 @@ $grid-console-components: (
 // column's own `lg:pl-[var(--spacing-rail)]` is what pairs with it — two
 // different breakpoints would leave a 32px window where the rail is visible
 // and the content is not indented.
+// The header's brand block has a fixed width in Carbon and never shrinks, so
+// on a phone the product name plus the global actions were 625px wide in a
+// 375px viewport and the whole page scrolled sideways.
+.cds--header.shell-header {
+  overflow: hidden;
+}
+.cds--header.shell-header .cds--header__name {
+  min-inline-size: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
 .cds--side-nav.shell-rail {
   transform: translateX(-100%);
 
@@ -376,6 +388,21 @@ $grid-console-components: (
 // same reason the rest of the app does it: digits must not jitter in place.
 .cds--data-table td {
   font-variant-numeric: tabular-nums;
+}
+
+// A Carbon data table sizes to its content. A nine-column asset table inside a
+// 375px viewport is therefore ~670px wide and pushed the whole page sideways.
+// Each table sits in an `overflow-x-auto` wrapper, but `overflow` alone does
+// nothing here: a grid or flex child's automatic minimum size is its content,
+// so the wrapper grew with the table instead of scrolling it. `min-inline-size:
+// 0` is the part that actually makes the scroll happen, and it has to be on
+// the tile as well as the wrapper because the tile is the grid child.
+.cds--tile {
+  min-inline-size: 0;
+}
+.overflow-x-auto {
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 // Carbon sizes its drop container for a narrow form column. Here it is the

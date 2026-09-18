@@ -386,30 +386,32 @@ export default function SimulationPage() {
                 </div>
 
                 <PanelCard title="Most exposed assets" flush>
-                  <Table size="sm" useZebraStyles={false}>
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader>Asset ID</TableHeader>
-                        <TableHeader>Type</TableHeader>
-                        <TableHeader className="text-right">P(fail)</TableHeader>
-                        <TableHeader className="text-right">Grid impact</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {weatherSimResult.top_exposed_assets.map((a) => (
-                        <TableRow key={a.asset_id}>
-                          <TableCell className="font-mono font-semibold text-brand-ink">
-                            {a.asset_id}
-                          </TableCell>
-                          <TableCell>{a.type}</TableCell>
-                          <TableCell className="text-right font-mono">{F.pct(a.fp)}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {a.gis?.toFixed(1)}
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table size="sm" useZebraStyles={false}>
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Asset ID</TableHeader>
+                          <TableHeader>Type</TableHeader>
+                          <TableHeader className="text-right">P(fail)</TableHeader>
+                          <TableHeader className="text-right">Grid impact</TableHeader>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHead>
+                      <TableBody>
+                        {weatherSimResult.top_exposed_assets.map((a) => (
+                          <TableRow key={a.asset_id}>
+                            <TableCell className="font-mono font-semibold text-brand-ink">
+                              {a.asset_id}
+                            </TableCell>
+                            <TableCell>{a.type}</TableCell>
+                            <TableCell className="text-right font-mono">{F.pct(a.fp)}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {a.gis?.toFixed(1)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </PanelCard>
 
                 <PanelCard title="Recommended actions">

@@ -557,40 +557,42 @@ export default function DataOnboardingPage() {
                 flush
               >
                 <div className="max-h-96 overflow-auto">
-                  <Table size="sm" useZebraStyles={false}>
-                    <TableHead className="sticky top-0 z-10">
-                      <TableRow className="text-micro">
-                        <TableHeader scope="col" className="px-3 py-2.5 w-16">
-                          Row
-                        </TableHeader>
-                        <TableHeader scope="col" className="px-3 py-2.5">
-                          Field
-                        </TableHeader>
-                        <TableHeader scope="col" className="px-3 py-2.5">
-                          Problem
-                        </TableHeader>
-                        <TableHeader scope="col" className="px-3 py-2.5">
-                          Value
-                        </TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {report.errors.slice(0, MAX_VISIBLE_ERRORS).map((e, i) => (
-                        <TableRow key={`${e.row}-${e.field}-${i}`} className="hover:bg-sunken">
-                          <TableCell className="font-mono text-micro font-bold text-ink">
-                            {e.row}
-                          </TableCell>
-                          <TableCell className="font-mono text-micro text-brand-ink">
-                            {e.field ?? <span className="text-ink-3">—</span>}
-                          </TableCell>
-                          <TableCell className="text-micro">{e.message}</TableCell>
-                          <TableCell className="font-mono text-micro text-ink-3 break-all">
-                            {e.value == null || e.value === "" ? "—" : e.value}
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table size="sm" useZebraStyles={false}>
+                      <TableHead className="sticky top-0 z-10">
+                        <TableRow className="text-micro">
+                          <TableHeader scope="col" className="px-3 py-2.5 w-16">
+                            Row
+                          </TableHeader>
+                          <TableHeader scope="col" className="px-3 py-2.5">
+                            Field
+                          </TableHeader>
+                          <TableHeader scope="col" className="px-3 py-2.5">
+                            Problem
+                          </TableHeader>
+                          <TableHeader scope="col" className="px-3 py-2.5">
+                            Value
+                          </TableHeader>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHead>
+                      <TableBody>
+                        {report.errors.slice(0, MAX_VISIBLE_ERRORS).map((e, i) => (
+                          <TableRow key={`${e.row}-${e.field}-${i}`} className="hover:bg-sunken">
+                            <TableCell className="font-mono text-micro font-bold text-ink">
+                              {e.row}
+                            </TableCell>
+                            <TableCell className="font-mono text-micro text-brand-ink">
+                              {e.field ?? <span className="text-ink-3">—</span>}
+                            </TableCell>
+                            <TableCell className="text-micro">{e.message}</TableCell>
+                            <TableCell className="font-mono text-micro text-ink-3 break-all">
+                              {e.value == null || e.value === "" ? "—" : e.value}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
                 {hiddenErrors > 0 && (
                   <p className="border-t border-line bg-sev-watch-tint px-3 py-2 text-micro font-semibold text-sev-watch">
