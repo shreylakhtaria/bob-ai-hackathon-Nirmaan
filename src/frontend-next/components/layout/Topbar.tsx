@@ -178,6 +178,19 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
             {exportOpen && (
               <div role="menu" className="absolute right-0 top-11 w-56 bg-panel border border-line rounded-xl shadow-overlay z-50 p-1.5 text-label animate-fade-in">
                 <div className="px-2.5 pt-1 pb-1.5 text-micro uppercase tracking-wider text-ink-3 font-semibold">
+                  Print
+                </div>
+                {/* The browser's own print-to-PDF, against the print stylesheet in
+                    globals.css. The old frontend shipped jsPDF + autotable (~124 KB)
+                    to re-draw these pages by hand; printing the real page needs no
+                    dependency and cannot drift from what is on screen. */}
+                <button
+                  onClick={() => { setExportOpen(false); window.print(); }}
+                  role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sunken text-ink"
+                >
+                  Current page as PDF
+                </button>
+                <div className="px-2.5 pt-2 pb-1.5 text-micro uppercase tracking-wider text-ink-3 font-semibold border-t border-line mt-1">
                   Download CSV
                 </div>
                 <button

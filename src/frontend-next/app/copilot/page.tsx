@@ -7,7 +7,9 @@ import { API } from "@/lib/api";
 interface Message {
   sender: "user" | "bot";
   text: string;
-  evidence?: string[];
+  // Each entry is a backend tool call ({tool, args, result}); rendering the
+  // objects directly printed "[object Object]" in the evidence line.
+  evidence?: { tool: string }[];
   recommendedAction?: string;
 }
 
@@ -123,7 +125,7 @@ export default function CopilotPage() {
               )}
               {m.evidence && m.evidence.length > 0 && (
                 <div className="mt-2 pt-1.5 border-t border-line font-mono text-micro text-ink-3">
-                  Evidence: {m.evidence.join(" • ")}
+                  Evidence: {m.evidence.map((e) => e.tool).join(" • ")}
                 </div>
               )}
             </div>

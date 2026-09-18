@@ -75,7 +75,7 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 ```
 ├── src/                  # All source code (see src/README.md for the full layout)
 │   ├── backend/          # FastAPI app, ML pipeline, decision-engine services
-│   ├── frontend/         # Static SPA — dashboard, map, copilot UI
+│   ├── frontend-next/    # Next.js operator console — dashboard, map, copilot UI
 │   └── scripts/seed.py   # generate data → train models → seed DB
 ├── docs/                 # Written documentation
 │   ├── problem-statement.md
@@ -102,13 +102,17 @@ cd bob-ai-hackathon-Nirmaan/src
 
 # 2. Install dependencies
 pip install -r requirements.txt
+(cd frontend-next && npm install)
 
 # 3. Generate synthetic data + train the ML models (~60s first run)
 python -m scripts.seed
 
-# 4. Run the project
+# 4. Run the API (terminal 1)
 uvicorn backend.main:app --reload --port 8000
-# → open http://localhost:8000
+
+# 5. Run the operator console (terminal 2)
+cd frontend-next && npm run dev
+# → open http://localhost:3000
 ```
 
 Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`

@@ -52,7 +52,7 @@ graph TD
    simulations, the operator briefing, and alerts.
 5. `backend/main.py` exposes all of the above as REST/JSON under `/api/*`
    and serves the static frontend at `/`.
-6. The frontend (`frontend/js/*`) polls/fetches these endpoints to render
+6. The Next.js frontend (`frontend-next/`) polls/fetches these endpoints to render
    the dashboard, map, charts, maintenance queue, crew view and simulator,
    and posts operator questions to `/api/copilot/query`.
 7. The copilot answers either via IBM watsonx.ai function-calling (when

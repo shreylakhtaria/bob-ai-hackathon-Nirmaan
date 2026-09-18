@@ -61,12 +61,20 @@ There is no separate frontend install step — the frontend is a static SPA
 # 1. Generate synthetic data + train the ML models (deterministic, ~60s first run)
 python -m scripts.seed
 
-# 2. Start the server
+# 2. Start the API (terminal 1)
 uvicorn backend.main:app --reload --port 8000
+
+# 3. Start the operator console (terminal 2)
+cd frontend-next
+npm install        # first run only
+npm run dev
 ```
 
-The application will be available at: `http://localhost:8000`
+The operator console will be available at: `http://localhost:3000`
 Interactive API docs (Swagger) are at: `http://localhost:8000/docs`
+
+The console proxies `/api/*` to the API on port 8000, so the browser only ever
+talks to port 3000. Override with `API_PROXY_TARGET` if the API is elsewhere.
 
 **One-shot alternative:**
 ```bash
@@ -104,7 +112,7 @@ pytest backend/tests/ -v
 Once the server is running:
 
 ```bash
-open http://localhost:8000
+open http://localhost:3000
 ```
 
 1. **Overview** page shows overall grid risk, critical assets, customers at
@@ -126,5 +134,5 @@ open http://localhost:8000
 | `Database not seeded` (HTTP 503) | Run `python -m scripts.seed` from `src/` before starting the server |
 | `ModuleNotFoundError` | Run `pip install -r requirements.txt` again from `src/` |
 | `ImportError` / LightGBM fails to load on Linux | Install `libgomp1` (`apt-get install libgomp1`) — already handled automatically in the provided `Dockerfile` |
-| Port 8000 already in use | Run `uvicorn backend.main:app --port 8001` and open that port instead |
+| Port 8000 already in use | Run `uvicorn backend.main:app --port 8001` and start the console with `API_PROXY_TARGET=http://127.0.0.1:8001 npm run dev` |
 | Copilot always answers in grounded/local mode even with a key set | Confirm `OPENAI_API_KEY` (or the `AZURE_OPENAI_*` trio) is exported in the same shell/process running `uvicorn` |

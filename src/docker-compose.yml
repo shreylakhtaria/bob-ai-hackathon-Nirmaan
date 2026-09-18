@@ -1,14 +1,28 @@
 services:
-  grid-command-center:
+  api:
     build: .
-    container_name: grid-risk-command-center
+    container_name: grid-risk-api
     ports:
       - "8000:8000"
     environment:
       # Optional: enable the LLM copilot (otherwise grounded local mode is used)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - BOB_API_KEY=${BOB_API_KEY:-}
     volumes:
       - ./data:/app/data
       - ./models:/app/models
+    restart: unless-stopped
+
+  ui:
+    build: ./frontend-next
+    container_name: grid-risk-ui
+    ports:
+      - "3000:3000"
+    environment:
+      # Server-side rewrite target, so the browser only ever talks to :3000.
+      - API_PROXY_TARGET=http://api:8000
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    depends_on:
+      - api
     restart: unless-stopped

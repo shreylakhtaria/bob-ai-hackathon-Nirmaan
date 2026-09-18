@@ -202,7 +202,8 @@ export interface CopilotResponse {
   intent?: string;
   confidence?: number;
   identified_asset?: string;
-  evidence?: string[];
+  /** Backend sends the tool calls the answer was built from, not plain strings. */
+  evidence?: { tool: string; args?: Record<string, unknown>; result?: unknown }[];
   recommended_action?: string;
 }
 

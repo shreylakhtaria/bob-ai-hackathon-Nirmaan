@@ -22,7 +22,7 @@ src/
 │   │   ├── operations.py    # work orders, crew dispatch, exports, system stats
 │   │   └── copilot.py       # grounded copilot on IBM watsonx.ai tool calling
 │   └── tests/               # test_core.py (model/logic) + test_operations.py (actions)
-├── frontend/
+├── frontend-next/
 │   ├── index.html
 │   ├── css/style.css
 │   └── js/                  # api.js · components.js · pages.js · app.js
