@@ -2,65 +2,75 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { User, LoginRequest, SignupRequest } from "@/types/auth";
-import { API } from "@/lib/api";
+import { API, setAccessToken, refreshAccessToken } from "@/lib/api";
 
 interface AuthContextValue {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
   signup: (data: SignupRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  logoutEverywhere: () => Promise<number>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // On load there is no access token in memory (a reload clears it), so the
+  // session is restored from the HttpOnly refresh cookie instead. This is the
+  // trade for not persisting a bearer token where script can read it.
   useEffect(() => {
-    const savedToken = localStorage.getItem("grid_auth_token");
-    if (savedToken) {
-      setToken(savedToken);
-      API.me()
-        .then((userData) => {
-          setUser(userData);
-        })
-        .catch(() => {
-          localStorage.removeItem("grid_auth_token");
-          setToken(null);
-          setUser(null);
-        })
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await refreshAccessToken();
+        if (cancelled) return;
+        if (token) setUser(await API.me());
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const login = useCallback(async (data: LoginRequest) => {
     const res = await API.login(data);
-    localStorage.setItem("grid_auth_token", res.token);
-    setToken(res.token);
+    setAccessToken(res.access_token);
     setUser(res.user);
   }, []);
 
   const signup = useCallback(async (data: SignupRequest) => {
     const res = await API.signup(data);
-    localStorage.setItem("grid_auth_token", res.token);
-    setToken(res.token);
+    setAccessToken(res.access_token);
     setUser(res.user);
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("grid_auth_token");
-    setToken(null);
+  const logout = useCallback(async () => {
+    // Server-side revocation, so the refresh token is dead even if the cookie
+    // was already copied elsewhere. Clear local state regardless of the result.
+    try { await API.logout(); } catch { /* already invalid */ }
+    setAccessToken(null);
     setUser(null);
   }, []);
 
+  const logoutEverywhere = useCallback(async () => {
+    let revoked = 0;
+    try { revoked = (await API.logoutAll()).sessions_revoked; } catch { /* ignore */ }
+    setAccessToken(null);
+    setUser(null);
+    return revoked;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isAuthenticated: !!user, login, signup, logout, logoutEverywhere }}
+    >
       {children}
     </AuthContext.Provider>
   );

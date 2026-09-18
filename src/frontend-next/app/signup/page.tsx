@@ -13,6 +13,7 @@ export default function SignupPage() {
   const { signup } = useAuth();
   const { ok, err } = useToast();
 
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,7 +21,11 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!displayName || !email || !password) return;
+    if (displayName.trim().length < 2) {
+      err("Operator name must be at least 2 characters");
+      return;
+    }
     if (password !== confirmPassword) {
       err("Passwords do not match");
       return;
@@ -28,7 +33,7 @@ export default function SignupPage() {
 
     setIsLoading(true);
     try {
-      await signup({ email, password });
+      await signup({ display_name: displayName, email, password });
       ok("Operator account created successfully");
       router.push("/overview");
     } catch (e: any) {
@@ -55,14 +60,36 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-label font-medium text-ink mb-1.5">
+            <label htmlFor="displayName" className="block text-label font-medium text-ink mb-1.5">
+              Operator Name
+            </label>
+            <div className="relative flex items-center">
+              <UserPlus className="w-4 h-4 text-ink-3 absolute left-3 pointer-events-none" aria-hidden="true" />
+              <input
+                id="displayName"
+                type="text"
+                required
+                minLength={2}
+                autoComplete="name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="e.g. Maya O&rsquo;Connell"
+                className="w-full h-9 pl-9 pr-3 bg-sunken text-ink text-label rounded-lg border border-line focus:bg-panel focus:ring-1 focus:ring-brand"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-label font-medium text-ink mb-1.5">
               Work Email
             </label>
             <div className="relative flex items-center">
               <Mail className="w-4 h-4 text-ink-3 absolute left-3 pointer-events-none" />
               <input
+                id="email"
                 type="email"
                 required
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="new.operator@gridops.power"

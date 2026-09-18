@@ -13,11 +13,17 @@ export interface LoginRequest {
 }
 
 export interface SignupRequest {
+  display_name: string;
   email: string;
   password: string;
 }
 
 export interface AuthResponse {
-  token: string;
+  /** Short-lived bearer token, held in memory only. The long-lived refresh
+   *  token arrives as an HttpOnly cookie and is never visible to JS. */
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  csrf_token: string;
   user: User;
 }

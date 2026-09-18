@@ -232,3 +232,17 @@ export interface ModelMetrics {
   dataset_rows?: number;
   training_date?: string;
 }
+
+/** Unauthenticated aggregates for the public landing page. */
+export interface PublicStats {
+  seeded: boolean;
+  is_simulation: boolean;
+  assets_monitored?: number;
+  assets_at_risk?: number;
+  customers_protected?: number;
+  areas_monitored?: number;
+  model?: string | null;
+  roc_auc?: number | null;
+  prediction_horizon_hours?: number;
+  as_of?: string | null;
+}

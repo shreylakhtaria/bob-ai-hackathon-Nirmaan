@@ -326,10 +326,14 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                   Signed in as <strong className="font-semibold text-ink">{user.email}</strong>
                 </div>
                 <button
-                  onClick={() => {
-                    logout();
+                  onClick={async () => {
                     setUserMenuOpen(false);
-                    ok("Logged out successfully");
+                    // Awaited so the server-side revocation completes before we
+                    // navigate; otherwise the request can be cancelled mid-flight
+                    // and the refresh token stays valid.
+                    await logout();
+                    ok("Signed out");
+                    router.push("/login");
                   }}
                   role="menuitem" className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-sev-critical-tint text-sev-critical flex items-center gap-2 font-medium"
                 >

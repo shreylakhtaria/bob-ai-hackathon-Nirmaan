@@ -13,50 +13,98 @@ import type {
   CopilotResponse,
   BriefResponse,
   ModelMetrics,
+  PublicStats,
 } from "@/types/grid";
 import type { AuthResponse, LoginRequest, SignupRequest, User } from "@/types/auth";
 
 const API_BASE = "/api";
 
-export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("grid_auth_token") : null;
+// The access token is held in memory only. It used to live in localStorage,
+// where any XSS payload could read it at rest; the long-lived credential is now
+// the HttpOnly refresh cookie, which JavaScript cannot touch at all.
+let accessToken: string | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
+export const setAccessToken = (t: string | null) => { accessToken = t; };
+export const getAccessToken = () => accessToken;
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const hit = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
+  return hit ? decodeURIComponent(hit.split("=").slice(1).join("=")) : null;
+}
+
+/** Echo the CSRF cookie back as a header — the double-submit check the cookie
+ *  endpoints require. Only needed where the cookie itself authenticates. */
+function csrfHeaders(): Record<string, string> {
+  const t = readCookie("grid_csrf");
+  return t ? { "X-CSRF-Token": t } : {};
+}
+
+/** Swap the refresh cookie for a new access token. Concurrent callers share one
+ *  request, so a burst of 401s doesn't trigger a stampede of refreshes. */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: csrfHeaders(),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      setAccessToken(data.access_token);
+      return data.access_token as string;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+/** Unwrap the API's error envelope: {success, error:{code, message, details}}. */
+async function toError(res: Response): Promise<Error> {
+  const body = await res.json().catch(() => null);
+  const message =
+    body?.error?.message ?? body?.detail ?? `Request failed with status ${res.status}`;
+  const err = new Error(message) as Error & { code?: string; status?: number; details?: unknown };
+  err.code = body?.error?.code;
+  err.status = res.status;
+  err.details = body?.error?.details;
+  return err;
+}
+
+async function send(endpoint: string, options: RequestInit, withBody: boolean): Promise<Response> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(withBody ? { "Content-Type": "application/json" } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...csrfHeaders(),
     ...((options.headers as Record<string, string>) || {}),
   };
+  return fetch(`${API_BASE}${endpoint}`, { ...options, headers, credentials: "include" });
+}
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(errorData.detail || `Request failed with status ${res.status}`);
+async function request(endpoint: string, options: RequestInit, withBody: boolean): Promise<Response> {
+  let res = await send(endpoint, options, withBody);
+  // Access tokens are short-lived by design, so a 401 mid-session is expected
+  // rather than exceptional: refresh once, transparently, and retry.
+  if (res.status === 401 && !endpoint.startsWith("/auth/")) {
+    const fresh = await refreshAccessToken();
+    if (fresh) res = await send(endpoint, options, withBody);
   }
+  if (!res.ok) throw await toError(res);
+  return res;
+}
 
-  return res.json();
+export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  return (await request(endpoint, options, true)).json();
 }
 
 export async function apiTextRequest(endpoint: string, options: RequestInit = {}): Promise<string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("grid_auth_token") : null;
-  const headers: Record<string, string> = {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((options.headers as Record<string, string>) || {}),
-  };
-
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(errorData.detail || `Request failed with status ${res.status}`);
-  }
-
-  return res.text();
+  return (await request(endpoint, options, false)).text();
 }
 
 export const API = {
@@ -66,6 +114,10 @@ export const API = {
   login: (data: LoginRequest) =>
     apiRequest<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
   me: () => apiRequest<User>("/auth/me"),
+  logout: () => apiRequest<{ success: boolean }>("/auth/logout", { method: "POST" }),
+  logoutAll: () =>
+    apiRequest<{ success: boolean; sessions_revoked: number }>("/auth/logout-all", { method: "POST" }),
+  publicStats: () => apiRequest<PublicStats>("/public/stats"),
 
   // System & Health
   health: () => apiRequest<{ status: string; seeded: boolean; is_simulation: boolean; now?: string }>("/health"),
