@@ -13,6 +13,7 @@ import {
   Sliders,
   FileText,
   Activity,
+  DatabaseZap,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const NAV_GROUPS = [
     items: [
       { id: "maintenance", href: "/maintenance", label: "Maintenance", icon: Wrench },
       { id: "crews", href: "/crews", label: "Crews", icon: Truck },
+      { id: "data-onboarding", href: "/data-onboarding", label: "Data Onboarding", icon: DatabaseZap },
     ],
   },
   {

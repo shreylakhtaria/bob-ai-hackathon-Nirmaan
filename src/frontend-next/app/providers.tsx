@@ -30,20 +30,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
 
+  // The landing page is fully self-contained (own header/main/footer, no client
+  // hooks, no auth/query/toast needs). Routing it through the auth frame nested
+  // one <main> inside another and vertically centred a full-width page.
+  if (pathname === "/") return <>{children}</>;
+
   // Sign-in and registration sat inside the full operator shell, so a visitor
   // who was not signed in still saw a nine-item nav, a live asset count and an
   // "Emergency dispatch" button. That claims an operational session that does
   // not exist, and offers an irreversible action to someone with no account.
   // Auth routes get the bare frame.
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
-  // "/" is the public landing page: no nav, no auth gate, no copilot.
-  const isPublicRoute = isAuthRoute || pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          {isPublicRoute ? (
+          {isAuthRoute ? (
             <main className="min-h-screen bg-canvas flex items-center justify-center px-5 py-12">
               {children}
             </main>
