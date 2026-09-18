@@ -176,6 +176,21 @@ CREATE TABLE IF NOT EXISTS users (
     role          TEXT NOT NULL DEFAULT 'operator',
     created_at    TEXT NOT NULL
 );
+
+-- Refresh tokens are stored (hashed) rather than being purely stateless, because
+-- logout and "revoke everywhere" are impossible with a self-contained token —
+-- a stolen one would stay valid until expiry with no way to kill it.
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    jti        TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL,
+    token_hash TEXT NOT NULL,
+    issued_at  TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_refresh_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS ix_refresh_expires ON refresh_tokens(expires_at);
 """
 
 

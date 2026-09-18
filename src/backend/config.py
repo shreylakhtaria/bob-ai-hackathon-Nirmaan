@@ -149,9 +149,60 @@ API_TITLE = "Grid Risk Command Center API"
 API_VERSION = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+# "development" | "production". Controls cookie Secure flag, error verbosity and
+# whether a weak signing secret is tolerated.
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+IS_PRODUCTION = ENVIRONMENT.lower() in ("production", "prod")
+
+# ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
-# Used to sign session tokens (see services/auth.py). Override in production —
-# the default is fine for the demo/local-run case only.
-AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "dev-insecure-secret-change-me")
-AUTH_TOKEN_TTL_HOURS = int(os.getenv("AUTH_TOKEN_TTL_HOURS", "24"))
+_DEV_SECRET = "dev-insecure-secret-change-me"
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", _DEV_SECRET)
+# A forgeable signing key is a total auth bypass: anyone who reads this repo can
+# mint an admin token. Refuse to boot in production rather than fail open.
+if IS_PRODUCTION and AUTH_SECRET_KEY == _DEV_SECRET:
+    raise RuntimeError(
+        "AUTH_SECRET_KEY must be set to a unique secret when ENVIRONMENT=production. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
+
+# Split-token lifetimes. The access token is a bearer credential held in memory by
+# the SPA, so it is short; the refresh token lives in an HttpOnly cookie and is
+# revocable server-side (see the refresh_tokens table).
+ACCESS_TOKEN_TTL_MINUTES = int(os.getenv("ACCESS_TOKEN_TTL_MINUTES", "15"))
+REFRESH_TOKEN_TTL_DAYS = int(os.getenv("REFRESH_TOKEN_TTL_DAYS", "14"))
+
+REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "grid_refresh")
+CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME", "grid_csrf")
+CSRF_HEADER_NAME = os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token")
+# Path-scoped so the refresh cookie is only ever sent to the endpoints that need
+# it, instead of riding along on every API call.
+REFRESH_COOKIE_PATH = os.getenv("REFRESH_COOKIE_PATH", "/api/auth")
+# Secure requires HTTPS; forcing it in local dev would silently drop the cookie.
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true" if IS_PRODUCTION else "false").lower() == "true"
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
+
+ROLES = ("admin", "operator", "crew")
+DEFAULT_ROLE = os.getenv("DEFAULT_ROLE", "operator")
+# Comma-separated emails that are promoted to admin on signup, so the first real
+# account can administer the system without a manual DB edit.
+ADMIN_EMAILS = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()}
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+# Explicit origins only. Credentialed requests cannot use "*", and an open API
+# behind cookie auth is a CSRF hole.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", FRONTEND_URL).split(",") if o.strip()]
+
+# ---------------------------------------------------------------------------
+# Rate limiting (auth endpoints only — normal app traffic is not limited)
+# ---------------------------------------------------------------------------
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "10/minute")
+RATE_LIMIT_SIGNUP = os.getenv("RATE_LIMIT_SIGNUP", "5/minute")
+RATE_LIMIT_REFRESH = os.getenv("RATE_LIMIT_REFRESH", "30/minute")

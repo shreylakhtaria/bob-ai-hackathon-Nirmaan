@@ -5,6 +5,7 @@ pydantic==2.12.5
 httpx==0.28.1
 openai>=1.30.0
 python-dotenv>=1.0.1
+slowapi>=0.1.9          # rate limiting on credential endpoints
 
 # Data / ML
 pandas>=2.2.3
