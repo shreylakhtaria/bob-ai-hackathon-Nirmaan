@@ -27,6 +27,78 @@ const QUICK_PROMPTS = [
 ];
 
 /**
+ * The model answers in light markdown: **bold**, `code`, "### headings",
+ * "> " callouts, "- " bullets and "---" rules. Rendered raw, an operator sees
+ * literal asterisks and hashes in the middle of a number, which reads like a
+ * bug. This handles exactly the marks the answer prompt produces rather than
+ * pulling in a markdown library — and it never injects HTML, so a
+ * model-authored string cannot become markup.
+ *
+ * ponytail: intentionally not a markdown parser. If the prompt ever asks for
+ * tables or links, swap in react-markdown rather than growing this.
+ */
+const inline = (line: string, key: string) => {
+  // Split on **bold** and `code`, keeping the delimiters.
+  const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={`${key}-${i}`} className="font-semibold text-ink">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={`${key}-${i}`} className="font-mono text-micro">{part.slice(1, -1)}</code>;
+    }
+    return <React.Fragment key={`${key}-${i}`}>{part}</React.Fragment>;
+  });
+};
+
+const AnswerText: React.FC<{ text: string }> = ({ text }) => (
+  <>
+    {text.split(/\r?\n/).map((raw, i) => {
+      const quote = /^\s*>\s?/.test(raw);
+      const line = raw.replace(/^\s*>\s?/, "");
+      if (!line.trim()) return <div key={i} className="h-2" aria-hidden="true" />;
+      // A rule between sections: draw the rule, not three dashes.
+      if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+        return <hr key={i} className="my-2 border-line" />;
+      }
+      // The answer prompt asks for no tables — a real table is unreadable at
+      // this width. If one arrives anyway, flatten the row instead of showing
+      // raw pipes, and drop the |---|---| separator entirely.
+      if (/^\s*\|/.test(line)) {
+        const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
+        if (cells.every((c) => /^:?-{2,}:?$/.test(c))) return null;
+        return (
+          <p key={i} className="my-0.5">{inline(cells.join(" · "), `t${i}`)}</p>
+        );
+      }
+      const heading = line.match(/^\s*(#{1,6})\s+(.*)$/);
+      if (heading) {
+        return (
+          <p key={i} className="mt-2 mb-0.5 text-micro font-semibold uppercase tracking-wide text-ink-2">
+            {inline(heading[2], `h${i}`)}
+          </p>
+        );
+      }
+      const bullet = /^\s*[-*]\s+/.test(line);
+      const body = inline(line.replace(/^\s*[-*]\s+/, ""), `l${i}`);
+      if (bullet) {
+        return (
+          <div key={i} className="flex gap-1.5">
+            <span aria-hidden="true" className="text-ink-3">&bull;</span>
+            <span>{body}</span>
+          </div>
+        );
+      }
+      return (
+        <p key={i} className={quote ? "border-l-2 border-brand/40 pl-2 my-1" : undefined}>
+          {body}
+        </p>
+      );
+    })}
+  </>
+);
+
+/**
  * Global copilot, available on every console page rather than only its own tab —
  * an operator asking "why is this critical?" is almost always already looking at
  * the thing they are asking about, and making them navigate away loses that.
@@ -159,7 +231,7 @@ export const CopilotWidget: React.FC = () => {
             {messages.map((m, i) => (
               <div key={i} className={m.sender === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div
-                  className={`max-w-[88%] rounded-xl px-3 py-2 text-label leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[88%] rounded-xl px-3 py-2 text-label leading-relaxed break-words ${
                     m.sender === "user"
                       ? "bg-brand text-white rounded-br-sm"
                       : m.failed
@@ -167,7 +239,7 @@ export const CopilotWidget: React.FC = () => {
                         : "bg-sunken text-ink border border-line rounded-bl-sm"
                   }`}
                 >
-                  {m.text}
+                  <AnswerText text={m.text} />
                   {m.recommendedAction && (
                     <div className="mt-2 pt-2 border-t border-line/60 text-micro font-semibold text-brand-ink">
                       &rsaquo; {m.recommendedAction}
