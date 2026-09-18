@@ -73,6 +73,11 @@
         a magic top padding again ── */
   --spacing-topbar: 3.5rem;
   --spacing-crumb:  2rem;
+  /* Sidebar width. Set once here and consumed by the rail, the breadcrumb, the
+     main column and the metrics drawer; the collapsed value is swapped in by a
+     data-attribute on <html> so all four move together. */
+  --spacing-rail:   15rem;
+  --spacing-rail-collapsed: 3.75rem;
 }
 
 @layer base {
@@ -277,4 +282,13 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   body { background: #ffffff !important; color: #000000 !important; }
   aside, header, button, .topbar-right, .no-print, .toast-host { display: none !important; }
   main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+}
+
+/* Collapsed sidebar: one attribute flips the shared width variable. */
+html[data-rail="collapsed"] {
+  --spacing-rail: var(--spacing-rail-collapsed);
+}
+/* The rail animates, but not for people who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .rail-anim { transition: width 160ms ease, transform 160ms ease; }
 }

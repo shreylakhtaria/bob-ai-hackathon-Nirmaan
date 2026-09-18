@@ -3,13 +3,14 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, LogIn, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const { ok, err } = useToast();
 
@@ -28,7 +29,10 @@ export default function LoginPage() {
     try {
       await login({ email, password });
       ok("Signed in successfully");
-      router.push("/overview");
+      // Return to whatever page sent us here, ignoring absolute URLs so this
+      // cannot be used as an open redirect.
+      const next = searchParams.get("next");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/overview");
     } catch (e: any) {
       err(e.message || "Invalid credentials");
     } finally {

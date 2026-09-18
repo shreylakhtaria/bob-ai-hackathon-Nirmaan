@@ -7,7 +7,8 @@ Run:  uvicorn backend.main:app --reload --port 8000
 """
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response as FastAPIResponse
+from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
+                     Response as FastAPIResponse, UploadFile)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
@@ -16,7 +17,7 @@ from . import config, db, errors
 from .deps import require_admin, require_any_role, require_operator
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
-                       operations as ops_svc, auth as auth_svc)
+                       operations as ops_svc, auth as auth_svc, ingest as ingest_svc)
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -552,6 +553,34 @@ def export(kind: str, current=Depends(require_operator)):
                                  f"Valid: {', '.join(ops_svc.EXPORTS)}")
     return Response(content=body, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+# ---------------------------------------------------------------------------
+# CSV bulk ingestion
+# ---------------------------------------------------------------------------
+async def _ingest(kind: str, file: UploadFile, actor: str, commit: bool):
+    # Read one byte past the cap only: enough to detect an oversized upload
+    # without ever buffering it. The client-supplied filename and content-type
+    # are not trusted — decode() and the CSV parser decide what this file is.
+    raw = await file.read(config.MAX_UPLOAD_BYTES + 1)
+    try:
+        return ingest_svc.run(kind, raw, actor, commit=commit)
+    except ingest_svc.IngestError as exc:
+        raise HTTPException(exc.status, exc.message)
+
+
+@app.post("/api/ingest/{kind}/validate")
+async def ingest_validate(kind: str, file: UploadFile = File(...),
+                          current=Depends(require_operator)):
+    """Dry run: full validation report, nothing written."""
+    return await _ingest(kind, file, current["email"], commit=False)
+
+
+@app.post("/api/ingest/{kind}/commit")
+async def ingest_commit(kind: str, file: UploadFile = File(...),
+                        current=Depends(require_operator)):
+    """Import the valid rows (one transaction) and report every rejected row."""
+    return await _ingest(kind, file, current["email"], commit=True)
 
 
 # ---------------------------------------------------------------------------

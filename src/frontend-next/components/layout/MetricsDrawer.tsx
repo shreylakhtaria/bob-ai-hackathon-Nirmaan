@@ -26,7 +26,7 @@ export const MetricsDrawer: React.FC<{ isOpen: boolean; onClose: () => void }> =
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-60 right-0 z-40 bg-panel border-t border-line shadow-overlay max-h-[45vh] overflow-y-auto animate-fade-in font-mono">
+    <div className="fixed bottom-0 left-0 lg:left-[var(--spacing-rail)] right-0 z-40 bg-panel border-t border-line shadow-overlay max-h-[45vh] overflow-y-auto animate-fade-in font-mono">
       <div className="px-4 py-2 bg-header border-b border-line flex items-center justify-between sticky top-0">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-brand-ink" />

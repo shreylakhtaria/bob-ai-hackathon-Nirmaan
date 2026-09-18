@@ -192,6 +192,14 @@ DEFAULT_ROLE = os.getenv("DEFAULT_ROLE", "operator")
 ADMIN_EMAILS = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()}
 
 # ---------------------------------------------------------------------------
+# CSV bulk ingestion limits (services/ingest.py)
+# ---------------------------------------------------------------------------
+# An upload is untrusted input: cap the bytes we will buffer and the rows we
+# will parse, so a single request cannot exhaust memory or the database.
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(5 * 1024 * 1024)))
+MAX_IMPORT_ROWS = int(os.getenv("MAX_IMPORT_ROWS", "10000"))
+
+# ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
 # Explicit origins only. Credentialed requests cannot use "*", and an open API

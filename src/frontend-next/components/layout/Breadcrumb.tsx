@@ -21,7 +21,7 @@ export const Breadcrumb: React.FC = () => {
   const title = CRUMB_TITLES[segment] || segment;
 
   return (
-    <div className="fixed top-topbar left-0 lg:left-60 right-0 z-30 h-crumb bg-canvas/85 backdrop-blur-sm border-b border-line px-5 flex items-center justify-between select-none">
+    <div className="fixed top-topbar left-0 lg:left-[var(--spacing-rail)] right-0 z-30 h-crumb bg-canvas/85 backdrop-blur-sm border-b border-line px-5 flex items-center justify-between select-none">
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-micro min-w-0">
         <span className="text-ink-3 shrink-0">GridOps Regional Node</span>
         <span className="text-line-strong shrink-0" aria-hidden="true">/</span>

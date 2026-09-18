@@ -9,6 +9,8 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { MetricsDrawer } from "@/components/layout/MetricsDrawer";
+import { RequireAuth } from "@/components/layout/RequireAuth";
+import { CopilotWidget } from "@/components/copilot/CopilotWidget";
 
 // Everything client-side lives here so app/layout.tsx can stay a server
 // component. That is what lets the app export Next `metadata` (per-page titles,
@@ -34,12 +36,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // not exist, and offers an irreversible action to someone with no account.
   // Auth routes get the bare frame.
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
+  // "/" is the public landing page: no nav, no auth gate, no copilot.
+  const isPublicRoute = isAuthRoute || pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          {isAuthRoute ? (
+          {isPublicRoute ? (
             <main className="min-h-screen bg-canvas flex items-center justify-center px-5 py-12">
               {children}
             </main>
@@ -60,16 +64,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
                 open={navOpen}
                 onClose={() => setNavOpen(false)}
               />
-              <div className="lg:pl-60 flex flex-col min-h-screen">
+              <div className="lg:pl-[var(--spacing-rail)] flex flex-col min-h-screen rail-anim">
                 <Breadcrumb />
                 <main
                   id="main"
                   className="w-full px-5 pb-10 bg-canvas flex-1 pt-[calc(var(--spacing-topbar)+var(--spacing-crumb)+1.25rem)]"
                 >
-                  {children}
+                  <RequireAuth>{children}</RequireAuth>
                 </main>
               </div>
               <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+              {/* Global, so "why is this critical?" can be asked from the page
+                  the operator is already looking at. */}
+              <CopilotWidget />
             </>
           )}
         </ToastProvider>

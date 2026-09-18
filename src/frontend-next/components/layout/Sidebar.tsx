@@ -11,9 +11,10 @@ import {
   Truck,
   Map as MapIcon,
   Sliders,
-  Terminal,
   FileText,
   Activity,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { API } from "@/lib/api";
 
@@ -41,7 +42,6 @@ const NAV_GROUPS = [
     heading: "Plan",
     items: [
       { id: "simulation", href: "/simulation", label: "Simulation", icon: Sliders },
-      { id: "copilot", href: "/copilot", label: "Copilot", icon: Terminal },
       { id: "operator-brief", href: "/operator-brief", label: "Operator Brief", icon: FileText },
     ],
   },
@@ -56,6 +56,26 @@ export const Sidebar: React.FC<{
   onClose?: () => void;
 }> = ({ onOpenMetrics, open = false, onClose }) => {
   const pathname = usePathname();
+  // Collapsed to an icon rail. Persisted because it is a workspace preference:
+  // an operator who wants the map wide should not re-collapse it every visit.
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("grid_rail_collapsed") === "1";
+    setCollapsed(saved);
+    document.documentElement.dataset.rail = saved ? "collapsed" : "expanded";
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      // The width lives in a CSS variable on <html>, so the breadcrumb, main
+      // column and metrics drawer follow without each tracking this state.
+      document.documentElement.dataset.rail = next ? "collapsed" : "expanded";
+      localStorage.setItem("grid_rail_collapsed", next ? "1" : "0");
+      return next;
+    });
+  };
   const [stats, setStats] = useState<{ telemetryRows?: number; activeOutages?: number }>({});
 
   // Route changed: the drawer has done its job.
@@ -96,16 +116,20 @@ export const Sidebar: React.FC<{
       )}
       <aside
         aria-label="Console sections"
-        className={`fixed left-0 top-topbar bottom-0 w-60 bg-rail border-r border-line z-40 flex flex-col justify-between overflow-y-auto select-none transition-transform lg:translate-x-0 ${
+        className={`rail-anim fixed left-0 top-topbar bottom-0 w-[var(--spacing-rail)] bg-rail border-r border-line z-40 flex flex-col justify-between overflow-x-hidden overflow-y-auto select-none lg:translate-x-0 ${
           open ? "translate-x-0 shadow-overlay" : "-translate-x-full"
         }`}
       >
       <nav className="py-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.heading} className="mb-4 last:mb-0">
-            <div className="px-4 pb-1.5 text-micro uppercase font-semibold text-ink-3 tracking-[0.09em]">
-              {group.heading}
-            </div>
+            {collapsed ? (
+              <div className="mx-3 mb-1.5 border-t border-line" aria-hidden="true" />
+            ) : (
+              <div className="px-4 pb-1.5 text-micro uppercase font-semibold text-ink-3 tracking-[0.09em]">
+                {group.heading}
+              </div>
+            )}
             <ul className="space-y-0.5 px-2">
               {group.items.map((item) => {
                 const Icon = item.icon;
@@ -118,7 +142,10 @@ export const Sidebar: React.FC<{
                     <Link
                       href={item.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`relative flex items-center gap-3 rounded-lg pl-3.5 pr-3 min-h-9 text-label transition-colors ${
+                      title={collapsed ? item.label : undefined}
+                      className={`relative flex items-center rounded-lg min-h-9 text-label transition-colors ${
+                        collapsed ? "justify-center px-0" : "gap-3 pl-3.5 pr-3"
+                      } ${
                         isActive
                           ? "bg-panel text-ink font-semibold shadow-panel"
                           : "text-ink-2 font-medium hover:bg-sunken hover:text-ink"
@@ -136,7 +163,10 @@ export const Sidebar: React.FC<{
                         className={`w-4 h-4 shrink-0 ${isActive ? "text-brand" : "text-ink-3"}`}
                         aria-hidden="true"
                       />
-                      {item.label}
+                      {/* Kept in the accessible tree when collapsed: a screen
+                          reader still needs the destination name, even though
+                          the label is visually hidden. */}
+                      <span className={collapsed ? "sr-only" : undefined}>{item.label}</span>
                     </Link>
                   </li>
                 );
@@ -147,7 +177,7 @@ export const Sidebar: React.FC<{
       </nav>
 
       <div className="p-3 border-t border-line bg-canvas/60">
-        <div className="rounded-lg border border-line bg-panel p-3 space-y-2">
+        <div className={`rounded-lg border border-line bg-panel p-3 space-y-2 ${collapsed ? "hidden" : ""}`}>
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-micro text-ink-3">Telemetry rows</span>
             <span className="font-mono text-label font-semibold text-ink">
@@ -162,7 +192,7 @@ export const Sidebar: React.FC<{
           </div>
         </div>
 
-        <div className="mt-2.5 flex justify-center">
+        <div className={`mt-2.5 flex justify-center ${collapsed ? "hidden" : ""}`}>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-sunken px-2.5 py-1 text-micro font-semibold text-ink-2 uppercase tracking-wide">
             <span className="w-1.5 h-1.5 rounded-full bg-sev-watch" aria-hidden="true" />
             Simulation data
@@ -172,12 +202,28 @@ export const Sidebar: React.FC<{
         {onOpenMetrics && (
           <button
             onClick={onOpenMetrics}
+            title={collapsed ? "Metrics & health" : undefined}
             className="w-full mt-2.5 min-h-9 rounded-lg border border-line bg-panel hover:bg-sunken text-ink text-label font-medium flex items-center justify-center gap-2"
           >
             <Activity className="w-4 h-4 text-ink-3" aria-hidden="true" />
-            Metrics &amp; health
+            <span className={collapsed ? "sr-only" : undefined}>Metrics &amp; health</span>
           </button>
           )}
+
+        {/* Collapse control. Desktop only: under lg the rail is already a
+            dismissible drawer, so a second collapsed state would just be a
+            confusing third mode. */}
+        <button
+          onClick={toggleCollapsed}
+          aria-pressed={collapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden lg:flex w-full mt-2 min-h-9 rounded-lg border border-transparent hover:border-line hover:bg-sunken text-ink-3 hover:text-ink text-label font-medium items-center justify-center gap-2"
+        >
+          {collapsed
+            ? <PanelLeftOpen className="w-4 h-4" aria-hidden="true" />
+            : <PanelLeftClose className="w-4 h-4" aria-hidden="true" />}
+          <span className={collapsed ? "sr-only" : undefined}>Collapse</span>
+        </button>
         </div>
       </aside>
     </>

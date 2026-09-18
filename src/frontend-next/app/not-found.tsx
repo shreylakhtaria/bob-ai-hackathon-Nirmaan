@@ -14,7 +14,6 @@ const sections = [
   { href: "/crews", label: "Crews" },
   { href: "/grid-map", label: "Grid Map" },
   { href: "/simulation", label: "Simulation" },
-  { href: "/copilot", label: "Copilot" },
 ];
 
 export default function NotFound() {
