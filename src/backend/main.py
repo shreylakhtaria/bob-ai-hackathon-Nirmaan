@@ -18,7 +18,8 @@ from .deps import require_admin, require_any_role, require_operator
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
                        operations as ops_svc, auth as auth_svc, ingest as ingest_svc,
-                       resolution as resolution_svc, risk as risk_svc)
+                       resolution as resolution_svc, risk as risk_svc,
+                       mcp as mcp_svc)
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -114,6 +115,13 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class McpCallRequest(BaseModel):
+    tool: str = Field(max_length=64)
+    arguments: dict = Field(default_factory=dict)
+    # Required for mutating tools; issued by /api/mcp/confirm.
+    confirmation_token: Optional[str] = Field(default=None, max_length=64)
 
 
 class CompleteWorkOrderRequest(BaseModel):
@@ -623,6 +631,32 @@ def risk_recalculate(current=Depends(require_operator)):
     result = risk_svc.recalculate(reason=f"manual:{current['email']}")
     db.audit(current["email"], "risk_recalculate", result)
     return result
+
+
+# ---------------------------------------------------------------------------
+# MCP tool surface
+# ---------------------------------------------------------------------------
+@app.get("/api/mcp/tools")
+def mcp_tools(current=Depends(require_any_role)):
+    """Tools this caller is allowed to use — the model is never offered more."""
+    return {"tools": mcp_svc.list_tools(current)}
+
+
+@app.post("/api/mcp/confirm")
+def mcp_confirm(req: McpCallRequest, current=Depends(require_any_role)):
+    """Describe a mutating action and issue a single-use confirmation token.
+
+    Nothing executes here. This is the step that keeps a person between the
+    model's inference and a crew actually being dispatched.
+    """
+    return mcp_svc.prepare_confirmation(req.tool, req.arguments, current)
+
+
+@app.post("/api/mcp/call")
+def mcp_call(req: McpCallRequest, current=Depends(require_any_role)):
+    """Execute an allowlisted tool. Mutating tools require a confirmation token."""
+    _require_seeded()
+    return mcp_svc.execute(req.tool, req.arguments, current, req.confirmation_token)
 
 
 # 404s

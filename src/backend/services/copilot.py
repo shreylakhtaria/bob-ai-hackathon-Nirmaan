@@ -122,6 +122,36 @@ TOOL_SCHEMA = [
         "parameters": {"type": "object", "properties": {}}}},
 ]
 
+
+# ---------------------------------------------------------------------------
+# Tool execution guard
+# ---------------------------------------------------------------------------
+# Every tool in TOOLS above is read-only. That is a property this module must
+# keep: the copilot runs tools on the model's say-so, with no human confirmation
+# step, so a mutating tool reachable from here could dispatch a crew because a
+# sentence sounded like approval. Mutating actions live behind the MCP surface
+# (services/mcp.py), which requires an explicit single-use confirmation token.
+READ_ONLY_TOOLS = frozenset(TOOLS)
+
+
+def _run_tool(name: str, args: dict):
+    """Execute an allowlisted read-only tool, auditing the call.
+
+    Lookup is by exact key in a fixed dict — never getattr, eval, or a name the
+    model supplies being resolved some other way.
+    """
+    if name not in READ_ONLY_TOOLS:
+        db.audit("copilot", "tool_refused", {"tool": name})
+        return {"error": f"Tool '{name}' is not available to the copilot"}
+    try:
+        result = TOOLS[name](**(args or {}))
+        db.audit("copilot", "tool_call", {"tool": name, "args": args, "outcome": "ok"})
+        return result
+    except Exception as exc:                      # never crash the whole answer
+        db.audit("copilot", "tool_call", {"tool": name, "args": args, "outcome": "error"})
+        return {"error": str(exc)}
+
+
 ASSET_RE = re.compile(r"\b([A-Z]{1,3}-\d{3,5})\b", re.I)
 AREA_RE = re.compile(r"\b([A-Z]+-\d{2})\b", re.I)
 
@@ -350,7 +380,9 @@ def _answer_bob_cli(query: str):
         "asset id, or area that isn't present in the JSON; if it doesn't contain "
         "enough to answer, say so plainly. This is a data-analysis question "
         "only, not a coding task - no file or workspace tools are needed. "
-        "Respond with a concise, operational markdown answer. The data is "
+        "Respond with a concise, operational markdown answer. The answer is "
+        "shown in a narrow chat panel, so use short paragraphs, '- ' bullets "
+        "and '**bold**' only - no markdown tables, no code fences. The data is "
         "clearly-labelled SIMULATION data.\n\n"
         f"Question: {query}\n\n"
         f"JSON data:\n{json.dumps(evidence, default=str)[:8000]}"
@@ -447,7 +479,7 @@ def _answer_watsonx(query: str):
                 name = call["function"]["name"]
                 args = json.loads(call["function"].get("arguments") or "{}")
                 try:
-                    result = TOOLS[name](**args)
+                    result = _run_tool(name, args)
                 except Exception as e:  # never crash on a bad tool call
                     result = {"error": str(e)}
                 evidence.append({"tool": name, "args": args, "result": result})
@@ -482,7 +514,7 @@ def _answer_llm(query: str):
             name = call.function.name
             args = json.loads(call.function.arguments or "{}")
             try:
-                result = TOOLS[name](**args)
+                result = _run_tool(name, args)
             except Exception as e:  # never crash on a bad tool call
                 result = {"error": str(e)}
             evidence.append({"tool": name, "args": args, "result": result})
