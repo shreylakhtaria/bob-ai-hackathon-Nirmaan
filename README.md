@@ -43,11 +43,25 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
   maintenance queue (raw probability alone is a poor ranking signal).
 - **What-if simulation** — simulate an asset failure or a severe-weather event and see
   customers affected, downstream assets, nearest crew and estimated outage duration.
-- **Grounded AI copilot on IBM watsonx.ai** — answers operator questions using only
-  real backend tool results and cites the exact tool calls behind each answer. It runs
-  true function-calling against watsonx.ai's `/ml/v1/text/chat` API when credentials are
-  present, and falls back to a deterministic grounded router otherwise — so it works
-  with no API key at all.
+- **Grounded AI copilot on IBM Bob** — a floating copilot on every page answers
+  operator questions using only real backend tool results, and cites the exact tool
+  calls behind each answer. It runs **IBM Bob** in headless mode (`bob run --mode ask`)
+  when `BOB_API_KEY` is set, then IBM **watsonx.ai** `/ml/v1/text/chat` function-calling,
+  then any OpenAI-compatible provider, and finally a deterministic grounded router — so
+  it works with no API key at all. It can never reach a tool that writes.
+- **MCP tool layer** — the AI's action surface is an explicit allowlist with per-tool,
+  per-role authorization checked server-side, schema-validated arguments, and a
+  single-use human confirmation token for anything that mutates. Every call is audited,
+  including the refusals. See [`docs/security.md`](docs/security.md).
+- **Authentication & RBAC** — split access/refresh tokens in HttpOnly cookies with CSRF
+  double-submit, PBKDF2 password hashing and three roles (admin / operator / crew)
+  derived server-side from the signed token. Every one of the 40+ API routes is guarded.
+- **CSV data onboarding** — bring your own crew and asset records. Every file is
+  validated as a dry run first: you see exactly which rows are rejected, with line
+  number, field and value, before anything is written.
+- **Closed resolution loop** — completing a work order writes maintenance history,
+  stamps the asset, releases the crew and re-derives risk through the real scoring
+  pipeline, so the map and the queue actually change.
 - **Closed-loop operator actions** — dispatch a crew, schedule or defer a job,
   pre-position crews, acknowledge alerts and export CSVs. Each one writes a real work
   order, changes crew availability and is recorded in an audit log — nothing in the UI
@@ -61,10 +75,11 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 |---|---|
 | **Languages** | Python, JavaScript, SQL |
 | **Frameworks** | FastAPI, Pydantic, Uvicorn |
-| **IBM Technologies** | **IBM watsonx.ai** — `/ml/v1/text/chat` tool-calling API (default model `ibm/granite-3-8b-instruct`), authenticated via IBM Cloud IAM |
-| **AI / LLM copilot** | watsonx.ai first, then Nebius / OpenAI / Azure OpenAI as alternates; grounded local tool-router when no key is set |
+| **IBM Technologies** | **IBM Bob** (headless CLI, `bob run --mode ask`) · **IBM watsonx.ai** `/ml/v1/text/chat` tool-calling API (default model `ibm/granite-3-8b-instruct`), authenticated via IBM Cloud IAM · IBM Plex type |
+| **AI / LLM copilot** | IBM Bob first, then watsonx.ai, then Nebius / OpenAI / Azure OpenAI as alternates; grounded local tool-router when no key is set |
 | **Databases** | SQLite (documented one-line swap to PostgreSQL, see [`docs/architecture.md`](docs/architecture.md)) |
-| **Frontend & UI** | Build-free static SPA — HTML/JS, Tailwind CSS (CDN), Leaflet (map), Chart.js (sensor trends) |
+| **Frontend & UI** | Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · TanStack Query · Leaflet (map) · Chart.js (sensor trends) |
+| **Security** | Split access/refresh tokens, PBKDF2-HMAC-SHA256, HttpOnly cookies, CSRF double-submit, role-based route guards, slowapi rate limiting |
 | **AI / ML** | Pandas, NumPy, Scikit-learn, LightGBM, IsolationForest, SHAP |
 | **Ops** | Docker, docker-compose |
 
@@ -81,6 +96,7 @@ output or database row. All data is clearly labelled **SIMULATION DATA**. See
 │   ├── problem-statement.md
 │   ├── solution-overview.md
 │   ├── architecture.md
+│   ├── security.md       # auth, RBAC, MCP tools, CSV format, risk recalc
 │   └── setup-guide.md
 ├── demo/                 # Demo artifacts
 │   ├── screenshots/      # App screenshots
@@ -115,6 +131,21 @@ cd frontend-next && npm run dev
 # → open http://localhost:3000
 ```
 
+Create an account at `/signup`. The first account is an **operator**; to get **admin**,
+set `ADMIN_EMAILS=you@example.com` before signing up. Roles are never taken from the
+request body.
+
+| Environment variable | Default | What it does |
+|---|---|---|
+| `ENVIRONMENT` | `development` | `production` enables secure cookies and hides error detail |
+| `AUTH_SECRET_KEY` | dev value | Token signing key. **Required** in production — the app refuses to start on the default |
+| `ADMIN_EMAILS` | *(empty)* | Comma-separated emails that get the `admin` role at signup |
+| `FRONTEND_URL` | `http://localhost:3000` | Sole allowed CORS origin (credentials are sent, so no wildcard) |
+| `BOB_API_KEY` | *(empty)* | Enables the IBM Bob copilot path (needs the `bob` CLI on PATH) |
+| `WATSONX_API_KEY` / `WATSONX_PROJECT_ID` | *(empty)* | Enables the watsonx.ai copilot path |
+| `RATE_LIMIT_ENABLED` | `true` | Rate limiting on the credential endpoints |
+| `API_PROXY_TARGET` | `http://127.0.0.1:8000` | Where the Next.js dev/prod server proxies `/api/*` |
+
 Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 
 ---
@@ -144,6 +175,19 @@ Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 - The crew pre-positioning optimiser is a greedy heuristic, not a full OR-Tools LP solve.
 - Work orders model dispatch/scheduling state but there is no downstream CMMS
   (Maximo/SAP PM) integration — exports are CSV.
+- The UI is built on **IBM Plex** type and a purpose-built control-room token system,
+  not the `@carbon/react` component library. `@carbon/react` is a dependency but has
+  zero imports: adopting its components means loading Carbon's global stylesheet, which
+  fights the Tailwind `@theme` tokens this console's density and colour rules are built
+  on. Treat the Carbon alignment as typographic, not component-level.
+- The data layer is raw parameterised `sqlite3` throughout (~134 statements), not an
+  ORM. Every query is parameterised and schema changes go through `db.SCHEMA`, but
+  there is no migration tool.
+- Backend has 108 tests; the frontend has none. Type safety is enforced by `tsc`, and
+  the flows were verified manually end to end, but there is no automated UI test.
+- Risk recalculation re-scores the whole asset population (~7s) because Grid Impact
+  normalises customer and network exposure across all assets. It runs after the write
+  transaction commits, so it never holds the database lock.
 
 ---
 
