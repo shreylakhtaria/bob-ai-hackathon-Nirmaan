@@ -26,7 +26,18 @@ def _haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.asin(math.sqrt(a))
 
 
+# A crew or asset with no coordinates has no travel time. Every caller here,
+# in operations.py and in simulation.py funnels through this function and then
+# either sorts or takes a min on the result, so returning a sentinel that sorts
+# last keeps an unlocated crew selectable only when nothing else is, instead of
+# raising a 500 out of dispatch. CSV onboarding accepts a crew row with only a
+# crew_id, so this input is reachable from the outside.
+UNKNOWN_TRAVEL_MIN = 10_000.0
+
+
 def _travel_min(lat1, lon1, lat2, lon2):
+    if None in (lat1, lon1, lat2, lon2):
+        return UNKNOWN_TRAVEL_MIN
     km = _haversine(lat1, lon1, lat2, lon2)
     return km / config.CREW_SPEED_KMPH * 60.0
 

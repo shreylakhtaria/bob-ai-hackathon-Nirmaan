@@ -51,11 +51,9 @@ const KIND_SPEC: Record<
   crews: {
     label: "Crews",
     blurb: "Field crews, their home area and availability.",
-    required: ["crew_id"],
+    required: ["crew_id", "latitude", "longitude"],
     optional: [
       "current_area",
-      "latitude",
-      "longitude",
       "skill_type",
       "availability",
       "equipment_capability",

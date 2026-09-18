@@ -150,12 +150,18 @@ happens.
 
 | | `crews` | `assets` |
 |---|---|---|
-| Required | `crew_id` | `asset_id`, `asset_type`, `substation_id`, `geographic_area` |
-| Optional | `current_area`, `latitude`, `longitude`, `skill_type`, `availability`, `equipment_capability`, `base_response_min`, `active_assignment` | `latitude`, `longitude`, `installation_year`, `manufacturer`, `rated_capacity`, `criticality_score`, `customers_served`, `downstream_assets`, `last_maintenance_date`, `current_status` |
+| Required | `crew_id`, `latitude`, `longitude` | `asset_id`, `asset_type`, `substation_id`, `geographic_area` |
+| Optional | `current_area`, `skill_type`, `availability`, `equipment_capability`, `base_response_min`, `active_assignment` | `latitude`, `longitude`, `installation_year`, `manufacturer`, `rated_capacity`, `criticality_score`, `customers_served`, `downstream_assets`, `last_maintenance_date`, `current_status` |
 
 Columns match `db.SCHEMA` exactly and `required` mirrors the PRIMARY KEY / NOT
 NULL constraints, so a file that passes validation is a file the database will
-accept.
+accept. Crew coordinates are the one deliberate addition: the column is nullable
+in the schema, but every dispatch and pre-positioning decision ranks crews by
+travel time from their position, so a crew imported without one can be created
+and never sensibly assigned. It is rejected at import, where the operator can
+still fix the file. (`crew._travel_min` also treats a missing coordinate as an
+unknown, sorting-last travel time rather than raising, so no other path into the
+database can take dispatch down.)
 
 Rules:
 

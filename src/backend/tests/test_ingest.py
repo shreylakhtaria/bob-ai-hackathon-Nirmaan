@@ -143,8 +143,8 @@ def test_invalid_rows_are_reported_with_row_numbers(tokens, cleanup):
 def test_unknown_columns_are_reported_not_silently_ignored(tokens, cleanup):
     cid = _uid()
     cleanup["crews"].append(cid)
-    body = ("crew_id,current_area,wat,DROP TABLE crews\n"
-            f"{cid},NORTH-04,x,y\n")
+    body = ("crew_id,current_area,latitude,longitude,wat,DROP TABLE crews\n"
+            f"{cid},NORTH-04,40.71,-74.01,x,y\n")
     r = _post("/api/ingest/crews/commit", body, tokens["operator"])
     rep = r.json()
     assert rep["imported"] == 1
@@ -250,3 +250,14 @@ def test_ingest_requires_operator_role(tokens, cleanup):
         assert client.post(path, files={"file": ("u.csv", body, "text/csv")}).status_code == 401
         assert _post(path, body, tokens["crew"]).status_code == 403
         assert _post(path, body, tokens["admin"]).status_code == 200
+
+
+def test_crew_without_coordinates_is_rejected(tokens):
+    """A crew with no position crashed dispatch with a 500: every assignment is
+    ranked by travel time from the crew's location. It is refused at import."""
+    r = _post("/api/ingest/crews/validate",
+              f"crew_id,current_area,latitude,longitude\n{_uid()},NORTH-04,,\n",
+              tokens["operator"])
+    rep = r.json()
+    assert rep["valid"] == 0 and rep["invalid"] == 1
+    assert {e["field"] for e in rep["errors"]} == {"latitude", "longitude"}

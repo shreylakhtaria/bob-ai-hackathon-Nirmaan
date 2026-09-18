@@ -184,3 +184,13 @@ def test_full_resolution_recalculates_risk_end_to_end():
     assert out["risk_before"] and out["risk_after"]
     # The asset must still have a coherent prediction afterwards.
     assert 0 <= out["risk_after"]["grid_impact_score"] <= 100
+
+
+def test_travel_time_survives_a_crew_with_no_coordinates():
+    """Guards every dispatch and pre-positioning path at once: they all reduce
+    to crew._travel_min, which used to raise TypeError on a NULL position."""
+    from backend.services import crew as crew_svc
+    assert crew_svc._travel_min(None, None, 40.7, -74.0) == crew_svc.UNKNOWN_TRAVEL_MIN
+    assert crew_svc._travel_min(40.7, -74.0, None, None) == crew_svc.UNKNOWN_TRAVEL_MIN
+    # An unlocated crew must sort behind a located one, never ahead of it.
+    assert crew_svc._travel_min(40.7, -74.0, 41.9, -72.7) < crew_svc.UNKNOWN_TRAVEL_MIN

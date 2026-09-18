@@ -46,13 +46,13 @@ def _text(required=False):
     return check
 
 
-def _num(cast, lo=None, hi=None):
+def _num(cast, lo=None, hi=None, required=False):
     kind = "an integer" if cast is int else "a number"
 
     def check(raw):
         s = (raw or "").strip()
         if not s:
-            return None, None
+            return (None, "must not be empty") if required else (None, None)
         try:
             v = cast(float(s)) if cast is int else cast(s)
         except ValueError:
@@ -81,12 +81,17 @@ def _enum(allowed):
 SPECS = {
     "crews": {
         "pk": "crew_id",
-        "required": ["crew_id"],
+        # Coordinates are required even though the column is nullable in the
+        # schema: every dispatch and pre-positioning decision is ranked by
+        # travel time from the crew's position, so a crew imported without one
+        # is a crew that can be created but never sensibly assigned. Better to
+        # reject the row at import, where the operator can still fix the file.
+        "required": ["crew_id", "latitude", "longitude"],
         "columns": {
             "crew_id": _text(required=True),
             "current_area": _text(),
-            "latitude": _num(float, -90, 90),
-            "longitude": _num(float, -180, 180),
+            "latitude": _num(float, -90, 90, required=True),
+            "longitude": _num(float, -180, 180, required=True),
             "skill_type": _text(),
             "availability": _enum({"AVAILABLE", "ON_JOB", "OFF"}),
             "equipment_capability": _text(),
