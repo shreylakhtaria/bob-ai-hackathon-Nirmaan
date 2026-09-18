@@ -261,42 +261,67 @@ export const Topbar: React.FC = () => {
 
           <div className="h-6 w-px bg-[#c0c9c0] mx-0.5" />
 
-          {/* User Profile / Auth */}
-          <div className="relative" ref={userRef}>
-            <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 pl-1 hover:opacity-90"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#0f5132] text-white flex items-center justify-center border border-[#c0c9c0] flex-shrink-0 shadow-sm">
-                <User className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[12px] font-semibold text-[#0b1c30] leading-tight font-sans">
-                  {user ? user.email.split("@")[0] : "M. O'Connell"}
-                </span>
-                <span className="font-mono text-[10px] text-[#707971] leading-tight uppercase">
-                  {user ? `${user.role} - RC4` : "Lead Dispatcher - RC4"}
-                </span>
-              </div>
-            </button>
-
-            {userMenuOpen && user && (
-              <div className="absolute right-0 top-10 w-44 bg-white border border-[#c0c9c0] rounded-lg shadow-xl z-50 py-1 font-mono text-[11px] animate-fade-in">
-                <div className="px-3 py-1.5 border-b border-[#c0c9c0]/50 text-[#707971]">
-                  Signed in as <strong className="text-[#0b1c30]">{user.email}</strong>
+          {/* User Profile & Logout */}
+          <div className="flex items-center gap-2" ref={userRef}>
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-1 hover:opacity-90"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#0f5132] text-white flex items-center justify-center border border-[#c0c9c0] flex-shrink-0 shadow-sm">
+                  <User className="w-4 h-4" />
                 </div>
-                <button
-                  onClick={() => {
-                    logout();
-                    setUserMenuOpen(false);
-                    ok("Logged out successfully");
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[#ffdad6]/40 text-[#ba1a1a] flex items-center gap-1.5 font-bold"
-                >
-                  <LogOut className="w-3.5 h-3.5" /> Logout
-                </button>
-              </div>
-            )}
+                <div className="flex flex-col text-left">
+                  <span className="text-[12px] font-semibold text-[#0b1c30] leading-tight font-sans">
+                    {user ? user.email.split("@")[0] : "M. O'Connell"}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#707971] leading-tight uppercase">
+                    {user ? `${user.role} - RC4` : "Lead Dispatcher - RC4"}
+                  </span>
+                </div>
+              </button>
+
+              {userMenuOpen && user && (
+                <div className="absolute right-0 top-10 w-48 bg-white border border-[#c0c9c0] rounded-lg shadow-xl z-50 py-1 font-mono text-[11px] animate-fade-in">
+                  <div className="px-3 py-1.5 border-b border-[#c0c9c0]/50 text-[#707971]">
+                    Signed in as <strong className="text-[#0b1c30]">{user.email}</strong>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/profile");
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[#eff4ff] text-[#0b1c30] flex items-center gap-1.5 font-medium border-b border-[#c0c9c0]/40"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#0f5132]" /> Operator Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setUserMenuOpen(false);
+                      ok("Logged out successfully");
+                      router.push("/login");
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[#ffdad6]/40 text-[#ba1a1a] flex items-center gap-1.5 font-bold"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                logout();
+                ok("Logged out successfully");
+                router.push("/login");
+              }}
+              className="h-8 px-2.5 bg-[#eff4ff] hover:bg-[#ffdad6] text-[#0b1c30] hover:text-[#ba1a1a] border border-[#c0c9c0] rounded-md transition-colors flex items-center gap-1.5 font-mono text-[11px] font-semibold ml-1 shadow-sm"
+              title="Sign out of operator console"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>

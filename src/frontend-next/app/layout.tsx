@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/context/AuthContext";
+import { usePathname, useRouter } from "next/navigation";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { Topbar } from "@/components/layout/Topbar";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -19,9 +20,45 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: React.ReactNode }) {
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { token, isLoading } = useAuth();
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
 
+  useEffect(() => {
+    if (!isLoading && !token && !isAuthPage) {
+      router.replace("/login");
+    }
+  }, [isLoading, token, isAuthPage, router]);
+
+  if (isAuthPage) {
+    return <main className="min-h-screen bg-[#f8f9ff]">{children}</main>;
+  }
+
+  if (isLoading || !token) {
+    return (
+      <div className="min-h-screen bg-[#f8f9ff] flex items-center justify-center font-mono text-xs text-[#707971]">
+        Redirecting to operator authentication...
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Topbar />
+      <Sidebar onOpenMetrics={() => setMetricsOpen(true)} />
+      <div className="pl-64 flex flex-col min-h-screen">
+        <Breadcrumb />
+        <main className="w-full pt-24 px-4 pb-8 bg-[#f8f9ff] flex-1">{children}</main>
+      </div>
+      <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+    </>
+  );
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -40,15 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ToastProvider>
-              <Topbar />
-              <Sidebar onOpenMetrics={() => setMetricsOpen(true)} />
-              <div className="pl-64 flex flex-col min-h-screen">
-                <Breadcrumb />
-                <main className="w-full pt-24 px-4 pb-8 bg-[#f8f9ff] flex-1">
-                  {children}
-                </main>
-              </div>
-              <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+              <AppShell>{children}</AppShell>
             </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>

@@ -112,6 +112,66 @@ def get_current_user(authorization: str = Header(default=None)) -> dict:
     return verify_token(authorization.split(" ", 1)[1].strip())
 
 
+def get_user_by_id(user_id: int) -> dict:
+    user = db.query_one("SELECT * FROM users WHERE id=?", (user_id,))
+    if not user:
+        raise HTTPException(404, "User not found")
+    return user
+
+
+def update_profile(
+    user_id: int,
+    display_name: str = None,
+    title: str = None,
+    department: str = None,
+    phone: str = None,
+    current_password: str = None,
+    new_password: str = None,
+) -> dict:
+    user = get_user_by_id(user_id)
+    updates = []
+    params = []
+
+    if display_name is not None:
+        updates.append("display_name=?")
+        params.append(display_name.strip())
+    if title is not None:
+        updates.append("title=?")
+        params.append(title.strip())
+    if department is not None:
+        updates.append("department=?")
+        params.append(department.strip())
+    if phone is not None:
+        updates.append("phone=?")
+        params.append(phone.strip())
+
+    if new_password:
+        if not current_password:
+            raise HTTPException(400, "Current password is required to set a new password")
+        if not _verify_password(current_password, user["password_hash"]):
+            raise HTTPException(400, "Incorrect current password")
+        if len(new_password) < 8:
+            raise HTTPException(422, "New password must be at least 8 characters")
+        updates.append("password_hash=?")
+        params.append(_hash_password(new_password))
+
+    if updates:
+        params.append(user_id)
+        with db.session() as conn:
+            conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id=?", params)
+        db.audit(user["email"], "UPDATE_PROFILE", {"updated_fields": [u.split("=")[0] for u in updates]})
+
+    return get_user_by_id(user_id)
+
+
 def public_user(user: dict) -> dict:
-    return {"id": user["id"], "email": user["email"], "role": user["role"],
-            "created_at": user["created_at"]}
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "role": user["role"],
+        "display_name": user.get("display_name") or user["email"].split("@")[0],
+        "title": user.get("title") or "Grid Operator",
+        "department": user.get("department") or "RC4 Operations",
+        "phone": user.get("phone") or "",
+        "created_at": user["created_at"],
+    }

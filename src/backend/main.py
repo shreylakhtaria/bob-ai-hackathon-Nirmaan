@@ -87,6 +87,15 @@ def health():
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
+class ProfileUpdateRequest(BaseModel):
+    display_name: Optional[str] = None
+    title: Optional[str] = None
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = Field(None, min_length=8)
+
+
 @app.post("/api/auth/signup")
 def auth_signup(req: SignupRequest):
     user = auth_svc.signup(req.email, req.password)
@@ -101,7 +110,22 @@ def auth_login(req: LoginRequest):
 
 @app.get("/api/auth/me")
 def auth_me(current=Depends(auth_svc.get_current_user)):
-    return {"id": current["uid"], "email": current["email"], "role": current["role"]}
+    user = auth_svc.get_user_by_id(current["uid"])
+    return auth_svc.public_user(user)
+
+
+@app.put("/api/auth/profile")
+def auth_update_profile(req: ProfileUpdateRequest, current=Depends(auth_svc.get_current_user)):
+    user = auth_svc.update_profile(
+        user_id=current["uid"],
+        display_name=req.display_name,
+        title=req.title,
+        department=req.department,
+        phone=req.phone,
+        current_password=req.current_password,
+        new_password=req.new_password,
+    )
+    return {"message": "Profile updated successfully", "user": auth_svc.public_user(user)}
 
 
 @app.get("/api/model/metrics")

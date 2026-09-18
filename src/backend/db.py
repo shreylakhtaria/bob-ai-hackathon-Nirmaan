@@ -173,6 +173,10 @@ CREATE TABLE IF NOT EXISTS users (
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'operator',
+    display_name  TEXT,
+    title         TEXT,
+    department    TEXT,
+    phone         TEXT,
     created_at    TEXT NOT NULL
 );
 """
@@ -211,6 +215,10 @@ def init_db():
         conn.executescript(SCHEMA)
         _ensure_column(conn, "alerts", "acknowledged", "acknowledged INTEGER DEFAULT 0")
         _ensure_column(conn, "alerts", "acknowledged_at", "acknowledged_at TEXT")
+        _ensure_column(conn, "users", "display_name", "display_name TEXT")
+        _ensure_column(conn, "users", "title", "title TEXT")
+        _ensure_column(conn, "users", "department", "department TEXT")
+        _ensure_column(conn, "users", "phone", "phone TEXT")
 
 
 def reset_db():

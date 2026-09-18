@@ -14,7 +14,7 @@ import type {
   BriefResponse,
   ModelMetrics,
 } from "@/types/grid";
-import type { AuthResponse, LoginRequest, SignupRequest, User } from "@/types/auth";
+import type { AuthResponse, LoginRequest, ProfileUpdateRequest, SignupRequest, User } from "@/types/auth";
 
 const API_BASE = "/api";
 
@@ -66,6 +66,8 @@ export const API = {
   login: (data: LoginRequest) =>
     apiRequest<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
   me: () => apiRequest<User>("/auth/me"),
+  updateProfile: (data: ProfileUpdateRequest) =>
+    apiRequest<{ message: string; user: User }>("/auth/profile", { method: "PUT", body: JSON.stringify(data) }),
 
   // System & Health
   health: () => apiRequest<{ status: string; seeded: boolean; is_simulation: boolean; now?: string }>("/health"),

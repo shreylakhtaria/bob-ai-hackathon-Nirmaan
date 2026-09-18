@@ -14,6 +14,7 @@ import {
   Terminal,
   FileText,
   Activity,
+  User as UserIcon,
 } from "lucide-react";
 import { API } from "@/lib/api";
 
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { id: "simulation", href: "/simulation", label: "Simulation", icon: Sliders },
   { id: "copilot", href: "/copilot", label: "Copilot", icon: Terminal },
   { id: "operator-brief", href: "/operator-brief", label: "Operator Brief", icon: FileText },
+  { id: "profile", href: "/profile", label: "Operator Profile", icon: UserIcon },
 ];
 
 export const Sidebar: React.FC<{ onOpenMetrics?: () => void }> = ({ onOpenMetrics }) => {
