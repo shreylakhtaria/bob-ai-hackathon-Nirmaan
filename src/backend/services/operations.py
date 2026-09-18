@@ -323,10 +323,26 @@ def export_csv(kind):
     return f"grid-{kind}-{stamp}.csv", _csv(rows, EXPORTS[kind])
 
 
-def operations_log(limit=50):
-    """Recent operator + engine actions, for the Runs Log / audit views."""
+# Account/security events. They live in the same table as operational actions but
+# are a different audience: an operator's Runs Log should show grid work, not who
+# failed a password. Admins see the unfiltered stream.
+SECURITY_ACTIONS = ("LOGIN", "LOGIN_FAILED", "SIGNUP", "LOGOUT", "LOGOUT_ALL")
+
+
+def operations_log(limit=50, include_security=False):
+    """Recent operator + engine actions, for the Runs Log / audit views.
+
+    `include_security=True` (admins only) also returns authentication events.
+    """
+    if include_security:
+        return db.query(
+            "SELECT id, ts, actor, action, detail FROM audit_log ORDER BY id DESC LIMIT ?",
+            (limit,))
+    placeholders = ",".join("?" * len(SECURITY_ACTIONS))
     return db.query(
-        "SELECT id, ts, actor, action, detail FROM audit_log ORDER BY id DESC LIMIT ?", (limit,))
+        f"SELECT id, ts, actor, action, detail FROM audit_log "
+        f"WHERE action NOT IN ({placeholders}) ORDER BY id DESC LIMIT ?",
+        (*SECURITY_ACTIONS, limit))
 
 
 def brief_text():
