@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-ibm-plex: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-jetbrains: "JetBrains Mono", monospace;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9ff;
+    color: #0b1c30;
+    font-family: var(--font-ibm-plex);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ── Custom Scrollbars ── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c0c9c0;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Global Micro-Transitions ── */
+button {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+/* ── Top Toast Notifications (Image 1 reference) ── */
+.toast-host {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: auto;
+  max-width: calc(100vw - 32px);
+}
+
+.toast-card {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px -4px rgba(11, 28, 48, 0.12), 0 4px 10px -2px rgba(11, 28, 48, 0.05);
+  font-family: var(--font-ibm-plex);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0b1c30;
+  min-width: 310px;
+  max-width: 600px;
+  animation: toast-slide-down 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.toast-ok { border: 1.5px solid #005234; }
+.toast-warn, .toast-info { border: 1.5px solid #376757; }
+.toast-err { border: 1.5px solid #ba1a1a; }
+
+.toast-circle-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.toast-circle-icon.ok { border: 1.5px solid #005234; color: #005234; }
+.toast-circle-icon.warn, .toast-circle-icon.info { border: 1.5px solid #376757; color: #376757; }
+.toast-circle-icon.err { border: 1.5px solid #ba1a1a; color: #ba1a1a; }
+
+@keyframes toast-slide-down {
+  from { opacity: 0; transform: translateY(-20px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-leaving {
+  opacity: 0 !important;
+  transform: translateY(-16px) scale(0.96) !important;
+}
+
+/* ── Skeleton Loading Shimmer & Fade (Image 4 reference) ── */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.sk-shimmer {
+  background: linear-gradient(90deg, #e5eeff 25%, #f4f8ff 50%, #e5eeff 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+.sk-shimmer-dark {
+  background: linear-gradient(90deg, #d3e4fe 25%, #eaf1ff 50%, #d3e4fe 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ── Leaflet GIS Map Styling ── */
+.leaflet-container {
+  background: #e5eeff !important;
+  font-family: var(--font-ibm-plex) !important;
+}
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0b1c30 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 8px 24px rgba(11, 28, 48, 0.14) !important;
+  border: 1px solid #c0c9c0 !important;
+  font-family: var(--font-ibm-plex) !important;
+  font-size: 12px !important;
+}
+.leaflet-popup-tip { background: #ffffff !important; }
+
+@keyframes map-ring {
+  0% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+.leaflet-pulse-ring {
+  animation: map-ring 1.5s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ── Print / PDF styling ── */
+@media print {
+  body { background: #ffffff !important; color: #000000 !important; }
+  aside, header, button, .topbar-right, .no-print, .toast-host { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+}
