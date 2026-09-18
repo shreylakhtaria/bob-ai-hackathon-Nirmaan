@@ -3,20 +3,36 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Sliders, Play, Server, AlertTriangle, Shield, CheckCircle2, CloudRain, Receipt } from "lucide-react";
+
+import { PanelCard } from "@/components/common/PanelCard";
 import { RiskBadge } from "@/components/common/RiskBadge";
-import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
+
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import type { SimulationResponse, WeatherSimResponse } from "@/types/grid";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tile,
+  ContentSwitcher,
+  Select,
+  SelectItem,
+  Switch,
+} from "@carbon/react";
+import { Play, Rain, Receipt } from "@carbon/icons-react";
 
 export default function SimulationPage() {
   const searchParams = useSearchParams();
   const initialAsset = searchParams.get("asset") || "T-1024";
   const initialTab = searchParams.get("tab") || "asset";
 
-  const { ok, warn, err } = useToast();
+  const { ok, err } = useToast();
 
   const [activeTab, setActiveTab] = useState<"asset" | "weather">((initialTab as any) || "asset");
   const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset);
@@ -70,10 +86,14 @@ export default function SimulationPage() {
     }
   };
 
+  // Runs once for whatever asset the URL arrived with. Deliberately not
+  // re-run on every selectedAsset change: the picker's own onChange already
+  // fires the simulation, and adding it here would run each one twice.
   useEffect(() => {
     if (selectedAsset) {
       runAssetSim(selectedAsset);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -95,40 +115,32 @@ export default function SimulationPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <button
+          <Button
+            kind="tertiary"
+            size="sm"
+            renderIcon={Receipt}
             onClick={() => setShowRunsLog(!showRunsLog)}
-            className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel"
           >
-            <Receipt className="w-3.5 h-3.5 text-brand-ink" />
-            {showRunsLog ? "Hide Runs Log" : "Runs Log"}
-          </button>
+            {showRunsLog ? "Hide runs log" : "Runs log"}
+          </Button>
 
-          {/* Tab Toggle */}
-          <div className="flex bg-sunken p-1 rounded-lg border border-line font-mono text-micro font-bold">
-            <button
-              onClick={() => setActiveTab("asset")}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                activeTab === "asset"
-                  ? "bg-brand text-white shadow-panel"
-                  : "text-ink-2 hover:text-ink"
-              }`}
-            >
-              Asset Trip (N-1)
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("weather");
-                if (!weatherSimResult) runWeatherSim(selectedArea, severity);
-              }}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                activeTab === "weather"
-                  ? "bg-brand text-white shadow-panel"
-                  : "text-ink-2 hover:text-ink"
-              }`}
-            >
-              Weather Scenario
-            </button>
-          </div>
+          {/* Carbon ContentSwitcher rather than two styled buttons: it is
+              exactly this control, and it brings the arrow-key navigation and
+              the selected state the pair of buttons never had. */}
+          <ContentSwitcher
+            size="sm"
+            selectedIndex={activeTab === "asset" ? 0 : 1}
+            onChange={({ name }) => {
+              const next = (name as "asset" | "weather") ?? "asset";
+              setActiveTab(next);
+              if (next === "weather" && !weatherSimResult) {
+                runWeatherSim(selectedArea, severity);
+              }
+            }}
+          >
+            <Switch name="asset" text="Asset trip (N-1)" />
+            <Switch name="weather" text="Weather scenario" />
+          </ContentSwitcher>
         </div>
       </div>
 
@@ -141,42 +153,55 @@ export default function SimulationPage() {
               Select Trip Candidate
             </div>
             <div>
-              <label className="block text-micro font-mono text-ink-3 mb-1">Target Asset ID</label>
-              <select
+              <Select
+                id="sim-asset"
+                size="sm"
+                labelText="Target asset ID"
                 value={selectedAsset}
                 onChange={(e) => {
                   setSelectedAsset(e.target.value);
                   runAssetSim(e.target.value);
                 }}
-                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
                 {assets.map((a) => (
-                  <option key={a.asset_id} value={a.asset_id}>
-                    {a.asset_id} &mdash; {a.asset_type} ({a.geographic_area || a.area})
-                  </option>
+                  <SelectItem
+                    key={a.asset_id}
+                    value={a.asset_id}
+                    text={`${a.asset_id} \u2014 ${a.asset_type} (${a.geographic_area || a.area})`}
+                  />
                 ))}
-              </select>
+              </Select>
             </div>
 
-            <button
+            <Button
+              size="sm"
+              renderIcon={Play}
               disabled={isSimulating}
               onClick={() => runAssetSim(selectedAsset)}
-              className="w-full min-h-9 bg-brand text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel disabled:opacity-50"
+              className="cds--btn--block"
             >
-              <Play className="w-3.5 h-3.5" /> Run N-1 Simulation
-            </button>
+              {isSimulating ? "Running\u2026" : "Run N-1 simulation"}
+            </Button>
 
             {assetSimResult && (
-              <div className="p-3 bg-sunken rounded-lg border border-line space-y-2 text-micro">
-                <div className="font-bold text-ink">Simulated Asset Specs:</div>
-                <div className="font-mono text-micro text-ink-2">
-                  Type: <strong>{assetSimResult.simulated_asset?.asset_type}</strong>
-                  <br />
-                  Location: <strong>{assetSimResult.simulated_asset?.geographic_area}</strong>
-                  <br />
-                  Customers:{" "}
-                  <strong>{F.num(assetSimResult.simulated_asset?.customers_served)}</strong>
-                </div>
+              <div className="p-3 bg-sunken border border-line space-y-1 text-micro">
+                <div className="font-semibold text-ink">Simulated asset</div>
+                <dl className="font-mono text-micro text-ink-2 grid grid-cols-[auto_1fr] gap-x-2">
+                  <dt>Type</dt>
+                  <dd className="font-semibold text-ink">{assetSimResult.asset_type}</dd>
+                  <dt>Area</dt>
+                  <dd className="font-semibold text-ink">{assetSimResult.area}</dd>
+                  <dt>Direct</dt>
+                  <dd className="font-semibold text-ink">
+                    {F.num(assetSimResult.direct_customers)} customers
+                  </dd>
+                  <dt>P(fail)</dt>
+                  <dd className="font-semibold text-ink">
+                    {assetSimResult.failure_probability != null
+                      ? `${Math.round(assetSimResult.failure_probability * 100)}%`
+                      : "\u2014"}
+                  </dd>
+                </dl>
               </div>
             )}
           </div>
@@ -187,32 +212,52 @@ export default function SimulationPage() {
               <>
                 {/* Impact KPI Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
-                    <div className="text-micro text-ink-3 uppercase">Direct Outage</div>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">
+                      Customers affected
+                    </div>
                     <div className="text-lede font-mono font-bold text-sev-critical">
-                      {F.num(assetSimResult.contingency_impact?.direct_customers_interrupted)}
+                      {F.num(assetSimResult.total_customers_affected)}
                     </div>
-                    <div className="text-micro text-ink-3">Customers lost</div>
-                  </div>
-                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
-                    <div className="text-micro text-ink-3 uppercase">Cascading Risk</div>
-                    <div className="mt-0.5">
-                      <RiskBadge level={assetSimResult.contingency_impact?.cascading_risk_level} />
+                    <div className="text-micro text-ink-3">
+                      {F.num(assetSimResult.direct_customers)} direct &middot;{" "}
+                      {F.num(assetSimResult.downstream_customers)} downstream
                     </div>
-                  </div>
-                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
-                    <div className="text-micro text-ink-3 uppercase">Overloaded Assets</div>
-                    <div className="text-lede font-mono font-bold text-sev-critical">
-                      {assetSimResult.contingency_impact?.overloaded_neighbor_assets?.length || 2}
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">Severity</div>
+                    <div className="mt-1">
+                      <RiskBadge level={assetSimResult.severity} size="md" />
                     </div>
-                    <div className="text-micro text-ink-3">Adjacent lines</div>
-                  </div>
-                  <div className="bg-panel p-3 rounded-lg border border-line shadow-panel">
-                    <div className="text-micro text-ink-3 uppercase">Est. Economic Loss</div>
+                    <div className="mt-1 text-micro text-ink-3">
+                      {assetSimResult.affected_areas.length} area
+                      {assetSimResult.affected_areas.length === 1 ? "" : "s"} affected
+                    </div>
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">
+                      Downstream assets
+                    </div>
+                    <div className="text-lede font-mono font-bold text-sev-elevated">
+                      {assetSimResult.downstream_assets.length}
+                    </div>
+                    <div className="text-micro text-ink-3">On the same substation</div>
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">
+                      Est. outage
+                    </div>
                     <div className="text-lede font-mono font-bold text-ink">
-                      ${F.num(assetSimResult.contingency_impact?.estimated_economic_impact_usd || 1200000)}
+                      {Math.round(assetSimResult.estimated_outage_minutes)} min
                     </div>
-                  </div>
+                    <div className="text-micro text-ink-3">
+                      {assetSimResult.nearest_crew
+                        ? `Nearest crew ${assetSimResult.nearest_crew.crew_id} \u00b7 ${Math.round(
+                            assetSimResult.nearest_crew.response_min
+                          )} min`
+                        : "No crew available"}
+                    </div>
+                  </Tile>
                 </div>
 
                 {/* Overloaded Lines & Mitigation Plan */}
@@ -220,24 +265,19 @@ export default function SimulationPage() {
                   <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
                     Recommended Dispatch &amp; Switching Mitigation
                   </div>
-                  <div className="space-y-2">
-                    {(assetSimResult.mitigation_steps || []).map((step) => (
-                      <div
-                        key={step.step}
-                        className="p-2.5 bg-canvas rounded-lg border border-line flex items-start gap-2.5 text-label"
+                  <ol className="space-y-2">
+                    {assetSimResult.recommended_mitigation.map((action, i) => (
+                      <li
+                        key={action}
+                        className="p-2.5 bg-canvas border border-line flex items-start gap-2.5 text-label"
                       >
                         <span className="w-5 h-5 rounded-full bg-brand-ink text-white font-mono text-micro font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {step.step}
+                          {i + 1}
                         </span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-ink">{step.action}</div>
-                          <div className="font-mono text-micro text-ink-3">
-                            Expected response time: {step.expected_response_min} min
-                          </div>
-                        </div>
-                      </div>
+                        <span className="flex-1 text-ink">{action}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 </div>
               </>
             ) : (
@@ -255,66 +295,139 @@ export default function SimulationPage() {
               Storm Simulation Controls
             </div>
             <div>
-              <label className="block text-micro font-mono text-ink-3 mb-1">Target Geographic Area</label>
-              <select
+              <Select
+                id="sim-area"
+                size="sm"
+                labelText="Target geographic area"
                 value={selectedArea}
                 onChange={(e) => setSelectedArea(e.target.value)}
-                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
                 {areas.map((a) => (
-                  <option key={a.area_id} value={a.area_id}>
-                    {a.area_id} &mdash; {a.risk_level}
-                  </option>
+                  <SelectItem
+                    key={a.area_id}
+                    value={a.area_id}
+                    text={`${a.area_id} \u2014 ${a.risk_level}`}
+                  />
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
-              <label className="block text-micro font-mono text-ink-3 mb-1">Storm Severity Tier</label>
-              <select
+              <Select
+                id="sim-severity"
+                size="sm"
+                labelText="Storm severity tier"
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value)}
-                className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
               >
-                <option value="MODERATE">Moderate Storm (Score 50-65)</option>
-                <option value="SEVERE">Severe Storm (Score 65-85)</option>
-                <option value="EXTREME">Extreme Cyclone/Gale (Score &gt;85)</option>
-              </select>
+                <SelectItem value="MODERATE" text="Moderate storm (score 50–65)" />
+                <SelectItem value="SEVERE" text="Severe storm (score 65–85)" />
+                <SelectItem value="EXTREME" text="Extreme cyclone / gale (score >85)" />
+              </Select>
             </div>
-            <button
+            <Button
+              kind="danger"
+              size="sm"
+              renderIcon={Rain}
               disabled={isSimulating}
               onClick={() => runWeatherSim(selectedArea, severity)}
-              className="w-full min-h-9 bg-sev-critical text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel disabled:opacity-50"
+              className="cds--btn--block"
             >
-              <CloudRain className="w-3.5 h-3.5" /> Simulate Storm Impact
-            </button>
+              {isSimulating ? "Running\u2026" : "Simulate storm impact"}
+            </Button>
           </div>
 
           <div className="lg:col-span-8 flex flex-col gap-3">
             {weatherSimResult && (
-              <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
-                <div className="flex items-center justify-between pb-1 border-b border-line">
-                  <span className="font-mono text-label font-bold text-ink">
-                    Storm Impact Summary: {weatherSimResult.area_id}
-                  </span>
-                  <span className="font-mono text-micro text-sev-critical font-bold">
-                    Outage Prob: {F.pct(weatherSimResult.updated_outage_probability)}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-label">
-                  <div className="p-2.5 bg-sunken rounded-lg border border-line">
-                    <span className="text-micro text-ink-3 uppercase">Affected Assets</span>
-                    <div className="font-mono text-lede font-bold text-ink">
-                      {weatherSimResult.affected_assets_count || 14}
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">
+                      Outage probability
                     </div>
-                  </div>
-                  <div className="p-2.5 bg-sev-critical-tint/50 rounded-lg border border-sev-critical/30">
-                    <span className="text-micro text-sev-critical uppercase">Critical Breakdown Risk</span>
-                    <div className="font-mono text-lede font-bold text-sev-critical">
-                      {weatherSimResult.critical_assets_count || 4}
+                    <div className="text-lede font-mono font-bold text-sev-critical">
+                      {F.pct(weatherSimResult.new_outage_probability)}
                     </div>
-                  </div>
+                    {/* The baseline matters more than the new number on its own:
+                        a storm that moves an area from 6% to 9% is a different
+                        decision from one that moves it from 40% to 43%. */}
+                    <div className="text-micro text-ink-3">
+                      from {F.pct(weatherSimResult.baseline_outage_probability)} baseline
+                    </div>
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">Change</div>
+                    <div className="text-lede font-mono font-bold text-sev-elevated">
+                      {weatherSimResult.delta >= 0 ? "+" : ""}
+                      {F.pct(weatherSimResult.delta)}
+                    </div>
+                    <div className="text-micro text-ink-3">
+                      {weatherSimResult.injected_severity.toLowerCase()} scenario
+                    </div>
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">Risk level</div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <RiskBadge level={weatherSimResult.baseline_risk_level} />
+                      <span aria-hidden="true" className="text-ink-3">
+                        &rarr;
+                      </span>
+                      <RiskBadge level={weatherSimResult.new_risk_level} />
+                    </div>
+                  </Tile>
+                  <Tile>
+                    <div className="text-micro text-ink-3 uppercase tracking-wide">
+                      High-risk assets
+                    </div>
+                    <div className="text-lede font-mono font-bold text-ink">
+                      {weatherSimResult.high_risk_assets}
+                    </div>
+                    <div className="text-micro text-ink-3">in {weatherSimResult.area_id}</div>
+                  </Tile>
                 </div>
-              </div>
+
+                <PanelCard title="Most exposed assets" flush>
+                  <Table size="sm" useZebraStyles={false}>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Asset ID</TableHeader>
+                        <TableHeader>Type</TableHeader>
+                        <TableHeader className="text-right">P(fail)</TableHeader>
+                        <TableHeader className="text-right">Grid impact</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {weatherSimResult.top_exposed_assets.map((a) => (
+                        <TableRow key={a.asset_id}>
+                          <TableCell className="font-mono font-semibold text-brand-ink">
+                            {a.asset_id}
+                          </TableCell>
+                          <TableCell>{a.type}</TableCell>
+                          <TableCell className="text-right font-mono">{F.pct(a.fp)}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {a.gis?.toFixed(1)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </PanelCard>
+
+                <PanelCard title="Recommended actions">
+                  <ol className="space-y-2">
+                    {weatherSimResult.recommended_actions.map((action, i) => (
+                      <li
+                        key={action}
+                        className="p-2.5 bg-canvas border border-line flex items-start gap-2.5 text-label"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-brand-ink text-white font-mono text-micro font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <span className="flex-1 text-ink">{action}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </PanelCard>
+              </>
             )}
           </div>
         </div>
@@ -324,7 +437,7 @@ export default function SimulationPage() {
       {showRunsLog && (
         <div className="mt-4 bg-panel rounded-xl shadow-panel border border-line overflow-hidden animate-fade-in">
           <div className="px-3.5 py-2.5 bg-header flex items-center gap-2 border-b border-line">
-            <Receipt className="w-4 h-4 text-brand-ink" />
+            <Receipt size={16} className="fill-current text-brand-ink" aria-hidden="true" />
             <span className="text-micro font-semibold text-ink uppercase">
               Engine &amp; Operator Runs Log
             </span>

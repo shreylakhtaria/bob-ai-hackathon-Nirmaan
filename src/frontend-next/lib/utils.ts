@@ -59,6 +59,22 @@ export const F = {
     }
   },
 
+  /**
+   * The same ramp expressed as Carbon Tag types, so a Carbon component shows
+   * the identical colour as the hand-drawn ones beside it. Carbon's tag
+   * palette is remapped onto the severity tints in styles/carbon.scss, which
+   * is why these particular names: `red`/`magenta`/`warm-gray`/`green` are the
+   * four slots pointed at critical/elevated/watch/normal.
+   */
+  sevTag: (lvl?: RiskLevel | string) =>
+    (({
+      critical: "red",
+      elevated: "magenta",
+      watch: "warm-gray",
+      normal: "green",
+      unknown: "cool-gray",
+    }) as const)[F.sev(lvl).key as "critical" | "elevated" | "watch" | "normal" | "unknown"],
+
   riskColor: (lvl?: RiskLevel | string) => F.sev(lvl).ink,
 
   riskBg: (lvl?: RiskLevel | string) => F.sev(lvl).tint,

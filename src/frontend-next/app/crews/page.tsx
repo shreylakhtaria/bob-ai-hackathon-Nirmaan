@@ -2,10 +2,20 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Truck, CheckCircle2, Clock, RotateCw, Navigation } from "lucide-react";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
+import {
+  Button,
+  Tag,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
+import { CheckmarkOutline, Compass, Delivery, Renew } from "@carbon/icons-react";
 
 export default function CrewsPage() {
   const { ok, err } = useToast();
@@ -80,15 +90,18 @@ export default function CrewsPage() {
             Optimizes repair crew placements to minimize outage travel times ahead of storm events.
           </p>
         </div>
-        <button
+        <Button
+          kind="tertiary"
+          size="sm"
+          renderIcon={Renew}
           onClick={() => {
             refetchRoster();
             refetchRecs();
           }}
-          className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel self-start md:self-auto"
+          className="self-start md:self-auto"
         >
-          <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Refresh Roster
-        </button>
+          Refresh roster
+        </Button>
       </div>
 
       {/* Main Grid: Roster (7 cols) + AI Recommendations (5 cols) */}
@@ -97,7 +110,7 @@ export default function CrewsPage() {
         <div className="lg:col-span-7 bg-panel rounded-xl shadow-panel border border-line overflow-hidden">
           <div className="px-3.5 py-2.5 bg-header flex items-center justify-between border-b border-line">
             <div className="flex items-center gap-2">
-              <Truck className="w-4 h-4 text-brand-ink" />
+              <Delivery size={16} className="fill-current text-brand-ink" />
               <span className="text-micro font-semibold text-ink uppercase">
                 Active Crew Roster ({crews.length} Crews)
               </span>
@@ -106,45 +119,46 @@ export default function CrewsPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-sans text-label">
-              <thead>
-                <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
-                  <th className="py-2.5 px-3">Crew ID</th>
-                  <th className="py-2.5 px-3">Specialization</th>
-                  <th className="py-2.5 px-3">Current Area</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Assignment / Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-sunken">
+            <Table size="sm" useZebraStyles={false}>
+              <TableHead>
+                <TableRow className="text-micro">
+                  <TableHeader>Crew ID</TableHeader>
+                  <TableHeader>Specialization</TableHeader>
+                  <TableHeader>Current Area</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader className="text-right">Assignment / Action</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {crews.map((c) => (
-                  <tr key={c.crew_id} className="hover:bg-sunken transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-brand-ink">{c.crew_id}</td>
-                    <td className="py-2.5 px-3 text-ink">{c.skill_type}</td>
-                    <td className="py-2.5 px-3 font-mono text-micro text-ink-2">{c.current_area}</td>
-                    <td className="py-2.5 px-3">
-                      <span
-                        className={`inline-flex items-center gap-1 font-mono text-micro font-bold px-2 py-0.5 rounded-full uppercase ${
+                  <TableRow key={c.crew_id} className="hover:bg-sunken transition-colors">
+                    <TableCell className="font-mono font-bold text-brand-ink">{c.crew_id}</TableCell>
+                    <TableCell className="text-ink">{c.skill_type}</TableCell>
+                    <TableCell className="font-mono text-micro">{c.current_area}</TableCell>
+                    <TableCell>
+                      {/* Carbon tags, on the same remapped palette as every
+                          other state chip in the console: available is the
+                          "normal" green, on a job is the critical red. */}
+                      <Tag
+                        type={
                           c.availability === "AVAILABLE"
-                            ? "bg-sev-normal-tint text-sev-normal"
+                            ? "green"
                             : c.availability === "ON_JOB"
-                            ? "bg-sev-critical-tint text-sev-critical"
-                            : "bg-sunken text-ink-2"
-                        }`}
+                              ? "red"
+                              : "cool-gray"
+                        }
+                        size="sm"
                       >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            c.availability === "AVAILABLE" ? "bg-brand" : "bg-sev-critical"
-                          }`}
-                        />
                         {c.availability}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
+                      </Tag>
+                    </TableCell>
+                    <TableCell className="text-right">
                       {c.active_assignment ? (
                         <div className="flex items-center justify-end gap-1.5 font-mono text-micro">
                           <span className="font-bold text-brand-ink">{c.active_assignment}</span>
-                          <button
+                          <Button
+                            kind="ghost"
+                            size="sm"
                             onClick={() => handleComplete(c.crew_id)}
                             disabled={completing !== null}
                             // The accessible name has to start with the visible
@@ -152,19 +166,18 @@ export default function CrewsPage() {
                             // by what it says.
                             aria-label={`Complete ${c.active_assignment} — records maintenance, stamps the asset and re-derives risk`}
                             title="Closes the work order: records maintenance, stamps the asset and re-derives risk"
-                            className="px-1.5 py-0.5 bg-sunken hover:bg-header text-brand-ink rounded uppercase font-semibold disabled:opacity-50"
                           >
                             {completing === c.crew_id ? "Completing…" : "Complete"}
-                          </button>
+                          </Button>
                         </div>
                       ) : (
                         <span className="font-mono text-micro text-ink-3">Ready for Dispatch</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
 
@@ -173,7 +186,7 @@ export default function CrewsPage() {
           <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5">
             <div className="flex items-center justify-between mb-2.5 pb-1 border-b border-line">
               <div className="flex items-center gap-1.5">
-                <Navigation className="w-4 h-4 text-brand-ink" />
+                <Compass size={16} className="fill-current text-brand-ink" />
                 <span className="text-micro font-semibold uppercase text-ink">
                   AI Pre-Positioning Orders
                 </span>
@@ -217,12 +230,14 @@ export default function CrewsPage() {
 
                     <p className="text-micro text-ink-3">{r.rationale}</p>
 
-                    <button
+                    <Button
+                      size="sm"
+                      renderIcon={CheckmarkOutline}
                       onClick={() => handleAuthorize(r.crew_id, r.recommended_area)}
-                      className="w-full mt-1 min-h-8 bg-brand text-white text-micro font-semibold rounded uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5 shadow-panel"
+                      className="cds--btn--block mt-1"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Authorize Pre-Positioning Order
-                    </button>
+                      Authorize pre-positioning order
+                    </Button>
                   </div>
                 ))
               )}

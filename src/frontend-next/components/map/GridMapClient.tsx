@@ -7,7 +7,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
-import type { RiskLevel } from "@/types/grid";
+import { Checkbox } from "@carbon/react";
 
 export const GridMapClient: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -160,33 +160,24 @@ export const GridMapClient: React.FC = () => {
       {/* Layer Toggles */}
       <div className="bg-panel p-3 rounded-xl shadow-panel border border-line flex items-center justify-between font-mono text-micro text-ink-2">
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filterCriticalOnly}
-              onChange={(e) => setFilterCriticalOnly(e.target.checked)}
-              className="rounded border-line text-brand focus:ring-brand"
-            />
-            <span className="font-bold text-sev-critical">Only Critical Assets (Trips)</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filterShowWeather}
-              onChange={(e) => setFilterShowWeather(e.target.checked)}
-              className="rounded border-line text-brand focus:ring-brand"
-            />
-            <span>Weather Storm Zones</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filterShowCrews}
-              onChange={(e) => setFilterShowCrews(e.target.checked)}
-              className="rounded border-line text-brand focus:ring-brand"
-            />
-            <span>Field Crew Locations</span>
-          </label>
+          <Checkbox
+            id="layer-critical"
+            labelText="Only critical assets (trips)"
+            checked={filterCriticalOnly}
+            onChange={(_, { checked }) => setFilterCriticalOnly(checked)}
+          />
+          <Checkbox
+            id="layer-weather"
+            labelText="Weather storm zones"
+            checked={filterShowWeather}
+            onChange={(_, { checked }) => setFilterShowWeather(checked)}
+          />
+          <Checkbox
+            id="layer-crews"
+            labelText="Field crew locations"
+            checked={filterShowCrews}
+            onChange={(_, { checked }) => setFilterShowCrews(checked)}
+          />
         </div>
         <span>OpenStreetMap Live GIS Feed</span>
       </div>

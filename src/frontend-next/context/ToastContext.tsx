@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { Check, Info, AlertTriangle, X } from "lucide-react";
+import { ToastNotification } from "@carbon/react";
 
 export type ToastKind = "ok" | "warn" | "err" | "info";
 
@@ -21,6 +21,16 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+// Carbon's notification kinds, and the title each one carries. Carbon shows a
+// title in bold above the body; without one the message sits alone against the
+// icon and reads as an unlabelled sentence.
+const KIND: Record<ToastKind, { kind: "success" | "warning" | "error" | "info"; title: string }> = {
+  ok: { kind: "success", title: "Done" },
+  warn: { kind: "warning", title: "Check this" },
+  err: { kind: "error", title: "Failed" },
+  info: { kind: "info", title: "Note" },
+};
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -31,13 +41,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toast = useCallback(
     (message: string, kind: ToastKind = "ok", duration = 4000) => {
       const id = Math.random().toString(36).substring(2, 9);
-      const newToast: ToastMessage = { id, message, kind };
-      setToasts((prev) => [newToast, ...prev]);
+      setToasts((prev) => [{ id, message, kind }, ...prev]);
 
       if (duration > 0) {
-        setTimeout(() => {
-          removeToast(id);
-        }, duration);
+        setTimeout(() => removeToast(id), duration);
       }
     },
     [removeToast]
@@ -51,32 +58,23 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ toast, ok, warn, err, info }}>
       {children}
-      {/* Top-Centered Floating Toast Container matching Image 1 */}
-      <div className="toast-host">
+      {/* aria-live on the host, not on each notification: a region that is
+          added to the DOM at the same moment its content arrives is often not
+          announced at all. Carbon's own role="status" stays on the card. */}
+      <div className="toast-host" aria-live="polite" aria-relevant="additions">
         {toasts.map((t) => (
-          <div
+          <ToastNotification
             key={t.id}
-            className={`toast-card ${
-              t.kind === "ok" ? "toast-ok" : t.kind === "err" ? "toast-err" : "toast-warn"
-            }`}
-            role="alert"
-          >
-            <div className={`toast-circle-icon ${t.kind}`}>
-              {t.kind === "ok" && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-              {t.kind === "err" && <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />}
-              {(t.kind === "warn" || t.kind === "info") && <Info className="w-3.5 h-3.5 stroke-[2.5]" />}
-            </div>
-            <div className="flex-1 leading-snug text-ink text-label font-medium tracking-tight">
-              {t.message}
-            </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              className="text-ink-3 hover:text-ink p-1 rounded hover:bg-sunken transition-colors"
-              title="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+            kind={KIND[t.kind].kind}
+            title={KIND[t.kind].title}
+            subtitle={t.message}
+            lowContrast
+            onClose={() => {
+              removeToast(t.id);
+              return false;
+            }}
+            onCloseButtonClick={() => removeToast(t.id)}
+          />
         ))}
       </div>
     </ToastContext.Provider>

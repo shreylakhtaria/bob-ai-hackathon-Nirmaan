@@ -2,16 +2,20 @@
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-  DatabaseZap,
-  UploadCloud,
-  FileSpreadsheet,
-  RotateCcw,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
-  Sparkles,
-  ShieldCheck,
-} from "lucide-react";
+  Button,
+  ContentSwitcher,
+  FileUploaderDropContainer,
+  InlineNotification,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+} from "@carbon/react";
+import { CheckmarkOutline, CloudUpload, DataBase, DocumentTasks, Idea, Reset, Rule, WarningAlt } from "@carbon/icons-react";
 import { PanelCard } from "@/components/common/PanelCard";
 import { useToast } from "@/context/ToastContext";
 import { getAccessToken, refreshAccessToken } from "@/lib/api";
@@ -162,7 +166,6 @@ export default function DataOnboardingPage() {
   const [kind, setKind] = useState<Kind>("assets");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [report, setReport] = useState<IngestReport | null>(null);
   const [committed, setCommitted] = useState(false);
   const [busy, setBusy] = useState<null | "validate" | "commit">(null);
@@ -247,7 +250,7 @@ export default function DataOnboardingPage() {
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-line border-l-[3px] border-l-sev-elevated bg-panel p-3.5 shadow-panel">
           <div className="flex items-center gap-2 mb-1">
-            <DatabaseZap className="w-4 h-4 text-sev-elevated shrink-0" aria-hidden="true" />
+            <DataBase size={16} className="fill-current text-sev-elevated shrink-0" aria-hidden="true" />
             <h2 className="text-label font-semibold text-ink">
               Bulk CSV import — writes to the database
             </h2>
@@ -261,7 +264,7 @@ export default function DataOnboardingPage() {
 
         <div className="rounded-xl border border-line border-l-[3px] border-l-brand bg-panel p-3.5 shadow-panel">
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
+            <Idea size={16} className="fill-current text-brand shrink-0" aria-hidden="true" />
             <h2 className="text-label font-semibold text-ink">
               Ad-hoc AI dataset analysis — writes nothing
             </h2>
@@ -278,30 +281,23 @@ export default function DataOnboardingPage() {
       <PanelCard
         title="1 · Import target"
         hint="Each target has its own required columns."
-        icon={<DatabaseZap className="w-4 h-4" />}
+        icon={<DataBase size={16} />}
       >
         <fieldset
           disabled={busy !== null}
           className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4"
         >
           <legend className="sr-only">Choose which table to import into</legend>
-          <div className="inline-flex rounded-lg border border-line bg-sunken p-0.5 self-start">
+          <ContentSwitcher
+            size="md"
+            selectedIndex={KINDS.indexOf(kind)}
+            onChange={({ name }) => chooseKind((name as Kind) ?? "assets")}
+            className="self-start max-w-xs"
+          >
             {KINDS.map((k) => (
-              <label key={k} className="cursor-pointer">
-                <input
-                  type="radio"
-                  name="ingest-kind"
-                  value={k}
-                  checked={kind === k}
-                  onChange={() => chooseKind(k)}
-                  className="sr-only peer"
-                />
-                <span className="block rounded-md px-4 py-1.5 text-label font-semibold text-ink-2 peer-checked:bg-panel peer-checked:text-ink peer-checked:shadow-panel peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus">
-                  {KIND_SPEC[k].label}
-                </span>
-              </label>
+              <Switch key={k} name={k} text={KIND_SPEC[k].label} />
             ))}
-          </div>
+          </ContentSwitcher>
           <p className="text-micro text-ink-3">{spec.blurb}</p>
         </fieldset>
       </PanelCard>
@@ -310,67 +306,39 @@ export default function DataOnboardingPage() {
       <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <PanelCard
           title="2 · CSV file"
-          hint="Drop a file, or press Enter on the dropzone to browse. Max 5 MB."
-          icon={<UploadCloud className="w-4 h-4" />}
+          hint="Drop a file here, or click the dropzone to browse. Max 5 MB."
+          icon={<CloudUpload size={16} />}
         >
-          {/* The <label> is the dropzone; the real file input lives inside it,
-              visually hidden but still focusable — so Tab reaches it and
-              Enter/Space opens the picker with no keydown handler of our own. */}
-          <label
-            htmlFor="csv-file"
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (!busy) setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              if (busy) return;
-              acceptFile(e.dataTransfer.files?.[0] ?? null);
-            }}
-            className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus ${
-              busy
-                ? "cursor-not-allowed border-line bg-sunken opacity-60"
-                : dragging
-                  ? "cursor-copy border-brand bg-sev-normal-tint"
-                  : "cursor-pointer border-line-strong bg-sunken hover:border-brand hover:bg-panel"
-            }`}
-          >
-            <input
-              id="csv-file"
-              ref={inputRef}
-              type="file"
-              accept=".csv,text/csv"
-              disabled={busy !== null}
-              className="sr-only"
-              onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
-            />
-            <UploadCloud className="w-7 h-7 text-ink-3" aria-hidden="true" />
-            <span className="text-body font-semibold text-ink">
-              Drop a {spec.label.toLowerCase()} CSV here
-            </span>
-            <span className="text-micro text-ink-3">
-              or press Enter to choose a file · .csv only · up to 5 MB
-            </span>
-          </label>
+          {/* Carbon's own drop container: it handles the drag state, the
+              keyboard path to the file picker and the accept filter, all of
+              which the hand-rolled label had to reimplement. The precheck
+              below it is ours, because the 5 MB and .csv rules have to match
+              the backend's. */}
+          <FileUploaderDropContainer
+            accept={[".csv", "text/csv"]}
+            labelText={`Drop a ${spec.label.toLowerCase()} CSV here, or click to browse · .csv only · up to 5 MB`}
+            disabled={busy !== null}
+            multiple={false}
+            onAddFiles={(_evt, { addedFiles }) => acceptFile(addedFiles?.[0] ?? null)}
+            className="w-full max-w-full"
+          />
 
           {fileError && (
-            <p
-              role="alert"
-              className="mt-3 flex items-start gap-2 rounded-lg border border-sev-critical/30 bg-sev-critical-tint px-3 py-2 text-micro font-medium text-sev-critical"
-            >
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
-              {fileError}
-            </p>
+            <InlineNotification
+              kind="error"
+              lowContrast
+              hideCloseButton
+              title="That file cannot be imported"
+              subtitle={fileError}
+              className="mt-3"
+            />
           )}
 
           {file && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-sunken px-3 py-2">
-              <FileSpreadsheet className="w-4 h-4 text-brand-ink shrink-0" aria-hidden="true" />
-              <span className="font-mono text-micro font-semibold text-ink break-all">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Tag type="green" size="md">
                 {file.name}
-              </span>
+              </Tag>
               <span className="font-mono text-micro text-ink-3">
                 {(file.size / 1024).toFixed(1)} KB
               </span>
@@ -379,52 +347,48 @@ export default function DataOnboardingPage() {
 
           {/* ── Step 3: actions ── */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-line pt-3.5">
-            <button
+            <Button
               type="button"
+              size="md"
+              renderIcon={busy === "validate" ? undefined : Rule}
               onClick={() => run("validate")}
               disabled={!file || busy !== null || committed}
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-brand px-3.5 text-label font-semibold text-white hover:opacity-90"
             >
-              {busy === "validate" ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-              )}
-              {busy === "validate" ? "Validating…" : "Validate (dry run)"}
-            </button>
+              {busy === "validate" ? "Validating\u2026" : "Validate (dry run)"}
+            </Button>
 
-            <button
+            {/* `danger` because it writes rows the operator cannot undo from
+                this page — the dry run beside it is the safe default. */}
+            <Button
               type="button"
+              kind="danger"
+              size="md"
+              renderIcon={busy === "commit" ? undefined : DataBase}
               onClick={() => run("commit")}
               disabled={!canImport || busy !== null}
               title={
                 canImport
                   ? undefined
-                  : "Validate the file first — an import needs at least one valid row."
+                  : "Validate the file first \u2014 an import needs at least one valid row."
               }
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-sev-elevated px-3.5 text-label font-semibold text-white hover:opacity-90"
             >
-              {busy === "commit" ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <DatabaseZap className="w-4 h-4" aria-hidden="true" />
-              )}
               {busy === "commit"
-                ? "Importing…"
+                ? "Importing\u2026"
                 : report && !committed
                   ? `Import ${report.valid} row${report.valid === 1 ? "" : "s"}`
                   : "Import"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              kind="ghost"
+              size="md"
+              renderIcon={Reset}
               onClick={reset}
               disabled={busy !== null}
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-panel px-3.5 text-label font-medium text-ink hover:bg-sunken"
             >
-              <RotateCcw className="w-4 h-4 text-ink-3" aria-hidden="true" />
               Clear &amp; start over
-            </button>
+            </Button>
           </div>
           <p className="mt-2 text-micro text-ink-3">
             Validation writes nothing. Only <strong className="text-ink-2">Import</strong> touches
@@ -436,7 +400,7 @@ export default function DataOnboardingPage() {
         <PanelCard
           title="CSV format"
           hint={`Header row required · ${spec.label.toLowerCase()}`}
-          icon={<FileSpreadsheet className="w-4 h-4" />}
+          icon={<DocumentTasks size={16} />}
         >
           <h3 className="text-micro font-semibold uppercase tracking-wider text-ink-3">
             Required columns
@@ -482,7 +446,7 @@ export default function DataOnboardingPage() {
             <PanelCard
               title={committed ? "Import complete" : "Validation report (dry run — nothing written)"}
               icon={
-                committed ? <CheckCircle2 className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />
+                committed ? <CheckmarkOutline size={16} /> : <Rule size={16} />
               }
               hint={
                 committed
@@ -515,7 +479,7 @@ export default function DataOnboardingPage() {
 
               {report.unknown_columns.length > 0 && (
                 <p className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-sev-watch/30 bg-sev-watch-tint px-3 py-2 text-micro text-sev-watch">
-                  <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <WarningAlt size={16} className="shrink-0" aria-hidden="true" />
                   <span className="font-semibold">
                     {report.unknown_columns.length} unknown column
                     {report.unknown_columns.length === 1 ? "" : "s"} ignored:
@@ -530,7 +494,7 @@ export default function DataOnboardingPage() {
 
               {committed && (
                 <p className="mt-3 flex items-start gap-2 rounded-lg border border-sev-normal/30 bg-sev-normal-tint px-3 py-2 text-micro font-medium text-sev-normal">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+                  <CheckmarkOutline size={16} className="shrink-0 mt-px" aria-hidden="true" />
                   {report.imported} row{report.imported === 1 ? "" : "s"} are now live in{" "}
                   {report.kind}. Clear and start over to import another file.
                 </p>
@@ -544,25 +508,25 @@ export default function DataOnboardingPage() {
                 flush
               >
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-label">
-                    <thead>
-                      <tr className="border-b border-line bg-sunken text-micro uppercase tracking-wider text-ink-2">
+                  <Table size="sm" useZebraStyles={false}>
+                    <TableHead>
+                      <TableRow className="text-micro">
                         {previewColumns.map((c) => (
-                          <th
+                          <TableHeader
                             key={c}
                             scope="col"
                             className="whitespace-nowrap px-3 py-2.5 font-mono"
                           >
                             {c}
-                          </th>
+                          </TableHeader>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-sunken">
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {report.preview.map((row, i) => (
-                        <tr key={i}>
+                        <TableRow key={i}>
                           {previewColumns.map((c) => (
-                            <td
+                            <TableCell
                               key={c}
                               className="whitespace-nowrap px-3 py-2 font-mono text-micro text-ink"
                             >
@@ -571,12 +535,12 @@ export default function DataOnboardingPage() {
                               ) : (
                                 String(row[c])
                               )}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </PanelCard>
             )}
@@ -584,7 +548,7 @@ export default function DataOnboardingPage() {
             {report.errors.length > 0 && (
               <PanelCard
                 title={`Rejected rows · ${report.errors.length}`}
-                icon={<AlertTriangle className="w-4 h-4" />}
+                icon={<WarningAlt size={16} />}
                 hint={
                   hiddenErrors > 0
                     ? `Showing the first ${MAX_VISIBLE_ERRORS} — ${hiddenErrors} more are not listed.`
@@ -593,40 +557,40 @@ export default function DataOnboardingPage() {
                 flush
               >
                 <div className="max-h-96 overflow-auto">
-                  <table className="w-full text-left text-label">
-                    <thead className="sticky top-0 z-10">
-                      <tr className="border-b border-line bg-sunken text-micro uppercase tracking-wider text-ink-2">
-                        <th scope="col" className="px-3 py-2.5 w-16">
+                  <Table size="sm" useZebraStyles={false}>
+                    <TableHead className="sticky top-0 z-10">
+                      <TableRow className="text-micro">
+                        <TableHeader scope="col" className="px-3 py-2.5 w-16">
                           Row
-                        </th>
-                        <th scope="col" className="px-3 py-2.5">
+                        </TableHeader>
+                        <TableHeader scope="col" className="px-3 py-2.5">
                           Field
-                        </th>
-                        <th scope="col" className="px-3 py-2.5">
+                        </TableHeader>
+                        <TableHeader scope="col" className="px-3 py-2.5">
                           Problem
-                        </th>
-                        <th scope="col" className="px-3 py-2.5">
+                        </TableHeader>
+                        <TableHeader scope="col" className="px-3 py-2.5">
                           Value
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-sunken">
+                        </TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {report.errors.slice(0, MAX_VISIBLE_ERRORS).map((e, i) => (
-                        <tr key={`${e.row}-${e.field}-${i}`} className="hover:bg-sunken">
-                          <td className="px-3 py-2 font-mono text-micro font-bold text-ink">
+                        <TableRow key={`${e.row}-${e.field}-${i}`} className="hover:bg-sunken">
+                          <TableCell className="font-mono text-micro font-bold text-ink">
                             {e.row}
-                          </td>
-                          <td className="px-3 py-2 font-mono text-micro text-brand-ink">
+                          </TableCell>
+                          <TableCell className="font-mono text-micro text-brand-ink">
                             {e.field ?? <span className="text-ink-3">—</span>}
-                          </td>
-                          <td className="px-3 py-2 text-micro text-ink-2">{e.message}</td>
-                          <td className="px-3 py-2 font-mono text-micro text-ink-3 break-all">
+                          </TableCell>
+                          <TableCell className="text-micro">{e.message}</TableCell>
+                          <TableCell className="font-mono text-micro text-ink-3 break-all">
                             {e.value == null || e.value === "" ? "—" : e.value}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
                 {hiddenErrors > 0 && (
                   <p className="border-t border-line bg-sev-watch-tint px-3 py-2 text-micro font-semibold text-sev-watch">

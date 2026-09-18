@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity } from "lucide-react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +13,8 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { API } from "@/lib/api";
+import { ContentSwitcher, Switch } from "@carbon/react";
+import { Activity } from "@carbon/icons-react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip);
 
@@ -54,22 +55,19 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
     <div className="mt-4">
       <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-1.5">
-          <Activity className="w-4 h-4 text-brand-ink" />
+          <Activity size={16} className="fill-current text-brand-ink" />
           <span className="font-bold text-ink text-lede">Real-Time Sensor Feeds</span>
         </div>
-        <div className="inline-flex bg-sunken rounded p-0.5 font-mono text-micro text-ink-2">
+        <ContentSwitcher
+          size="sm"
+          selectedIndex={RANGES.findIndex((r) => r.value === hours)}
+          onChange={({ index }) => setHours(RANGES[index ?? 0].value)}
+          className="max-w-48"
+        >
           {RANGES.map((r) => (
-            <button
-              key={r.value}
-              onClick={() => setHours(r.value)}
-              className={`px-1.5 py-0.5 rounded transition-all ${
-                hours === r.value ? "bg-header text-ink font-bold shadow-panel" : "hover:text-ink"
-              }`}
-            >
-              {r.label}
-            </button>
+            <Switch key={r.value} name={String(r.value)} text={r.label} />
           ))}
-        </div>
+        </ContentSwitcher>
       </div>
 
       {isLoading ? (

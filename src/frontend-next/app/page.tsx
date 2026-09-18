@@ -1,15 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Brain,
-  FlaskConical,
-  Gauge,
-  Radar,
-  TriangleAlert,
-  Wrench,
-} from "lucide-react";
+import { ArrowRight, Chemistry, MachineLearningModel, Meter, Radar, Tools, WarningAlt } from "@carbon/icons-react";
 
 const description =
   "Grid Risk Command Center predicts electricity-grid equipment failures, explains " +
@@ -89,14 +81,14 @@ const STEPS = [
       "sensor behaviour the classifier has not been trained on.",
   },
   {
-    icon: Brain,
+    icon: MachineLearningModel,
     name: "Explain",
     body:
       "SHAP attributes each score to its actual risk drivers, so an operator sees why " +
       "an asset is ranked where it is instead of being handed a bare number.",
   },
   {
-    icon: Gauge,
+    icon: Meter,
     name: "Prioritise",
     body:
       "The Grid Impact Score blends failure probability with asset criticality, " +
@@ -104,14 +96,14 @@ const STEPS = [
       "to the top rather than merely the highest probability.",
   },
   {
-    icon: FlaskConical,
+    icon: Chemistry,
     name: "Simulate",
     body:
       "What-if runs: take an asset out of service, or push a severe-weather scenario " +
       "across an area, and watch how risk and customer impact move.",
   },
   {
-    icon: Wrench,
+    icon: Tools,
     name: "Act",
     body:
       "Dispatch a crew, raise a work order and track it to completion without leaving " +
@@ -182,25 +174,24 @@ export default async function LandingPage() {
             customer impact, and carries the call through to a dispatched crew.
           </p>
 
+          {/* Carbon's button styles applied to real links. This page is a
+              server component on purpose — it is the only page a search engine
+              or a cold visitor sees — so it cannot mount Carbon's client
+              components. The `.cds--btn` classes are the same CSS those
+              components emit, with no JavaScript. */}
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link
-              href="/overview"
-              className="inline-flex items-center gap-2 min-h-11 px-5 rounded-lg bg-brand text-white text-body font-semibold hover:bg-brand-ink"
-            >
+            <Link href="/overview" className="cds--btn cds--btn--primary cds--btn--lg">
               Open console
-              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              <ArrowRight size={20} className="cds--btn__icon" aria-hidden="true" />
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center min-h-11 px-5 rounded-lg border border-line-strong bg-panel text-body font-semibold text-ink hover:border-ink-3"
-            >
+            <Link href="/login" className="cds--btn cds--btn--tertiary cds--btn--lg">
               Sign in
             </Link>
           </div>
 
           {/* Said before anything else is claimed, not in the small print. */}
           <p className="mt-8 flex items-start gap-2.5 max-w-3xl rounded-xl border border-sev-watch/30 bg-sev-watch-tint px-4 py-3 text-body text-sev-watch">
-            <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <WarningAlt size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>
               <strong className="font-semibold">Simulation data only.</strong> There is no
               live SCADA connection behind this console. Every asset, reading, prediction

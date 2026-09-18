@@ -3,14 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Cpu,
-  Search,
-  ChevronRight,
-  Send,
-  Sliders,
-  RotateCw,
-} from "lucide-react";
 import { DriverStrip } from "@/components/common/DriverStrip";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { DebouncedInput } from "@/components/common/DebouncedInput";
@@ -21,6 +13,19 @@ import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import type { AssetDetailResponse } from "@/types/grid";
+import {
+  Button,
+  InlineLoading,
+  Select,
+  SelectItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
+import { ChevronRight, Renew, Send, SettingsAdjust } from "@carbon/icons-react";
 
 const PAGE_SIZE = 12;
 
@@ -123,12 +128,15 @@ export default function AssetsPage() {
             Comprehensive electrical infrastructure register, sensor telemetry, and diagnostic health indexing.
           </p>
         </div>
-        <button
+        <Button
+          kind="tertiary"
+          size="sm"
+          renderIcon={Renew}
           onClick={() => refetch()}
-          className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel self-start md:self-auto"
+          className="self-start md:self-auto"
         >
-          <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Force SCADA Resync
-        </button>
+          Force SCADA resync
+        </Button>
       </div>
 
       {/* Filter Ribbon */}
@@ -145,54 +153,59 @@ export default function AssetsPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <select
+            <Select
+              id="filter-area"
+              size="sm"
+              labelText="Area"
+              hideLabel
               value={areaFilter}
               onChange={(e) => {
                 setAreaFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
             >
-              <option value="">All Areas</option>
+              <SelectItem value="" text="All areas" />
               {areaIds.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
+                <SelectItem key={a} value={a} text={a} />
               ))}
-            </select>
+            </Select>
           </div>
           <div className="md:col-span-2">
-            <select
+            <Select
+              id="filter-type"
+              size="sm"
+              labelText="Asset type"
+              hideLabel
               value={typeFilter}
               onChange={(e) => {
                 setTypeFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono rounded-lg border border-line"
             >
-              <option value="">All Asset Types</option>
+              <SelectItem value="" text="All asset types" />
               {assetTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
+                <SelectItem key={t} value={t} text={t} />
               ))}
-            </select>
+            </Select>
           </div>
           <div className="md:col-span-2">
-            <select
+            <Select
+              id="filter-risk"
+              size="sm"
+              labelText="Risk tier"
+              hideLabel
               value={priFilter}
               onChange={(e) => {
                 setPriFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full min-h-9 px-2 bg-sunken text-ink text-label font-mono font-medium rounded-lg border border-line"
             >
-              <option value="">All Risk Tiers</option>
-              <option value="CRITICAL">Critical Risk (&gt;85%)</option>
-              <option value="HIGH">High Risk (60-85%)</option>
-              <option value="MEDIUM">Medium Risk (25-60%)</option>
-              <option value="LOW">Nominal (&lt;25%)</option>
-            </select>
+              <SelectItem value="" text="All risk tiers" />
+              <SelectItem value="CRITICAL" text="Critical risk (>85%)" />
+              <SelectItem value="HIGH" text="High risk (60–85%)" />
+              <SelectItem value="MEDIUM" text="Medium risk (25–60%)" />
+              <SelectItem value="LOW" text="Nominal (<25%)" />
+            </Select>
           </div>
           <div className="md:col-span-2 flex items-center justify-end font-mono text-micro text-ink-3">
             {filteredAssets.length} assets shown
@@ -205,67 +218,67 @@ export default function AssetsPage() {
         {/* Table View */}
         <div className="lg:col-span-7 bg-panel rounded-xl shadow-panel border border-line overflow-hidden flex flex-col justify-between">
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-sans text-label">
-              <thead>
-                <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
-                  <th className="py-2.5 px-3">Asset ID</th>
-                  <th className="py-2.5 px-3">Type &amp; Substation</th>
-                  <th className="py-2.5 px-3">Risk Tier</th>
-                  <th className="py-2.5 px-3">P(Failure)</th>
-                  <th className="py-2.5 px-3 text-right">Impact</th>
-                  <th className="py-2.5 px-3 text-right">Status</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-sunken">
+            <Table size="sm" useZebraStyles={false}>
+              <TableHead>
+                <TableRow className="text-micro">
+                  <TableHeader>Asset ID</TableHeader>
+                  <TableHeader>Type &amp; Substation</TableHeader>
+                  <TableHeader>Risk Tier</TableHeader>
+                  <TableHeader>P(Failure)</TableHeader>
+                  <TableHeader className="text-right">Impact</TableHeader>
+                  <TableHeader className="text-right">Status</TableHeader>
+                  <TableHeader className="text-right">Action</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {paginatedAssets.map((asset) => {
                   const isSelected = asset.asset_id === selectedAssetId;
                   return (
-                    <tr
+                    <TableRow
                       key={asset.asset_id}
                       onClick={() => setSelectedAssetId(asset.asset_id)}
                       className={`hover:bg-sunken cursor-pointer transition-colors ${
                         isSelected ? "bg-sev-normal-tint/20 font-semibold" : ""
                       }`}
                     >
-                      <td className="py-2.5 px-3">
+                      <TableCell>
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`w-1 h-4 rounded-full ${isSelected ? "bg-brand-ink" : "bg-transparent"}`}
                           />
                           <span className="font-mono font-bold text-brand-ink">{asset.asset_id}</span>
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3">
+                      </TableCell>
+                      <TableCell>
                         <div className="font-semibold text-ink text-label">{asset.asset_type}</div>
                         <div className="text-micro text-ink-3 font-mono">
                           {asset.geographic_area || asset.area}
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3">
+                      </TableCell>
+                      <TableCell>
                         <RiskBadge level={asset.priority || "LOW"} />
-                      </td>
-                      <td className="py-2.5 px-3">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1.5 font-mono text-micro font-bold text-sev-critical">
                           {F.pct(asset.failure_probability)}
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-ink">
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-ink">
                         {F.score(asset.grid_impact_score)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <span className="text-micro px-1.5 py-0.5 bg-sunken text-ink-2 rounded uppercase">
                           {asset.current_status || "IN_SERVICE"}
                         </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <ChevronRight className="w-4 h-4 text-ink-3 inline" />
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ChevronRight size={16} className="fill-current text-ink-3 inline" />
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Pagination */}
@@ -274,20 +287,22 @@ export default function AssetsPage() {
               Page {page + 1} of {totalPages}
             </span>
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                kind="ghost"
+                size="sm"
                 disabled={page === 0}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
-                className="px-2.5 py-1 bg-panel border border-line rounded disabled:opacity-40"
               >
                 Previous
-              </button>
-              <button
+              </Button>
+              <Button
+                kind="ghost"
+                size="sm"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                className="px-2.5 py-1 bg-panel border border-line rounded disabled:opacity-40"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -295,9 +310,8 @@ export default function AssetsPage() {
         {/* Diagnostics Drawer (5 cols) */}
         <div className="lg:col-span-5 bg-panel rounded-xl shadow-panel border border-line p-3.5 flex flex-col gap-3">
           {isDetailLoading || !assetDetail ? (
-            <div className="p-8 text-center font-mono text-micro text-ink-3">
-              <RotateCw className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-ink" />
-              Loading asset telemetry…
+            <div className="p-8">
+              <InlineLoading description="Loading asset telemetry…" />
             </div>
           ) : (
             <>
@@ -322,24 +336,29 @@ export default function AssetsPage() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-micro">
-                <button
+                <Button
+                  kind="danger"
+                  size="sm"
+                  renderIcon={Send}
                   onClick={() => handleDispatch(selectedAssetId)}
-                  className="min-h-8 bg-sev-critical text-white font-semibold rounded uppercase hover:opacity-90 flex items-center justify-center gap-1 shadow-panel"
                 >
-                  <Send className="w-3 h-3" /> Dispatch
-                </button>
-                <button
+                  Dispatch
+                </Button>
+                <Button
+                  kind="tertiary"
+                  size="sm"
+                  renderIcon={SettingsAdjust}
                   onClick={() => router.push(`/simulation?asset=${selectedAssetId}`)}
-                  className="min-h-8 bg-sunken text-ink border border-line font-semibold rounded uppercase hover:bg-header flex items-center justify-center gap-1"
                 >
-                  <Sliders className="w-3 h-3" /> Simulate
-                </button>
-                <button
+                  Simulate
+                </Button>
+                <Button
+                  kind="tertiary"
+                  size="sm"
                   onClick={() => ok(`Diagnostics for ${selectedAssetId} copied to clipboard`)}
-                  className="min-h-8 bg-sunken text-ink border border-line font-semibold rounded uppercase hover:bg-header flex items-center justify-center gap-1"
                 >
-                  Export Log
-                </button>
+                  Export log
+                </Button>
               </div>
 
               {/* Sensor Telemetry */}

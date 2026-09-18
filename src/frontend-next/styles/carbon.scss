@@ -1,0 +1,391 @@
+////
+/// IBM Carbon Design System — component styles, themed for this console.
+///
+/// Carbon is adopted the way Carbon is meant to be adopted: real components
+/// from @carbon/react, styled by Carbon's own SCSS, on a custom Carbon theme.
+/// Two configuration decisions make that work alongside the Tailwind layer
+/// that already exists here.
+///
+/// 1. No global emissions. `@carbon/styles/css/styles.css` ships an
+///    Eric-Meyer-style reset plus `html`, `body`, `h1`–`h6`, `p`, `a`, `ul`,
+///    `table`, `code` and `*` rules. Loading it would silently restyle every
+///    page in the app, not just the Carbon components on it. The four flags
+///    below turn all of that off, so what is emitted is `.cds--*` rules and
+///    nothing else — Carbon owns its components, the existing layer keeps
+///    owning the page.
+///
+/// 2. A custom theme rather than stock g10. Carbon's tokens are the API for
+///    exactly this: every component reads `--cds-*` custom properties, so
+///    pointing those at this console's measured palette means Carbon
+///    components arrive in the control-room colours instead of IBM blue.
+///    The severity ramp stays the only saturated colour on screen, which is
+///    the one rule this UI is built around.
+///
+/// Component partials are imported individually. Adding a Carbon component to
+/// a page means adding its partial here — that is deliberate, because the full
+/// set is ~1.1MB of CSS and most of it is for components this console has no
+/// use for.
+///
+/// BUILD: this file is compiled by the `carbon:css` npm script, not by Next.
+/// Carbon's partials forward each other with bare `@use '@carbon/styles/...'`
+/// specifiers, and Turbopack's Sass pipeline resolves those against the
+/// importing file rather than the package root, so even
+/// `@use '@carbon/styles/scss/components/button'` fails inside @carbon/styles.
+/// `sass --load-path=node_modules` resolves them correctly. `prebuild` and
+/// `predev` run it, so editing this file and running either command is enough;
+/// the generated app/carbon.generated.css is committed so a clean checkout can
+/// `next start` without a build step.
+////
+
+@use '@carbon/styles/scss/config' with (
+  // The reset would fight Tailwind's preflight and restyle the whole document.
+  $css--reset: false,
+  // `body { background; color }` is already set by globals.css.
+  $css--body: false,
+  // IBM Plex is loaded by next/font in app/layout.tsx; letting Carbon emit its
+  // own @font-face would download a second, unsubsetted copy of the family.
+  $css--font-face: false,
+  // Carbon's default type styles land on bare elements, not on `.cds--` ones.
+  $css--default-type: false
+);
+
+@use '@carbon/styles/scss/theme';
+@use '@carbon/styles/scss/themes';
+@use '@carbon/styles/scss/type';
+@use '@carbon/styles/scss/utilities';
+// Layout, spacing and motion are not optional extras: Carbon components size
+// themselves from `--cds-layout-*` custom properties and animate with the
+// motion easings. Without these, every button and field renders at its content
+// height and the shell has no transitions.
+@use '@carbon/styles/scss/layout';
+@use '@carbon/styles/scss/spacing';
+@use '@carbon/styles/scss/motion';
+@use '@carbon/styles/scss/breakpoint';
+@use 'sass:map';
+
+// ── Component partials actually used in this app ──────────────────────────
+@use '@carbon/styles/scss/components/button';
+@use '@carbon/styles/scss/components/tag';
+@use '@carbon/styles/scss/components/tile';
+@use '@carbon/styles/scss/components/data-table';
+@use '@carbon/styles/scss/components/text-input';
+@use '@carbon/styles/scss/components/text-area';
+@use '@carbon/styles/scss/components/form';
+@use '@carbon/styles/scss/components/search';
+@use '@carbon/styles/scss/components/select';
+@use '@carbon/styles/scss/components/checkbox';
+@use '@carbon/styles/scss/components/radio-button';
+@use '@carbon/styles/scss/components/notification';
+@use '@carbon/styles/scss/components/modal';
+@use '@carbon/styles/scss/components/loading';
+@use '@carbon/styles/scss/components/inline-loading';
+@use '@carbon/styles/scss/components/skeleton-styles';
+@use '@carbon/styles/scss/components/link';
+@use '@carbon/styles/scss/components/tooltip';
+@use '@carbon/styles/scss/components/popover';
+@use '@carbon/styles/scss/components/menu';
+@use '@carbon/styles/scss/components/overflow-menu';
+@use '@carbon/styles/scss/components/breadcrumb';
+@use '@carbon/styles/scss/components/progress-bar';
+@use '@carbon/styles/scss/components/file-uploader';
+@use '@carbon/styles/scss/components/content-switcher';
+@use '@carbon/styles/scss/components/toggle';
+@use '@carbon/styles/scss/components/stack';
+@use '@carbon/styles/scss/components/ui-shell';
+
+// ── The theme ─────────────────────────────────────────────────────────────
+// Values are this console's existing tokens, mapped onto Carbon's token names.
+// Contrast ratios quoted in globals.css therefore still hold for Carbon
+// components: they are the same colours, reached through a different API.
+$grid-console: map.merge(
+  themes.$g10,
+  (
+    // Surfaces. Carbon layers: background < layer-01 < layer-02 < layer-03.
+    background: #f4f6fb,
+    background-hover: #e9eef7,
+    background-active: #dce6f5,
+    background-selected: #dce6f5,
+    background-selected-hover: #d3dae6,
+    background-inverse: #0b1524,
+    background-inverse-hover: #1c2736,
+
+    layer-01: #ffffff,
+    layer-02: #f4f6fb,
+    layer-03: #e9eef7,
+    layer-hover-01: #f4f6fb,
+    layer-hover-02: #e9eef7,
+    layer-hover-03: #dce6f5,
+    layer-active-01: #e9eef7,
+    layer-active-02: #dce6f5,
+    layer-selected-01: #e9eef7,
+    layer-selected-02: #dce6f5,
+    layer-selected-inverse: #0b1524,
+    layer-accent-01: #e9eef7,
+    layer-accent-02: #dce6f5,
+
+    field-01: #e9eef7,
+    field-02: #ffffff,
+    field-hover-01: #dce6f5,
+    field-hover-02: #f4f6fb,
+
+    // Content. ink 18.3:1 on panel, ink-2 9.4:1, ink-3 5.9:1.
+    text-primary: #0b1524,
+    text-secondary: #3d4757,
+    text-placeholder: #5a6575,
+    text-helper: #5a6575,
+    text-on-color: #ffffff,
+    text-on-color-disabled: #8b96a5,
+    text-inverse: #ffffff,
+    text-error: #a8130e,
+    text-disabled: #9aa4b2,
+
+    icon-primary: #0b1524,
+    icon-secondary: #3d4757,
+    icon-on-color: #ffffff,
+    icon-inverse: #ffffff,
+    icon-disabled: #9aa4b2,
+
+    // Lines.
+    border-subtle-00: #d3dae6,
+    border-subtle-01: #d3dae6,
+    border-subtle-02: #d3dae6,
+    border-subtle-03: #aeb9ca,
+    border-strong-01: #aeb9ca,
+    border-strong-02: #aeb9ca,
+    border-strong-03: #aeb9ca,
+    border-inverse: #0b1524,
+    border-interactive: #1d6fe0,
+    border-disabled: #d3dae6,
+
+    // Interactive. The institutional green is the brand; it is the primary
+    // action colour so a Carbon Button matches the buttons already on screen.
+    interactive: #0f5132,
+
+    link-primary: #0f5132,
+    link-primary-hover: #073925,
+    link-secondary: #073925,
+    link-visited: #0f5132,
+
+    // Focus is a single blue, reserved for the keyboard so it can never be
+    // mistaken for a severity state.
+    focus: #1d6fe0,
+    focus-inset: #ffffff,
+    focus-inverse: #ffffff,
+
+    // Status — the severity ramp, unchanged.
+    support-error: #a8130e,
+    support-success: #0f5132,
+    support-warning: #7a4d00,
+    support-info: #1d6fe0,
+    support-caution-major: #9a3412,
+    support-caution-minor: #7a4d00,
+    support-error-inverse: #a8130e,
+    support-success-inverse: #0f5132,
+    support-warning-inverse: #7a4d00,
+    support-info-inverse: #1d6fe0,
+
+    // Notification fills use the severity tints from globals.css.
+
+    // Tags. Carbon's tag palette is remapped so a tag can only ever be
+    // achromatic or a severity colour — no stray purple or teal.
+
+    // Skeletons match the sunken surface rather than Carbon's default gray.
+    skeleton-background: #e9eef7,
+    skeleton-element: #dce6f5,
+
+    // Shell. The rail and header are the achromatic chrome this console
+    // already uses; Carbon's default is near-black and would dominate.
+    shell-header-bg: #ffffff,
+    shell-header-text-01: #0b1524,
+    shell-header-text-02: #3d4757,
+    shell-header-icon-01: #0b1524,
+    shell-header-icon-02: #3d4757,
+    shell-header-border: #d3dae6,
+    shell-header-focus: #1d6fe0,
+    shell-header-bg-hover: #e9eef7,
+    shell-header-bg-active: #dce6f5,
+    shell-side-nav-bg: #edf1f9,
+    shell-panel-bg: #ffffff,
+
+    overlay: rgba(11, 21, 36, 0.5)
+  )
+);
+
+// ── Component tokens ──────────────────────────────────────────────────────
+// Buttons, tags and notifications do NOT read the theme map: Carbon keeps them
+// in a separate component-token set. Putting `button-primary` in the theme map
+// above looks right and does nothing — the button stays IBM blue.
+//
+// They are also not simply the second argument to `theme()`: that mixin emits
+// the groups you pass and THEN re-emits every component token each partial
+// registered via `add-component-tokens`, so Carbon's defaults land after yours
+// in the same :root block and win. Hence the separate block below, which is
+// emitted last and is the only thing that actually takes effect.
+$grid-console-components: (
+    button-primary: #0f5132,
+    button-primary-hover: #073925,
+    button-primary-active: #052a1b,
+    button-secondary: #3d4757,
+    button-secondary-hover: #2b3543,
+    button-secondary-active: #1c2736,
+    button-tertiary: #0f5132,
+    button-tertiary-hover: #073925,
+    button-tertiary-active: #052a1b,
+    button-danger-primary: #a8130e,
+    button-danger-secondary: #a8130e,
+    button-danger-hover: #870f0b,
+    button-danger-active: #6b0c09,
+    button-disabled: #dce6f5,
+    notification-background-error: #fcdcda,
+    notification-background-success: #d7f0e2,
+    notification-background-warning: #fbeccb,
+    notification-background-info: #e8f0fd,
+    notification-action-tertiary-inverse: #ffffff,
+    tag-background-gray: #e9eef7,
+    tag-color-gray: #3d4757,
+    tag-hover-gray: #dce6f5,
+    tag-background-cool-gray: #e9eef7,
+    tag-color-cool-gray: #3d4757,
+    tag-hover-cool-gray: #dce6f5,
+    tag-background-red: #fcdcda,
+    tag-color-red: #a8130e,
+    tag-hover-red: #f8c9c6,
+    tag-background-magenta: #fbe0d2,
+    tag-color-magenta: #9a3412,
+    tag-hover-magenta: #f7d0bc,
+    tag-background-warm-gray: #fbeccb,
+    tag-color-warm-gray: #7a4d00,
+    tag-hover-warm-gray: #f7e0ad,
+    tag-background-green: #d7f0e2,
+    tag-color-green: #0f5132,
+    tag-hover-green: #c2e8d3,
+    tag-background-blue: #e8f0fd,
+    tag-color-blue: #1d6fe0,
+    tag-hover-blue: #d5e4fb,
+);
+
+:root {
+  @include theme.theme($grid-console);
+
+  // Carbon components read the family from these; point them at the next/font
+  // variables so Carbon and the rest of the page load one copy of IBM Plex.
+  --cds-charts-font-family: var(--font-plex-sans);
+}
+
+:root {
+  @each $token, $value in $grid-console-components {
+    --cds-#{$token}: #{$value};
+  }
+}
+
+// ── Local adjustments ─────────────────────────────────────────────────────
+// Carbon's defaults assume a full-bleed product shell. These three are the
+// only places this console needs something different, and each one is a
+// consequence of the existing layout rather than a restyle of the component.
+
+// Carbon buttons default to a 14rem minimum width for the old fluid layouts.
+// In a dense operations toolbar that stretches every button to the same slab.
+.cds--btn {
+  max-inline-size: none;
+  min-inline-size: 0;
+}
+
+// Full-width action, as a Carbon modifier rather than a utility class: the
+// component's own `inline-size` is emitted after Tailwind's layer, so `w-full`
+// on a Carbon button silently loses the cascade. Carbon's convention for a
+// full-width button pushes the icon to the trailing edge.
+.cds--btn.cds--btn--block {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  justify-content: space-between;
+}
+
+// A Carbon notification inside a narrow column: the component is built for a
+// full-bleed page and refuses to shrink below 18rem, which overflows a sign-in
+// card. Nothing else in the app puts one in a column this narrow.
+.cds--inline-notification {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+// ── UI Shell ──
+// Carbon's shell is fixed at a 3rem header and a 16rem nav. This console's
+// header carries a clock under the product name and the rail carries a stats
+// block, so both are taller/wider, and the width is a CSS variable that the
+// breadcrumb, main column and metrics drawer all read. These rules hand the
+// shell those metrics rather than hardcoding Carbon's.
+.cds--header.shell-header {
+  block-size: var(--spacing-topbar);
+  background: var(--color-panel);
+  border-block-end: 1px solid var(--color-line);
+}
+
+// Below Tailwind's `lg` the rail is an overlay drawer, because a fixed 240px
+// column on a 900px laptop leaves the asset table too narrow to read. The
+// breakpoint is Tailwind's 1024px, not Carbon's 1056px, because the main
+// column's own `lg:pl-[var(--spacing-rail)]` is what pairs with it — two
+// different breakpoints would leave a 32px window where the rail is visible
+// and the content is not indented.
+.cds--side-nav.shell-rail {
+  transform: translateX(-100%);
+
+  &.cds--side-nav--expanded {
+    transform: none;
+    box-shadow: var(--shadow-overlay);
+  }
+
+  @media (min-width: 1024px) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  inset-block-start: var(--spacing-topbar);
+  inline-size: var(--spacing-rail);
+  max-inline-size: var(--spacing-rail);
+  background: var(--color-rail);
+  border-inline-end: 1px solid var(--color-line);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+// Collapsed to icons. Carbon's own rail mode expands on hover; this one does
+// not, because the width is shared with the rest of the layout.
+.cds--side-nav.shell-rail--collapsed .cds--side-nav__link,
+.cds--side-nav.shell-rail--collapsed .cds--side-nav__submenu {
+  padding-inline: 0;
+  justify-content: center;
+}
+.cds--side-nav.shell-rail--collapsed .cds--side-nav__icon {
+  margin-inline-end: 0;
+}
+
+// The active marker is a shape, not just a fill, so the current location
+// survives greyscale and forced-colours mode.
+.cds--side-nav__link--current::before,
+.cds--side-nav__link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  background: var(--color-brand);
+}
+
+// Tabular figures wherever a Carbon table shows a number that ticks, for the
+// same reason the rest of the app does it: digits must not jitter in place.
+.cds--data-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+// Carbon sizes its drop container for a narrow form column. Here it is the
+// primary control on a full-width panel, and a 16rem target in a 40rem panel
+// reads as an afterthought rather than the thing to drop a file on.
+.cds--file-browse-btn,
+.cds--file__drop-container {
+  max-inline-size: 100%;
+  inline-size: 100%;
+}
+.cds--file__drop-container {
+  block-size: 6rem;
+}

@@ -2,12 +2,16 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Printer, CheckCircle2, ShieldAlert, RotateCw } from "lucide-react";
+
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
+import {
+  Button,
+} from "@carbon/react";
+import { Copy, Printer, Renew } from "@carbon/icons-react";
 
 export default function OperatorBriefPage() {
   const { data: brief, isLoading, refetch } = useQuery({
@@ -34,7 +38,7 @@ export default function OperatorBriefPage() {
       const text = await API.briefText();
       await navigator.clipboard.writeText(text);
       ok("Brief copied to clipboard as text");
-    } catch (e: any) {
+    } catch {
       err("Failed to fetch brief text");
     }
   };
@@ -54,24 +58,15 @@ export default function OperatorBriefPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => refetch()}
-            className="min-h-9 px-3 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken flex items-center gap-1.5 shadow-panel"
-          >
-            <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Refresh
-          </button>
-          <button
-            onClick={handleCopyText}
-            className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken flex items-center gap-1.5 shadow-panel"
-          >
-            <FileText className="w-3.5 h-3.5 text-brand-ink" /> Copy Text
-          </button>
-          <button
-            onClick={handlePrint}
-            className="min-h-9 px-3.5 bg-brand text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-panel"
-          >
-            <Printer className="w-3.5 h-3.5" /> Print / PDF Export
-          </button>
+          <Button kind="tertiary" size="sm" renderIcon={Renew} onClick={() => refetch()}>
+            Refresh
+          </Button>
+          <Button kind="tertiary" size="sm" renderIcon={Copy} onClick={handleCopyText}>
+            Copy text
+          </Button>
+          <Button size="sm" renderIcon={Printer} onClick={handlePrint}>
+            Print / PDF export
+          </Button>
         </div>
       </div>
 

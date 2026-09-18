@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { Tile } from "@carbon/react";
 
 interface PanelCardProps {
   title: string;
@@ -13,6 +16,14 @@ interface PanelCardProps {
   flush?: boolean;
 }
 
+/**
+ * A titled Carbon Tile.
+ *
+ * Carbon has no "panel with a header strip" component — TileGroup is for
+ * selection and ExpandableTile for progressive disclosure — so the header is
+ * ours and the surface is Carbon's. `!p-0` because the header has to run to
+ * the tile's edge to read as a strip.
+ */
 export const PanelCard: React.FC<PanelCardProps> = ({
   title,
   icon,
@@ -23,12 +34,14 @@ export const PanelCard: React.FC<PanelCardProps> = ({
   flush = false,
 }) => {
   return (
-    <section
-      className={`bg-panel rounded-xl border border-line shadow-panel overflow-hidden ${className}`}
-    >
+    <Tile className={`overflow-hidden !p-0 ${className}`}>
       <header className="px-4 py-2.5 border-b border-line flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          {icon && <span className="text-ink-3 shrink-0" aria-hidden="true">{icon}</span>}
+          {icon && (
+            <span className="text-ink-3 shrink-0" aria-hidden="true">
+              {icon}
+            </span>
+          )}
           <div className="min-w-0">
             <h2 className="text-label font-semibold text-ink tracking-tight truncate">{title}</h2>
             {hint && <p className="text-micro text-ink-3 truncate">{hint}</p>}
@@ -37,6 +50,6 @@ export const PanelCard: React.FC<PanelCardProps> = ({
         {extraHeader && <div className="shrink-0">{extraHeader}</div>}
       </header>
       <div className={flush ? "" : "p-4"}>{children}</div>
-    </section>
+    </Tile>
   );
 };

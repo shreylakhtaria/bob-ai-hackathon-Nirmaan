@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, X, Send, Trash2, Loader2 } from "lucide-react";
+import { Button, InlineLoading, Tag, TextInput } from "@carbon/react";
+import { Chat, Close, Send, TrashCan } from "@carbon/icons-react";
 import { API } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -178,16 +179,17 @@ export const CopilotWidget: React.FC = () => {
   return (
     <>
       {!open && (
-        <button
+        <Button
           ref={launcherRef}
           onClick={() => setOpen(true)}
-          aria-label="Open grid copilot"
+          renderIcon={Chat}
+          iconDescription="Open grid copilot"
+          hasIconOnly
+          tooltipPosition="right"
           // Bottom-left: the bottom-right corner is where the metrics drawer and
           // table action buttons live, and covering those costs more than it saves.
-          className="fixed bottom-5 left-5 z-[60] h-12 w-12 rounded-full bg-brand text-white shadow-overlay flex items-center justify-center hover:bg-brand-ink focus-visible:outline-none"
-        >
-          <MessageSquare className="w-5 h-5" aria-hidden="true" />
-        </button>
+          className="!fixed bottom-5 left-5 z-[60] shadow-overlay"
+        />
       )}
 
       {open && (
@@ -204,21 +206,27 @@ export const CopilotWidget: React.FC = () => {
               <span className="text-label font-semibold text-ink truncate">Grid copilot</span>
             </div>
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                kind="ghost"
+                size="sm"
+                hasIconOnly
+                renderIcon={TrashCan}
+                iconDescription="Clear conversation"
+                tooltipPosition="bottom"
                 onClick={() => setMessages([GREETING])}
-                aria-label="Clear conversation"
-                title="Clear conversation"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-3 hover:text-ink hover:bg-sunken"
-              >
-                <Trash2 className="w-4 h-4" aria-hidden="true" />
-              </button>
-              <button
-                onClick={() => { setOpen(false); launcherRef.current?.focus(); }}
-                aria-label="Close copilot"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-3 hover:text-ink hover:bg-sunken"
-              >
-                <X className="w-4 h-4" aria-hidden="true" />
-              </button>
+              />
+              <Button
+                kind="ghost"
+                size="sm"
+                hasIconOnly
+                renderIcon={Close}
+                iconDescription="Close copilot"
+                tooltipPosition="left"
+                onClick={() => {
+                  setOpen(false);
+                  launcherRef.current?.focus();
+                }}
+              />
             </div>
           </div>
 
@@ -246,31 +254,29 @@ export const CopilotWidget: React.FC = () => {
                     </div>
                   )}
                   {m.evidence && m.evidence.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-line/60 font-mono text-micro text-ink-3">
-                      Evidence: {m.evidence.map((e) => e.tool).join(" • ")}
+                    <div className="mt-2 pt-1.5 border-t border-line/60 flex flex-wrap items-center gap-1">
+                      <span className="text-micro text-ink-3">Evidence:</span>
+                      {m.evidence.map((e, j) => (
+                        <Tag key={`${e.tool}-${j}`} type="cool-gray" size="sm">
+                          {e.tool}
+                        </Tag>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="flex items-center gap-2 text-micro text-ink-3">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-                Reading current model output&hellip;
-              </div>
+              <InlineLoading description="Reading current model output…" />
             )}
           </div>
 
           {messages.length <= 1 && (
             <div className="px-3.5 pb-2 flex flex-wrap gap-1.5">
               {QUICK_PROMPTS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => send(p)}
-                  className="rounded-full border border-line bg-sunken px-2.5 py-1 text-micro text-ink-2 hover:border-brand hover:text-ink"
-                >
+                <Button key={p} kind="ghost" size="sm" onClick={() => send(p)}>
                   {p}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -279,23 +285,26 @@ export const CopilotWidget: React.FC = () => {
             onSubmit={(e) => { e.preventDefault(); send(input); }}
             className="flex items-center gap-2 border-t border-line p-2.5"
           >
-            <label htmlFor="copilot-input" className="sr-only">Ask the grid copilot</label>
-            <input
+            <TextInput
               id="copilot-input"
               ref={inputRef}
+              size="sm"
+              labelText="Ask the grid copilot"
+              hideLabel
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about assets, risk or crews&hellip;"
-              className="flex-1 min-w-0 min-h-9 px-3 rounded-lg border border-line-strong bg-canvas text-ink text-label"
+              placeholder="Ask about assets, risk or crews…"
+              className="flex-1 min-w-0"
             />
-            <button
+            <Button
               type="submit"
+              size="sm"
+              hasIconOnly
+              renderIcon={Send}
+              iconDescription="Send"
+              tooltipPosition="left"
               disabled={!input.trim() || isLoading}
-              aria-label="Send"
-              className="h-9 w-9 shrink-0 rounded-lg bg-brand text-white flex items-center justify-center disabled:opacity-40 hover:bg-brand-ink"
-            >
-              <Send className="w-4 h-4" aria-hidden="true" />
-            </button>
+            />
           </form>
         </div>
       )}

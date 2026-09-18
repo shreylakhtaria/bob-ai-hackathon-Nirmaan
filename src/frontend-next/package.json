@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "carbon:css": "sass --load-path=node_modules --no-source-map --no-charset --style=compressed styles/carbon.scss app/carbon.generated.css",
+    "prebuild": "npm run carbon:css",
+    "predev": "npm run carbon:css"
   },
   "dependencies": {
     "@carbon/react": "^1.116.0",
@@ -14,7 +17,6 @@
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
-    "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-chartjs-2": "^5.3.1",

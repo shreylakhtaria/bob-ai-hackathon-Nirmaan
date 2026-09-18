@@ -3,12 +3,21 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, CloudRain, AlertTriangle, ChevronRight, RotateCw } from "lucide-react";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import { WeatherChart } from "@/components/sensors/WeatherChart";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
+import { ArrowRight, Rain, Renew, Security } from "@carbon/icons-react";
 
 export default function RiskAreasPage() {
   const router = useRouter();
@@ -61,12 +70,15 @@ export default function RiskAreasPage() {
             Area-level outage probabilities, storm vulnerability indexes, and customer exposure zones.
           </p>
         </div>
-        <button
+        <Button
+          kind="tertiary"
+          size="sm"
+          renderIcon={Renew}
           onClick={handleRefetch}
-          className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 shadow-panel self-start md:self-auto"
+          className="self-start md:self-auto"
         >
-          <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Refresh Matrix
-        </button>
+          Refresh matrix
+        </Button>
       </div>
 
       {/* Chart Section */}
@@ -74,7 +86,7 @@ export default function RiskAreasPage() {
         <div className="lg:col-span-12">
           <div className="bg-panel rounded-xl shadow-panel border border-line overflow-hidden">
             <div className="px-3.5 py-2.5 bg-header flex items-center gap-2 border-b border-line">
-              <CloudRain className="w-4 h-4 text-brand-ink" />
+              <Rain size={16} className="fill-current text-brand-ink" />
               <span className="text-micro font-semibold text-ink uppercase">
                 Weather Forecast — Worst Area ({worstArea?.area_id || "N/A"}) (96h)
               </span>
@@ -90,7 +102,7 @@ export default function RiskAreasPage() {
       <div className="bg-panel rounded-xl shadow-panel border border-line overflow-hidden">
         <div className="px-3.5 py-2.5 bg-header flex items-center justify-between border-b border-line">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-brand-ink" />
+            <Security size={16} className="fill-current text-brand-ink" />
             <span className="text-micro font-semibold text-ink uppercase">
               Operational Region Matrix ({areas.length} Geographic Zones)
             </span>
@@ -99,38 +111,38 @@ export default function RiskAreasPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-sans text-label">
-            <thead>
-              <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
-                <th className="py-2.5 px-3">Area / Node</th>
-                <th className="py-2.5 px-3">Risk Tier</th>
-                <th className="py-2.5 px-3">Outage Prob.</th>
-                <th className="py-2.5 px-3">Weather Score</th>
-                <th className="py-2.5 px-3 text-right">High-Risk Assets</th>
-                <th className="py-2.5 px-3 text-right">Customers Exposed</th>
-                <th className="py-2.5 px-3">Primary Risk Stressor</th>
-                <th className="py-2.5 px-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-sunken">
+          <Table size="sm" useZebraStyles={false}>
+            <TableHead>
+              <TableRow className="text-micro">
+                <TableHeader>Area / Node</TableHeader>
+                <TableHeader>Risk Tier</TableHeader>
+                <TableHeader>Outage Prob.</TableHeader>
+                <TableHeader>Weather Score</TableHeader>
+                <TableHeader className="text-right">High-Risk Assets</TableHeader>
+                <TableHeader className="text-right">Customers Exposed</TableHeader>
+                <TableHeader>Primary Risk Stressor</TableHeader>
+                <TableHeader className="text-right">Action</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {areas.map((area) => (
-                <tr
+                <TableRow
                   key={area.area_id}
                   onClick={() => router.push(`/assets?q=${area.area_id}`)}
                   className="hover:bg-sunken cursor-pointer transition-colors"
                 >
-                  <td className="py-2.5 px-3 font-mono font-bold text-brand-ink">
+                  <TableCell className="font-mono font-bold text-brand-ink">
                     {area.area_id}
-                  </td>
-                  <td className="py-2.5 px-3">
+                  </TableCell>
+                  <TableCell>
                     <RiskBadge level={area.risk_level} />
-                  </td>
-                  <td className="py-2.5 px-3 font-mono font-bold text-sev-critical">
+                  </TableCell>
+                  <TableCell className="font-mono font-bold text-sev-critical">
                     {F.pct(area.outage_probability)}
-                  </td>
-                  <td className="py-2.5 px-3">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-1.5 font-mono text-micro text-ink-2">
-                      <CloudRain className="w-3.5 h-3.5 text-brand" />
+                      <Rain size={14} className="fill-current text-brand" />
                       <div className="flex flex-col">
                         <span>{area.weather_risk} / 100</span>
                         {wxData[area.area_id] && (
@@ -140,31 +152,33 @@ export default function RiskAreasPage() {
                         )}
                       </div>
                     </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-sev-critical">
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-bold text-sev-critical">
                     {area.high_risk_assets}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-micro">
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-micro">
                     {F.num(area.customers_exposed)}
-                  </td>
-                  <td className="py-2.5 px-3 text-micro text-ink-2">
+                  </TableCell>
+                  <TableCell className="text-micro">
                     {area.primary_driver || "Elevated equipment thermal load"}
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button
-                      onClick={(e) => {
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      renderIcon={ArrowRight}
+                      onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         router.push(`/simulation?tab=weather&area=${area.area_id}`);
                       }}
-                      className="px-2 py-0.5 bg-sunken text-brand-ink font-mono text-micro font-bold rounded border border-line hover:bg-header"
                     >
-                      Simulate &rsaquo;
-                    </button>
-                  </td>
-                </tr>
+                      Simulate
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

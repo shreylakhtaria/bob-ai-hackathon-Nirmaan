@@ -176,25 +176,55 @@ export interface ContingencyImpact {
   estimated_economic_impact_usd: number;
 }
 
+/**
+ * Mirrors backend/services/simulation.py `simulate_asset_failure()`.
+ *
+ * The previous shape here described a `simulated_asset` / `contingency_impact`
+ * nesting the backend has never returned. Every field read through it was
+ * `undefined`, and the page papered over that with hardcoded fallbacks
+ * ("2 overloaded assets", "$1,200,000"), so the simulator showed invented
+ * constants instead of model output.
+ */
 export interface SimulationResponse {
-  simulated_asset: Asset;
-  contingency_impact: ContingencyImpact;
-  mitigation_steps: Array<{
-    step: number;
-    action: string;
-    target_asset?: string;
-    expected_response_min: number;
-  }>;
+  scenario: string;
+  asset_id: string;
+  asset_type: string;
+  area: string;
+  failure_probability: number | null;
+  grid_impact_score: number | null;
+  direct_customers: number;
+  downstream_customers: number;
+  total_customers_affected: number;
+  affected_areas: string[];
+  downstream_assets: Array<{ asset_id: string; type: string; customers: number }>;
+  severity: RiskLevel | string;
+  estimated_outage_minutes: number;
+  required_skill: string;
+  nearest_crew: { crew_id: string; response_min: number; skill: string } | null;
+  recommended_mitigation: string[];
+  is_simulation: boolean;
 }
 
+/** Mirrors backend/services/simulation.py `simulate_weather_event()`. */
 export interface WeatherSimResponse {
-  area_id: string;
   scenario: string;
-  weather_score: number;
-  updated_outage_probability: number;
-  affected_assets_count: number;
-  critical_assets_count: number;
-  impacted_assets: Asset[];
+  area_id: string;
+  injected_severity: string;
+  injected_weather_score: number;
+  baseline_outage_probability: number;
+  baseline_risk_level: RiskLevel | string;
+  new_outage_probability: number;
+  new_risk_level: RiskLevel | string;
+  delta: number;
+  high_risk_assets: number;
+  top_exposed_assets: Array<{
+    asset_id: string;
+    fp: number;
+    gis: number;
+    type: string;
+  }>;
+  recommended_actions: string[];
+  is_simulation: boolean;
 }
 
 export interface CopilotResponse {

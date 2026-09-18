@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+// IBM Carbon component styles, themed to this console's palette. Generated
+// from styles/carbon.scss by `npm run carbon:css` (which prebuild/predev run);
+// see that file for why it is compiled outside the Next pipeline. It emits
+// only `.cds--*` rules, so it cannot restyle anything that is not a Carbon
+// component.
+import "./carbon.generated.css";
 
 // globals.css named IBM Plex and JetBrains Mono for months without either one
 // ever being loaded, so every visitor saw the system fallback. IBM Plex is the

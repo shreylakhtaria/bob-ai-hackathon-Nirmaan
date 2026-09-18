@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Activity } from "lucide-react";
+import { Modal, Tag } from "@carbon/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -83,39 +83,28 @@ export const SensorChartModal: React.FC<SensorChartModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
-      <div className="bg-panel rounded-xl shadow-overlay border border-line w-full max-w-2xl overflow-hidden flex flex-col">
-        <div className="px-4 py-3 bg-header border-b border-line flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-brand-ink" />
-            <div>
-              <h3 className="text-body font-semibold text-ink uppercase">
-                {label} Telemetry &mdash; 24h Trend
-              </h3>
-              <span className="text-micro text-ink-2 font-mono">
-                Current: {value} {unit} &bull; Threshold: {threshold}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close chart" className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-sunken text-ink"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="p-4 flex-1">
-          <div className="h-64 w-full">
-            <Line data={chartData} options={chartOptions} />
-          </div>
-        </div>
-
-        <div className="px-4 py-2.5 bg-canvas border-t border-line flex items-center justify-between font-mono text-micro text-ink-2">
-          <span>Sampling: 1-minute SCADA poll</span>
-          <span className="text-brand-ink font-bold">Status: {status}</span>
-        </div>
+    /* A Carbon Modal: it traps focus, restores it on close, closes on Escape
+       and labels itself — all of which the hand-rolled overlay this replaced
+       did none of. `passiveModal` because reading a chart has no action to
+       confirm. */
+    <Modal
+      open={isOpen}
+      onRequestClose={onClose}
+      modalHeading={`${label} telemetry — 24h trend`}
+      modalLabel={`Current ${value} ${unit} · threshold ${threshold}`}
+      passiveModal
+      size="lg"
+      aria-label={`${label} telemetry chart`}
+    >
+      <div className="h-64 w-full">
+        <Line data={chartData} options={chartOptions} />
       </div>
-    </div>
+      <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-3 font-mono text-micro text-ink-2">
+        <span>Sampling: 1-minute SCADA poll</span>
+        <Tag type={status.toUpperCase().includes("CRIT") ? "red" : "green"} size="sm">
+          {status}
+        </Tag>
+      </div>
+    </Modal>
   );
 };

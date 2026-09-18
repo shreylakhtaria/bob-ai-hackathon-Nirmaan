@@ -3,23 +3,22 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  AlertTriangle,
-  ShieldAlert,
-  Zap,
-  Users,
-  Wrench,
-  ChevronRight,
-  Send,
-  RotateCw,
-} from "lucide-react";
+import { Activity, ArrowRight, ChevronRight, Flash, Group, Renew, Send, Tools, WarningAlt, WarningAltFilled } from "@carbon/icons-react";
 import { KpiTile } from "@/components/common/KpiTile";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
+import {
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -68,46 +67,49 @@ export default function OverviewPage() {
             Current asset health, outage risk, and operational priorities &mdash; SCADA &amp; ML Forecast Feed
           </p>
         </div>
-        <button
+        <Button
+          kind="tertiary"
+          size="sm"
+          renderIcon={Renew}
           onClick={() => refetch()}
-          className="min-h-9 px-3.5 bg-panel text-ink border border-line rounded-lg font-mono text-micro font-bold hover:bg-sunken transition-colors flex items-center gap-1.5 self-start md:self-auto shadow-panel"
+          className="self-start md:self-auto"
         >
-          <RotateCw className="w-3.5 h-3.5 text-brand-ink" /> Force Rescan
-        </button>
+          Force rescan
+        </Button>
       </div>
 
       {/* 5 KPI Summary Tiles */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
         <KpiTile
-          icon={<Activity className="w-4 h-4" />}
+          icon={<Activity size={16} />}
           label="Overall Grid Risk"
           value={summary.overall_grid_risk || "HIGH"}
           sub={`${summary.total_assets || 220} assets monitored`}
           level={summary.overall_grid_risk}
         />
         <KpiTile
-          icon={<AlertTriangle className="w-4 h-4 text-sev-critical" />}
+          icon={<WarningAlt size={16} className="fill-current text-sev-critical" />}
           label="Critical Assets"
           value={summary.critical_assets || 19}
           sub="Require immediate action"
           level="CRITICAL"
         />
         <KpiTile
-          icon={<ShieldAlert className="w-4 h-4 text-sev-elevated" />}
+          icon={<WarningAltFilled size={16} className="fill-current text-sev-elevated" />}
           label="High-Risk Assets"
           value={summary.high_risk_assets || 1}
           sub="P(fail) > 65%"
           level="HIGH"
         />
         <KpiTile
-          icon={<Zap className="w-4 h-4 text-brand" />}
+          icon={<Flash size={16} className="fill-current text-brand" />}
           label="Predicted Failures"
           value={summary.predicted_failures || 21}
           sub="Next 72h horizon"
           level="HIGH"
         />
         <KpiTile
-          icon={<Users className="w-4 h-4 text-brand-ink" />}
+          icon={<Group size={16} className="fill-current text-brand-ink" />}
           label="Customers at Risk"
           value={F.num(summary.customers_at_risk) || "249,897"}
           sub={`${summary.weather_exposed_zones || 2} weather zones`}
@@ -120,7 +122,7 @@ export default function OverviewPage() {
         <div className="bg-sunken border border-line rounded-lg p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-panel">
           <div className="flex items-start gap-2.5">
             <div className="p-1.5 bg-sev-critical-tint text-sev-critical rounded-lg mt-0.5">
-              <AlertTriangle className="w-4 h-4" />
+              <WarningAlt size={16} />
             </div>
             <div>
               <div className="text-micro text-sev-critical font-semibold uppercase tracking-wider">
@@ -134,24 +136,31 @@ export default function OverviewPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            {/* The one irreversible action here is styled `danger`, and the
+                two that only navigate are `tertiary`, so the destructive one
+                does not look like its neighbours. */}
+            <Button
+              kind="danger"
+              size="sm"
+              renderIcon={Send}
               onClick={() => handleDispatch(topAsset.asset_id)}
-              className="min-h-9 px-3.5 bg-sev-critical text-white text-micro font-semibold rounded-lg uppercase hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-panel"
             >
-              <Send className="w-3.5 h-3.5" /> Dispatch Crew Now
-            </button>
-            <button
+              Dispatch crew now
+            </Button>
+            <Button
+              kind="tertiary"
+              size="sm"
               onClick={() => router.push(`/simulation?asset=${topAsset.asset_id}`)}
-              className="min-h-9 px-3 bg-panel text-ink font-mono text-micro font-semibold rounded-lg border border-line hover:bg-header transition-colors shadow-panel"
             >
-              Simulate Failure
-            </button>
-            <button
+              Simulate failure
+            </Button>
+            <Button
+              kind="tertiary"
+              size="sm"
               onClick={() => router.push(`/assets?assetId=${topAsset.asset_id}`)}
-              className="min-h-9 px-3 bg-panel text-ink font-mono text-micro font-semibold rounded-lg border border-line hover:bg-header transition-colors shadow-panel"
             >
-              Review Telemetry
-            </button>
+              Review telemetry
+            </Button>
           </div>
         </div>
       )}
@@ -163,7 +172,7 @@ export default function OverviewPage() {
           <div className="bg-panel rounded-lg border border-line shadow-panel overflow-hidden">
             <div className="px-3.5 py-2 bg-header flex items-center justify-between border-b border-line">
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-sev-critical" />
+                <Flash size={16} className="fill-current text-sev-critical" />
                 <span className="text-micro font-semibold text-ink uppercase">
                   Critical Now &mdash; High Priority Equipment
                 </span>
@@ -175,36 +184,36 @@ export default function OverviewPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left font-sans text-label">
-                <thead>
-                  <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
-                    <th className="py-2 px-3">Asset ID</th>
-                    <th className="py-2 px-3">Area/Substation</th>
-                    <th className="py-2 px-3">Severity</th>
-                    <th className="py-2 px-3">Failure Prob.</th>
-                    <th className="py-2 px-3 text-right">Customers</th>
-                    <th className="py-2 px-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-sunken">
+              <Table size="sm" useZebraStyles={false}>
+                <TableHead>
+                  <TableRow className="text-micro">
+                    <TableHeader>Asset ID</TableHeader>
+                    <TableHeader>Area/Substation</TableHeader>
+                    <TableHeader>Severity</TableHeader>
+                    <TableHeader>Failure Prob.</TableHeader>
+                    <TableHeader className="text-right">Customers</TableHeader>
+                    <TableHeader className="text-right">Action</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {(summary.top_assets || []).slice(0, 6).map((a) => (
-                    <tr
+                    <TableRow
                       key={a.asset_id}
                       onClick={() => router.push(`/assets?assetId=${a.asset_id}`)}
                       className="hover:bg-sunken cursor-pointer transition-colors"
                     >
-                      <td className="py-2.5 px-3">
+                      <TableCell>
                         <div className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-sev-critical" />
                           <span className="font-mono font-bold text-brand-ink">{a.asset_id}</span>
                         </div>
                         <div className="text-micro text-ink-3">{a.asset_type}</div>
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-micro text-ink-2">{a.area}</td>
-                      <td className="py-2.5 px-3">
+                      </TableCell>
+                      <TableCell className="font-mono text-micro">{a.area}</TableCell>
+                      <TableCell>
                         <RiskBadge level={a.priority || "CRITICAL"} />
-                      </td>
-                      <td className="py-2.5 px-3">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="w-14 h-1.5 bg-sunken rounded-full overflow-hidden">
                             <div
@@ -216,25 +225,27 @@ export default function OverviewPage() {
                             {F.pct(a.failure_probability)}
                           </span>
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-micro">
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-micro">
                         {F.num(a.customers_served)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <button
-                          onClick={(e) => {
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          renderIcon={ArrowRight}
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             router.push(`/assets?assetId=${a.asset_id}`);
                           }}
-                          className="px-2 py-0.5 bg-sev-critical-tint text-sev-critical font-mono text-micro font-bold rounded hover:opacity-90"
                         >
-                          Inspect &rsaquo;
-                        </button>
-                      </td>
-                    </tr>
+                          Inspect
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
 
@@ -242,7 +253,7 @@ export default function OverviewPage() {
           <div className="bg-panel rounded-lg border border-line shadow-panel overflow-hidden">
             <div className="px-3.5 py-2 bg-header flex items-center justify-between border-b border-line">
               <div className="flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-brand-ink" />
+                <Tools size={16} className="fill-current text-brand-ink" />
                 <span className="text-micro font-semibold text-ink uppercase">
                   Top Grid-Impact Assets &mdash; System Exposure
                 </span>
@@ -251,49 +262,49 @@ export default function OverviewPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left font-sans text-label">
-                <thead>
-                  <tr className="bg-sunken text-ink-2 text-micro uppercase tracking-wider border-b border-line">
-                    <th className="py-2 px-3">Asset ID</th>
-                    <th className="py-2 px-3">Type &amp; Location</th>
-                    <th className="py-2 px-3">Risk</th>
-                    <th className="py-2 px-3">P(Fail)</th>
-                    <th className="py-2 px-3 text-right">Impact</th>
-                    <th className="py-2 px-3 text-right">Customers</th>
-                    <th className="py-2 px-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-sunken">
+              <Table size="sm" useZebraStyles={false}>
+                <TableHead>
+                  <TableRow className="text-micro">
+                    <TableHeader>Asset ID</TableHeader>
+                    <TableHeader>Type &amp; Location</TableHeader>
+                    <TableHeader>Risk</TableHeader>
+                    <TableHeader>P(Fail)</TableHeader>
+                    <TableHeader className="text-right">Impact</TableHeader>
+                    <TableHeader className="text-right">Customers</TableHeader>
+                    <TableHeader className="text-right">Action</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {(summary.top_assets || []).slice(0, 5).map((a) => (
-                    <tr
+                    <TableRow
                       key={a.asset_id}
                       onClick={() => router.push(`/assets?assetId=${a.asset_id}`)}
                       className="hover:bg-sunken cursor-pointer transition-colors"
                     >
-                      <td className="py-2 px-3 font-mono font-bold text-brand-ink">{a.asset_id}</td>
-                      <td className="py-2 px-3">
+                      <TableCell className="font-mono font-bold text-brand-ink">{a.asset_id}</TableCell>
+                      <TableCell>
                         <div className="font-semibold text-ink text-label">{a.asset_type}</div>
                         <div className="text-micro text-ink-3 font-mono">{a.area}</div>
-                      </td>
-                      <td className="py-2 px-3">
+                      </TableCell>
+                      <TableCell>
                         <RiskBadge level={a.priority || "CRITICAL"} />
-                      </td>
-                      <td className="py-2 px-3 font-mono text-micro font-bold text-sev-critical">
+                      </TableCell>
+                      <TableCell className="font-mono text-micro font-bold text-sev-critical">
                         {F.pct(a.failure_probability)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-ink">
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-ink">
                         {F.score(a.grid_impact_score)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono text-micro">
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-micro">
                         {F.num(a.customers_served)}
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <ChevronRight className="w-4 h-4 text-ink-3 inline" />
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ChevronRight size={16} className="fill-current text-ink-3 inline" />
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -331,7 +342,7 @@ export default function OverviewPage() {
           <div className="bg-panel rounded-lg border border-line shadow-panel p-3.5">
             <div className="flex items-center justify-between mb-2.5 pb-1 border-b border-line">
               <div className="flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-sev-critical" />
+                <WarningAlt size={16} className="fill-current text-sev-critical" />
                 <span className="text-micro font-semibold uppercase text-ink">
                   Active Operational Alerts
                 </span>
