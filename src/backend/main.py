@@ -19,7 +19,7 @@ from .services import (impact as impact_svc, crew as crew_svc, simulation as sim
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
                        operations as ops_svc, auth as auth_svc, ingest as ingest_svc,
                        resolution as resolution_svc, risk as risk_svc,
-                       mcp as mcp_svc)
+                       mcp as mcp_svc, jira as jira_svc)
 from .routers.ingest import router as ingest_router
 from .routers.notification_routes import router as notification_router
 
@@ -141,6 +141,18 @@ class CompleteWorkOrderRequest(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=1000)
     # Constrained rather than free text so the maintenance record stays queryable.
     result: str = Field(default="COMPLETED", pattern="^(COMPLETED|PARTIAL|NO_FAULT_FOUND)$")
+    # Proof-of-work fields (optional — can also be set via /work-orders/{id}/proof)
+    proof_attachments: Optional[list] = None
+    technician_signature: Optional[str] = Field(default=None, max_length=200)
+    field_status: str = Field(default="COMPLETED")
+
+
+class WorkOrderStatusRequest(BaseModel):
+    field_status: str  # DISPATCHED | EN_ROUTE | ON_SITE | RESOLVING | COMPLETED
+
+
+class ProofOfWorkRequest(BaseModel):
+    attachments: list  # [{name, type, size, url_or_data, uploaded_at}]
 
 
 def _require_seeded():
@@ -643,7 +655,80 @@ def wo_complete(wo_id: str, req: CompleteWorkOrderRequest,
     return resolution_svc.complete_work_order(
         wo_id, current,
         action_taken=req.action_taken, parts_replaced=req.parts_replaced,
-        notes=req.notes, result=req.result)
+        notes=req.notes, result=req.result,
+        proof_attachments=req.proof_attachments,
+        technician_signature=req.technician_signature,
+        field_status=req.field_status)
+
+
+@app.post("/api/work-orders/{wo_id}/status")
+def wo_update_status(wo_id: str, req: WorkOrderStatusRequest,
+                     current=Depends(require_any_role)):
+    """Update the field-crew status for a work order and sync to Jira."""
+    _require_seeded()
+    resolution_svc.get_work_order(wo_id)   # raises 404 if missing
+    result = jira_svc.sync_status(wo_id, req.field_status)
+    db.audit(current.get("email", "system"), "wo_status_update",
+             {"wo_id": wo_id, "field_status": req.field_status})
+    return result
+
+
+@app.post("/api/work-orders/{wo_id}/proof")
+async def wo_upload_proof(wo_id: str, files: list[UploadFile] = File(default=[]),
+                          current=Depends(require_any_role)):
+    """Attach proof-of-work evidence files to a work order."""
+    _require_seeded()
+    resolution_svc.get_work_order(wo_id)   # 404 guard
+
+    from datetime import datetime, timezone
+    items = []
+    for f in files:
+        raw = await f.read()
+        items.append({
+            "name":        f.filename,
+            "type":        f.content_type,
+            "size":        len(raw),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            # For demo: store as base64 data-URI (real deployments should S3/blob-store)
+            "url_or_data": f"data:{f.content_type};base64,__binary_omitted__",
+        })
+
+    result = jira_svc.attach_proof(wo_id, items)
+    db.audit(current.get("email", "system"), "wo_proof_upload",
+             {"wo_id": wo_id, "files": [i["name"] for i in items]})
+    return result
+
+
+@app.post("/api/work-orders/{wo_id}/resolve")
+def wo_resolve_with_proof(wo_id: str, req: CompleteWorkOrderRequest,
+                           current=Depends(require_any_role)):
+    """Full resolution with proof-of-work payload — alias for /complete with
+    explicit proof fields, named to match the UI's field resolution flow."""
+    _require_seeded()
+    return resolution_svc.complete_work_order(
+        wo_id, current,
+        action_taken=req.action_taken, parts_replaced=req.parts_replaced,
+        notes=req.notes, result=req.result,
+        proof_attachments=req.proof_attachments,
+        technician_signature=req.technician_signature,
+        field_status=req.field_status)
+
+
+# ---------------------------------------------------------------------------
+# Jira / enterprise work management
+# ---------------------------------------------------------------------------
+@app.get("/api/jira/status")
+def jira_status(current=Depends(require_any_role)):
+    """Return Jira integration mode + connectivity probe."""
+    return jira_svc.test_connection()
+
+
+@app.get("/api/jira/tickets")
+def jira_tickets(limit: int = Query(50, le=200),
+                 current=Depends(require_any_role)):
+    """List tracked enterprise tickets (real or simulated)."""
+    return {"tickets": jira_svc.list_tickets(limit=limit),
+            "mode": "real" if jira_svc.JIRA_ENABLED else "simulated"}
 
 
 @app.post("/api/risk/recalculate")

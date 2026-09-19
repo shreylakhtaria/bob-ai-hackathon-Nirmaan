@@ -8,6 +8,8 @@ import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
+import { ProofOfWorkModal } from "@/components/crews/ProofOfWorkModal";
+import type { ResolutionResponse, WorkOrder } from "@/types/grid";
 import {
   Button,
   Table,
@@ -16,8 +18,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tag,
 } from "@carbon/react";
-import { Renew, Tools } from "@carbon/icons-react";
+import { Certificate, Renew, Tools } from "@carbon/icons-react";
 
 export default function MaintenancePage() {
   const router = useRouter();
@@ -28,11 +31,18 @@ export default function MaintenancePage() {
     queryFn: () => API.maintenance("?limit=50"),
   });
 
+  // Fetch open work orders so we can show Jira keys and enable PoW modal
+  const { data: woData, refetch: refetchWOs } = useQuery({
+    queryKey: ["maintenance-work-orders"],
+    queryFn: () => API.workOrders("?status=OPEN&limit=200"),
+  });
+
   const handleDispatch = async (assetId: string) => {
     try {
       const res = await API.dispatch(assetId);
       ok(res.message || `Dispatched crew to ${assetId}`);
       refetch();
+      refetchWOs();
     } catch (e: any) {
       err(e.message || "Dispatch failed");
     }
@@ -53,9 +63,49 @@ export default function MaintenancePage() {
       const res = await API.schedule(assetId);
       ok(res.message || `Scheduled job for ${assetId}`);
       refetch();
+      refetchWOs();
     } catch (e: any) {
       err(e.message || "Schedule failed");
     }
+  };
+
+  // ── Proof-of-Work modal state ──────────────────────────────────────────────
+  const [powModalWO, setPowModalWO] = React.useState<WorkOrder | null>(null);
+
+  const workOrders: WorkOrder[] = Array.isArray(woData) ? woData : [];
+
+  // Build lookup: asset_id → latest open work order
+  const assetWOMap: Record<string, WorkOrder> = {};
+  for (const wo of workOrders) {
+    if (wo.status === "OPEN" && wo.asset_id) {
+      // Keep the most recent (highest wo_id)
+      if (!assetWOMap[wo.asset_id] ||
+          wo.wo_id > assetWOMap[wo.asset_id].wo_id) {
+        assetWOMap[wo.asset_id] = wo;
+      }
+    }
+  }
+
+  const handleOpenPoW = (assetId: string) => {
+    const wo = assetWOMap[assetId];
+    if (!wo) {
+      err("No open work order for this asset. Dispatch or schedule first.");
+      return;
+    }
+    setPowModalWO(wo);
+  };
+
+  const handleResolved = (res: ResolutionResponse) => {
+    setPowModalWO(null);
+    const before = res.risk_before?.grid_impact_score;
+    const after = res.risk_after?.grid_impact_score;
+    const delta =
+      before != null && after != null
+        ? ` Risk: ${before.toFixed(1)} → ${after.toFixed(1)}.`
+        : "";
+    ok(`Work order closed & grid re-scored.${delta}`);
+    refetch();
+    refetchWOs();
   };
 
   if (isLoading) {
@@ -84,7 +134,7 @@ export default function MaintenancePage() {
           kind="tertiary"
           size="sm"
           renderIcon={Renew}
-          onClick={() => refetch()}
+          onClick={() => { refetch(); refetchWOs(); }}
           className="self-start md:self-auto"
         >
           Refresh queue
@@ -113,74 +163,135 @@ export default function MaintenancePage() {
                 <TableHeader>Failure Prob.</TableHeader>
                 <TableHeader className="text-right">Customers</TableHeader>
                 <TableHeader className="text-right">Grid Impact</TableHeader>
+                <TableHeader>Ticket</TableHeader>
                 <TableHeader>Recommended Action</TableHeader>
                 <TableHeader className="text-right">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
-              {queue.map((item, idx) => (
-                <TableRow
-                  key={item.asset_id}
-                  onClick={() => router.push(`/assets?assetId=${item.asset_id}`)}
-                  className={`hover:bg-sunken cursor-pointer transition-colors ${
-                    idx === 0 ? "bg-sev-normal-tint/20 font-semibold" : ""
-                  }`}
-                >
-                  <TableCell className="font-mono">
-                    <span
-                      className={`inline-flex items-center justify-center w-6 h-5 rounded text-micro font-bold ${
-                        item.priority === "CRITICAL"
-                          ? "bg-sev-critical-tint text-sev-critical"
-                          : "bg-sunken text-ink"
-                      }`}
-                    >
-                      #{idx + 1}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono font-bold text-brand-ink">
-                    {item.asset_id}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-ink text-label">{item.asset_type}</div>
-                    <div className="text-micro text-ink-3 font-mono">
-                      {item.geographic_area || item.area}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono font-bold text-sev-critical">
-                    {F.pct(item.failure_probability)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-micro">
-                    {F.num(item.customers_served)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-bold text-ink">
-                    {F.score(item.grid_impact_score)}
-                  </TableCell>
-                  <TableCell className="text-micro max-w-xs truncate">
-                    {item.recommended_action || "Immediate diagnostic inspection"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        kind="danger--tertiary"
-                        size="sm"
-                        onClick={() => handleDispatch(item.asset_id)}
+              {queue.map((item, idx) => {
+                const wo = assetWOMap[item.asset_id];
+                return (
+                  <TableRow
+                    key={item.asset_id}
+                    onClick={() => router.push(`/assets?assetId=${item.asset_id}`)}
+                    className={`hover:bg-sunken cursor-pointer transition-colors ${
+                      idx === 0 ? "bg-sev-normal-tint/20 font-semibold" : ""
+                    }`}
+                  >
+                    <TableCell className="font-mono">
+                      <span
+                        className={`inline-flex items-center justify-center w-6 h-5 rounded text-micro font-bold ${
+                          item.priority === "CRITICAL"
+                            ? "bg-sev-critical-tint text-sev-critical"
+                            : "bg-sunken text-ink"
+                        }`}
                       >
-                        Dispatch
-                      </Button>
-                      <Button size="sm" onClick={() => handleSchedule(item.asset_id)}>
-                        Schedule
-                      </Button>
-                      <Button kind="ghost" size="sm" onClick={() => handleDefer(item.asset_id)}>
-                        Defer
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        #{idx + 1}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono font-bold text-brand-ink">
+                      {item.asset_id}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-ink text-label">{item.asset_type}</div>
+                      <div className="text-micro text-ink-3 font-mono">
+                        {item.geographic_area || item.area}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono font-bold text-sev-critical">
+                      {F.pct(item.failure_probability)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-micro">
+                      {F.num(item.customers_served)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-bold text-ink">
+                      {F.score(item.grid_impact_score)}
+                    </TableCell>
+
+                    {/* Enterprise ticket reference */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {wo?.jira_key ? (
+                        <div className="flex flex-col gap-0.5">
+                          <a
+                            href={wo.jira_url || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-micro text-brand-ink hover:underline"
+                            title={`Open ${wo.jira_key} in enterprise tracker`}
+                          >
+                            🎫 {wo.jira_key}
+                          </a>
+                          {wo.field_status && (
+                            <Tag
+                              type={
+                                wo.field_status === "COMPLETED"
+                                  ? "green"
+                                  : wo.field_status === "ON_SITE" || wo.field_status === "RESOLVING"
+                                  ? "blue"
+                                  : "cool-gray"
+                              }
+                              size="sm"
+                            >
+                              {wo.field_status}
+                            </Tag>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-mono text-micro text-ink-3">—</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-micro max-w-xs truncate">
+                      {item.recommended_action || "Immediate diagnostic inspection"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          kind="danger--tertiary"
+                          size="sm"
+                          onClick={() => handleDispatch(item.asset_id)}
+                        >
+                          Dispatch
+                        </Button>
+                        <Button size="sm" onClick={() => handleSchedule(item.asset_id)}>
+                          Schedule
+                        </Button>
+                        {/* Field PoW button — only shown when a work order exists */}
+                        {wo && (
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={Certificate}
+                            onClick={() => handleOpenPoW(item.asset_id)}
+                            title="Record field proof-of-work and close this work order"
+                            aria-label={`Open proof-of-work for ${item.asset_id}`}
+                          >
+                            PoW
+                          </Button>
+                        )}
+                        <Button kind="ghost" size="sm" onClick={() => handleDefer(item.asset_id)}>
+                          Defer
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {/* Proof-of-Work Modal */}
+      {powModalWO && (
+        <ProofOfWorkModal
+          isOpen={!!powModalWO}
+          onClose={() => setPowModalWO(null)}
+          workOrder={powModalWO}
+          onResolved={handleResolved}
+        />
+      )}
     </div>
   );
 }

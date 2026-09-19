@@ -281,58 +281,90 @@ export interface PublicStats {
   as_of?: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Jira / Enterprise Work Management & Field Crew Proof-of-Work
+// ---------------------------------------------------------------------------
 
-/* ──────────────────────────────────────────────────────────────────────────
-   Outbound notifications (Telegram).
-   Mirrors backend/routers/notification_routes.py. Note what is NOT here: the
-   bot token has no representation in the frontend at all — the browser only
-   ever learns whether the channel is enabled and configured.
-   ────────────────────────────────────────────────────────────────────────── */
-export type DeliveryStatus =
-  | "PENDING" | "SENDING" | "SENT" | "FAILED" | "SKIPPED" | "DISABLED";
+export type FieldStatus =
+  | 'DISPATCHED'
+  | 'EN_ROUTE'
+  | 'ON_SITE'
+  | 'RESOLVING'
+  | 'COMPLETED';
 
-export interface NotificationDelivery {
-  delivery_id: string;
-  alert_id: string | null;
-  channel: string;
-  /** Masked at write time on the server (e.g. "***4821"). */
-  destination: string | null;
-  priority: string | null;
-  status: DeliveryStatus;
-  attempt_count: number;
-  provider_message_id: string | null;
-  provider_response_code: number | null;
-  error_message: string | null;
-  kind: string | null;
-  summary: string | null;
+export interface ProofAttachment {
+  name: string;
+  type: string;
+  size: number;
+  uploaded_at: string;
+  url_or_data?: string;
+}
+
+export interface WorkOrder {
+  wo_id: string;
   created_at: string;
-  last_attempt_at: string | null;
-  sent_at: string | null;
+  asset_id?: string | null;
+  area_id?: string | null;
+  crew_id?: string | null;
+  wo_type: 'DISPATCH' | 'SCHEDULED' | 'DEFERRED' | 'PRE_POSITION' | 'EMERGENCY';
+  status: 'OPEN' | 'DEFERRED' | 'CLOSED';
+  priority?: string | null;
+  scheduled_for?: string | null;
+  eta_min?: number | null;
+  notes?: string | null;
+  // Jira integration fields
+  jira_key?: string | null;
+  jira_url?: string | null;
+  field_status?: FieldStatus | null;
+  proof_attachments?: ProofAttachment[] | null;
+  technician_signature?: string | null;
+  completed_at?: string | null;
 }
 
-export interface TelegramChannelStatus {
-  enabled: boolean;
-  configured: boolean;
-  /** "disabled" | "misconfigured" | "ready" */
-  state: string;
-  missing: string[];
-  notify_priorities: string[];
-  timeout_seconds: number;
-  max_retries: number;
-  retry_base_seconds: number;
-  dedup_window_minutes: number;
-  parse_mode: string;
-  api_base: string;
-  public_app_url: string;
+export interface JiraTicket {
+  key: string;
+  url: string;
+  title: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  work_order_id?: string;
+  asset_id?: string;
+  crew_id?: string | null;
+  mode?: 'real' | 'simulated';
 }
 
-export interface NotificationStatus {
-  channels: { telegram: TelegramChannelStatus };
-  telegram: TelegramChannelStatus;
-  deliveries: { total: number; sent: number; failed: number };
+export interface JiraStatusResponse {
+  ok: boolean;
+  mode: 'real' | 'simulated';
+  message: string;
 }
 
-export interface DeliveryResult {
-  success: boolean;
-  delivery: NotificationDelivery;
+export interface JiraTicketsResponse {
+  tickets: JiraTicket[];
+  mode: 'real' | 'simulated';
+}
+
+export interface ProofOfWorkPayload {
+  action_taken?: string;
+  parts_replaced?: string;
+  notes?: string;
+  result?: 'COMPLETED' | 'PARTIAL' | 'NO_FAULT_FOUND';
+  proof_attachments?: ProofAttachment[];
+  technician_signature?: string;
+  field_status?: FieldStatus;
+}
+
+export interface ResolutionResponse {
+  work_order: string;
+  asset_id?: string | null;
+  maintenance_id: string;
+  result: string;
+  completed_at: string;
+  crew_id?: string | null;
+  crew_released: boolean;
+  risk_before?: { grid_impact_score?: number; failure_probability?: number; priority?: string } | null;
+  risk_after?: { grid_impact_score?: number; failure_probability?: number; priority?: string } | null;
+  recalculation?: Record<string, unknown> | null;
+  jira?: { ok?: boolean; jira_key?: string; new_status?: string; mode?: string } | null;
 }

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from .. import config, db
 from . import briefing, maintenance, resolution
+from . import jira as jira_svc
 from .crew import SKILL_FOR_TYPE, _travel_min
 
 # How far ahead each priority band is scheduled when an operator books a job.
@@ -116,8 +117,33 @@ def dispatch_crew(asset_id, crew_id=None):
 
     db.audit("operator", "dispatch_crew",
              {"asset_id": asset_id, "crew_id": crew["crew_id"], "eta_min": eta, "wo": wo["wo_id"]})
+
+    # Auto-create Jira ticket (best-effort — never fail a dispatch over a ticket error)
+    jira_result = None
+    try:
+        risk_summary = (pred or {}).get("recommended_action") or "Field inspection required"
+        # Grab latest sensor snapshot for the Jira description
+        latest_sensor = db.query_one(
+            "SELECT temperature, vibration, oil_quality, load_percentage "
+            "FROM sensor_data WHERE asset_id=? ORDER BY timestamp DESC LIMIT 1",
+            (asset_id,),
+        )
+        jira_result = jira_svc.create_ticket(
+            work_order_id=wo["wo_id"],
+            asset_id=asset_id,
+            crew_id=crew["crew_id"],
+            priority=(pred or {}).get("priority") or "MEDIUM",
+            asset_type=asset.get("asset_type", "Unknown"),
+            area=asset.get("geographic_area", "Unknown"),
+            risk_summary=risk_summary,
+            telemetry=dict(latest_sensor) if latest_sensor else None,
+        )
+    except Exception:
+        pass  # Jira failure must never block an operational dispatch
+
     return {"work_order": wo, "crew_id": crew["crew_id"], "crew_skill": crew["skill_type"],
             "from_area": crew["current_area"], "eta_min": eta, "asset_id": asset_id,
+            "jira": jira_result,
             "message": f"{crew['crew_id']} dispatched to {asset_id} — ETA {eta:.0f} min"}
 
 
@@ -136,7 +162,24 @@ def schedule_job(asset_id, hours=None):
                     notes=pred.get("recommended_action") or "Scheduled inspection")
     db.audit("operator", "schedule_job",
              {"asset_id": asset_id, "scheduled_for": when, "wo": wo["wo_id"]})
+
+    # Auto-create Jira ticket for scheduled work (best-effort)
+    jira_result = None
+    try:
+        jira_result = jira_svc.create_ticket(
+            work_order_id=wo["wo_id"],
+            asset_id=asset_id,
+            crew_id=None,
+            priority=priority,
+            asset_type=asset.get("asset_type", "Unknown"),
+            area=asset.get("geographic_area", "Unknown"),
+            risk_summary=pred.get("recommended_action") or "Scheduled maintenance",
+        )
+    except Exception:
+        pass
+
     return {"work_order": wo, "scheduled_for": when, "horizon_hours": horizon,
+            "jira": jira_result,
             "message": f"{asset_id} scheduled within {horizon}h ({priority} band)"}
 
 

@@ -14,13 +14,16 @@ Risk recalculation runs *after* the commit, deliberately: it rewrites every row
 in `predictions` and takes seconds, and holding SQLite's write lock for that long
 would block every other operator action.
 """
+import json
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import HTTPException
 
 from .. import db
 from . import risk as risk_svc
+from . import jira as jira_svc
 
 OPEN_STATUSES = ("OPEN", "DEFERRED")
 RESULTS = ("COMPLETED", "PARTIAL", "NO_FAULT_FOUND")
@@ -39,7 +42,10 @@ def get_work_order(wo_id: str) -> dict:
 
 def complete_work_order(wo_id: str, user: dict, *, action_taken: str = None,
                         parts_replaced: str = None, notes: str = None,
-                        result: str = "COMPLETED", recalculate: bool = True) -> dict:
+                        result: str = "COMPLETED", recalculate: bool = True,
+                        proof_attachments: Optional[list] = None,
+                        technician_signature: Optional[str] = None,
+                        field_status: str = "COMPLETED") -> dict:
     """Mark a work order complete and re-derive the affected risk.
 
     Idempotent by refusal: a work order that is already CLOSED raises 409 rather
@@ -105,11 +111,51 @@ def complete_work_order(wo_id: str, user: dict, *, action_taken: str = None,
                     "WHERE crew_id=?", (crew_id,))
                 crew_released = True
 
+    # Persist proof-of-work evidence + technician sign-off + completed_at timestamp.
+    # completed_at is ALWAYS written so downstream queries can rely on it being set
+    # on any CLOSED work order — not only those with proof files attached.
+    with db.session() as conn:
+        if proof_attachments:
+            existing = db.query_one(
+                "SELECT proof_attachments FROM work_orders WHERE wo_id=?", (wo_id,)
+            ) or {}
+            raw_prev = existing.get("proof_attachments") or []
+            # rows_to_dicts auto-parses JSON columns, so prev may already be a list
+            if isinstance(raw_prev, str):
+                try:
+                    raw_prev = json.loads(raw_prev)
+                except ValueError:
+                    raw_prev = []
+            conn.execute(
+                "UPDATE work_orders SET proof_attachments=? WHERE wo_id=?",
+                (json.dumps(raw_prev + proof_attachments), wo_id),
+            )
+        if technician_signature:
+            conn.execute(
+                "UPDATE work_orders SET technician_signature=? WHERE wo_id=?",
+                (technician_signature, wo_id),
+            )
+        conn.execute(
+            "UPDATE work_orders SET completed_at=? WHERE wo_id=?",
+            (completed_at, wo_id),
+        )
+
     db.audit(user.get("email", "system"), "complete_work_order", {
         "wo_id": wo_id, "asset_id": asset_id, "crew_id": crew_id,
         "result": result, "maintenance_id": maintenance_id,
         "crew_released": crew_released,
     })
+
+    # Sync final status to Jira (best-effort — never block resolution on ticket failure)
+    jira_result = None
+    try:
+        resolution_notes = (
+            f"Result: {result}. Action: {action_taken or 'N/A'}. "
+            f"Parts: {parts_replaced or 'None'}."
+        )
+        jira_result = jira_svc.sync_status(wo_id, field_status, resolution_notes)
+    except Exception:
+        pass
 
     recalc = risk_svc.recalculate(reason=f"maintenance:{wo_id}") if recalculate else None
     after = risk_svc.snapshot_asset_risk(asset_id) if asset_id else {}
@@ -125,4 +171,5 @@ def complete_work_order(wo_id: str, user: dict, *, action_taken: str = None,
         "risk_before": before,
         "risk_after": after,
         "recalculation": recalc,
+        "jira": jira_result,
     }
