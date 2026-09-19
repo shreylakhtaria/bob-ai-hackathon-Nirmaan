@@ -62,7 +62,7 @@ There is no separate frontend install step — the frontend is a static SPA
 python -m scripts.seed
 
 # 2. Start the API (terminal 1)
-uvicorn backend.main:app --reload --port 8000
+python -m backend.serve --port 8000
 
 # 3. Start the operator console (terminal 2)
 cd frontend-next
@@ -134,5 +134,6 @@ open http://localhost:3000
 | `Database not seeded` (HTTP 503) | Run `python -m scripts.seed` from `src/` before starting the server |
 | `ModuleNotFoundError` | Run `pip install -r requirements.txt` again from `src/` |
 | `ImportError` / LightGBM fails to load on Linux | Install `libgomp1` (`apt-get install libgomp1`) — already handled automatically in the provided `Dockerfile` |
-| Port 8000 already in use | Run `uvicorn backend.main:app --port 8001` and start the console with `API_PROXY_TARGET=http://127.0.0.1:8001 npm run dev` |
+| Port 8000 already in use | Run `python -m backend.serve --port 8001` and start the console with `API_PROXY_TARGET=http://127.0.0.1:8001 npm run dev` |
+| Every API call takes ~2 seconds | You are reaching the API as `localhost` while it is bound to IPv4 only. `localhost` resolves to `::1` first, so the client waits for a failed IPv6 connect on every request. `python -m backend.serve` serves both families on one socket and fixes it; `uvicorn --host ...` cannot, because `--host` takes one address family. See `src/backend/serve.py`. |
 | Copilot always answers in grounded/local mode even with a key set | Confirm `OPENAI_API_KEY` (or the `AZURE_OPENAI_*` trio) is exported in the same shell/process running `uvicorn` |

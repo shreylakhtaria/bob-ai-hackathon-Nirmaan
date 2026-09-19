@@ -129,7 +129,7 @@ pip install -r requirements.txt
 python -m scripts.seed
 
 # 4. Run the API (terminal 1)
-uvicorn backend.main:app --reload --port 8000
+python -m backend.serve --port 8000
 
 # 5. Run the operator console (terminal 2)
 cd frontend-next && npm run dev
