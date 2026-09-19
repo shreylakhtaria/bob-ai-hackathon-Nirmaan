@@ -41,7 +41,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toast = useCallback(
     (message: string, kind: ToastKind = "ok", duration = 4000) => {
       const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => [{ id, message, kind }, ...prev]);
+
+      setToasts((prev) => {
+        // Collapse an identical message that is already on screen. Two stacked
+        // copies of "simulation completed for T-4061" tell the operator nothing
+        // the first one didn't, and they read as a bug. Callers stay simple:
+        // they fire the toast they mean and the host decides it is a repeat.
+        if (prev.some((t) => t.message === message && t.kind === kind)) return prev;
+        return [{ id, message, kind }, ...prev];
+      });
 
       if (duration > 0) {
         setTimeout(() => removeToast(id), duration);

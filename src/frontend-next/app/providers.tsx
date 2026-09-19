@@ -21,6 +21,15 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       staleTime: 10000,
+      // A 4xx is an answer, not a hiccup. The default policy retried one three
+      // times with backoff, so a 404 kept a query in `fetchStatus: "fetching"`
+      // for ~7s — and React Query dedupes `refetch()` against an in-flight
+      // fetch, which made every Refresh button on a failing page look dead.
+      retry: (count, error) => {
+        const status = (error as { status?: number } | null)?.status;
+        if (typeof status === "number" && status >= 400 && status < 500) return false;
+        return count < 2;
+      },
     },
   },
 });

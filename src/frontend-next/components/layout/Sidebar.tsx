@@ -21,6 +21,7 @@ import {
   Map as MapIcon,
   SettingsAdjust,
   Thunderstorm,
+  Notification,
   SidePanelClose,
   SidePanelOpen,
   Tools,
@@ -47,6 +48,7 @@ const NAV_GROUPS = [
       { id: "maintenance", href: "/maintenance", label: "Maintenance", icon: Tools },
       { id: "crews", href: "/crews", label: "Crews", icon: Delivery },
       { id: "data-onboarding", href: "/data-onboarding", label: "Data Onboarding", icon: DataBase },
+      { id: "notifications", href: "/notifications", label: "Notifications", icon: Notification },
     ],
   },
   {

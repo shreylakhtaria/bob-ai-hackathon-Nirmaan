@@ -208,6 +208,80 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", FRONTEND_URL).split(",") if o.strip()]
 
 # ---------------------------------------------------------------------------
+# Public app URL (used in outbound notifications so an operator can jump back
+# into the console from their phone). Not a secret.
+# ---------------------------------------------------------------------------
+PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", FRONTEND_URL)
+
+# ---------------------------------------------------------------------------
+# Telegram live alert notifications (optional, free — Telegram Bot API)
+# ---------------------------------------------------------------------------
+# Disabled by default and entirely optional: the app must start and run
+# normally with none of this set. The bot token is a bearer credential for the
+# whole bot, so it is read here and never returned by an API, written to the
+# database, logged in full, or shipped to the browser.
+TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_DEFAULT_CHAT_ID = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
+TELEGRAM_API_BASE = os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
+
+# Only these alert priorities are pushed. MEDIUM/LOW are dashboard-only noise on
+# a phone at 3am, so they are excluded unless an operator opts in.
+TELEGRAM_NOTIFY_PRIORITIES = tuple(
+    p.strip().upper()
+    for p in os.getenv("TELEGRAM_NOTIFY_PRIORITIES", "CRITICAL,HIGH").split(",")
+    if p.strip()
+)
+
+TELEGRAM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("TELEGRAM_REQUEST_TIMEOUT_SECONDS", "10"))
+TELEGRAM_MAX_RETRIES = int(os.getenv("TELEGRAM_MAX_RETRIES", "3"))
+TELEGRAM_RETRY_BASE_SECONDS = float(os.getenv("TELEGRAM_RETRY_BASE_SECONDS", "1"))
+# Re-running the alert pipeline recreates every alert row with a new id, so the
+# same real-world condition would notify again on each run. Content-keyed
+# deduplication inside this window is what stops that.
+TELEGRAM_DEDUP_WINDOW_MINUTES = int(os.getenv("TELEGRAM_DEDUP_WINDOW_MINUTES", "30"))
+TELEGRAM_PARSE_MODE = os.getenv("TELEGRAM_PARSE_MODE", "HTML")
+
+# Telegram rejects messages over 4096 UTF-16 code units.
+TELEGRAM_MAX_MESSAGE_CHARS = int(os.getenv("TELEGRAM_MAX_MESSAGE_CHARS", "4096"))
+
+
+def telegram_config_status() -> dict:
+    """Configuration health, safe to return from an API and to log.
+
+    Deliberately reports only *whether* the token and chat id are present —
+    never any part of their value.
+    """
+    missing = []
+    if not TELEGRAM_BOT_TOKEN:
+        missing.append("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_DEFAULT_CHAT_ID:
+        missing.append("TELEGRAM_DEFAULT_CHAT_ID")
+
+    if not TELEGRAM_ENABLED:
+        state = "disabled"
+    elif missing:
+        state = "misconfigured"
+    else:
+        state = "ready"
+
+    return {
+        "enabled": TELEGRAM_ENABLED,
+        "configured": not missing,
+        "state": state,
+        "missing": missing,
+        "notify_priorities": list(TELEGRAM_NOTIFY_PRIORITIES),
+        "timeout_seconds": TELEGRAM_REQUEST_TIMEOUT_SECONDS,
+        "max_retries": TELEGRAM_MAX_RETRIES,
+        "retry_base_seconds": TELEGRAM_RETRY_BASE_SECONDS,
+        "dedup_window_minutes": TELEGRAM_DEDUP_WINDOW_MINUTES,
+        "parse_mode": TELEGRAM_PARSE_MODE,
+        "api_base": TELEGRAM_API_BASE,
+        "public_app_url": PUBLIC_APP_URL,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Rate limiting (auth endpoints only — normal app traffic is not limited)
 # ---------------------------------------------------------------------------
 RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"

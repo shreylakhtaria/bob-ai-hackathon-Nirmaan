@@ -203,6 +203,8 @@ export interface SimulationResponse {
   nearest_crew: { crew_id: string; response_min: number; skill: string } | null;
   recommended_mitigation: string[];
   is_simulation: boolean;
+  /** Present only when the request set notify_telegram=true. */
+  notification?: { delivery_id: string; status: string; error_message: string | null };
 }
 
 /** Mirrors backend/services/simulation.py `simulate_weather_event()`. */
@@ -225,6 +227,8 @@ export interface WeatherSimResponse {
   }>;
   recommended_actions: string[];
   is_simulation: boolean;
+  /** Present only when the request set notify_telegram=true. */
+  notification?: { delivery_id: string; status: string; error_message: string | null };
 }
 
 export interface CopilotResponse {

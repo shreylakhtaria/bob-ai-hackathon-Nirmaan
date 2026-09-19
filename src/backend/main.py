@@ -21,6 +21,7 @@ from .services import (impact as impact_svc, crew as crew_svc, simulation as sim
                        resolution as resolution_svc, risk as risk_svc,
                        mcp as mcp_svc, jira as jira_svc)
 from .routers.ingest import router as ingest_router
+from .routers.notification_routes import router as notification_router
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -35,6 +36,10 @@ app.add_middleware(
 )
 
 app.include_router(ingest_router, prefix="/api/ingest", tags=["ingest"])
+# Registered before any static/catch-all mount, so notification routes can
+# never be shadowed by a SPA fallback added later.
+app.include_router(notification_router, prefix="/api/notifications",
+                   tags=["notifications"])
 
 errors.register(app)
 
@@ -83,6 +88,9 @@ class SimulationRequest(BaseModel):
     asset_id: Optional[str] = None
     area_id: Optional[str] = None
     event: Optional[str] = "severe"
+    # Opt-in only. Existing clients that omit it keep the previous behaviour,
+    # and a what-if run never pushes to anyone's phone unless asked.
+    notify_telegram: bool = False
 
 
 class CopilotRequest(BaseModel):
@@ -487,6 +495,18 @@ def run_simulation(req: SimulationRequest, current=Depends(require_operator)):
         raise HTTPException(400, "type must be 'asset_failure' or 'weather_event'")
     if isinstance(r, dict) and r.get("error"):
         raise HTTPException(404, r["error"])
+
+    # Opt-in Telegram push. Attached to the response rather than replacing it,
+    # so a notification failure never costs the operator their simulation.
+    if req.notify_telegram:
+        from .services import telegram_notifications as telegram
+        delivery = telegram.send_simulation(r)
+        r = dict(r)
+        r["notification"] = {
+            "delivery_id": delivery.get("delivery_id"),
+            "status": delivery.get("status"),
+            "error_message": delivery.get("error_message"),
+        }
     return r
 
 

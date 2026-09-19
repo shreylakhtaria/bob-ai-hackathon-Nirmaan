@@ -191,6 +191,38 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 CREATE INDEX IF NOT EXISTS ix_refresh_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS ix_refresh_expires ON refresh_tokens(expires_at);
+
+-- Outbound notification attempts (Telegram today; `channel` leaves room for
+-- more). This is an audit trail, not a queue: one row per attempt-set, updated
+-- in place as it moves PENDING -> SENDING -> SENT/FAILED.
+--
+-- Deliberately stores no credential. `destination_reference` holds a MASKED
+-- chat id (e.g. "***4821") because the raw chat id is enough to message a
+-- person, and `deduplication_key` is a content hash so a re-run of the alert
+-- pipeline — which recreates every alert row with a fresh id — does not
+-- notify the same real-world condition twice.
+CREATE TABLE IF NOT EXISTS notification_deliveries (
+    delivery_id            TEXT PRIMARY KEY,
+    alert_id               TEXT,          -- nullable: tests/briefings have no alert
+    channel                TEXT NOT NULL, -- 'telegram'
+    destination_reference  TEXT,          -- MASKED chat id, never the raw value
+    priority               TEXT,
+    status                 TEXT NOT NULL, -- PENDING|SENDING|SENT|FAILED|SKIPPED|DISABLED
+    attempt_count          INTEGER NOT NULL DEFAULT 0,
+    provider_message_id    TEXT,          -- set only after a confirmed send
+    provider_response_code INTEGER,
+    error_message          TEXT,
+    notification_kind      TEXT,          -- asset_alert|weather_alert|simulation|briefing|test|crew
+    payload_summary        TEXT,          -- short human label, no secrets
+    created_at             TEXT NOT NULL,
+    last_attempt_at        TEXT,
+    sent_at                TEXT,
+    deduplication_key      TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_notif_alert ON notification_deliveries(alert_id);
+CREATE INDEX IF NOT EXISTS ix_notif_status ON notification_deliveries(status);
+CREATE INDEX IF NOT EXISTS ix_notif_created ON notification_deliveries(created_at);
+CREATE INDEX IF NOT EXISTS ix_notif_dedup ON notification_deliveries(deduplication_key, created_at);
 """
 
 
@@ -244,9 +276,13 @@ def reset_db():
     """Drop all data tables (used by the seed pipeline)."""
     with session() as conn:
         conn.executescript(SCHEMA)
+        # notification_deliveries is cleared with alerts: it references alert
+        # ids, and re-seeding mints new ones, so stale rows would point at
+        # alerts that no longer exist.
         for tbl in ["assets", "sensor_data", "weather_data", "incidents",
                     "maintenance_history", "crews", "predictions", "area_risk",
-                    "alerts", "audit_log", "work_orders"]:
+                    "alerts", "audit_log", "work_orders",
+                    "notification_deliveries"]:
             conn.execute(f"DELETE FROM {tbl}")
 
 

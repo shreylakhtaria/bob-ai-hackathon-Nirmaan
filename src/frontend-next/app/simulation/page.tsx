@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,6 +13,7 @@ import { F } from "@/lib/utils";
 import type { SimulationResponse, WeatherSimResponse } from "@/types/grid";
 import {
   Button,
+  Checkbox,
   Table,
   TableBody,
   TableCell,
@@ -32,7 +33,7 @@ export default function SimulationPage() {
   const initialAsset = searchParams.get("asset") || "T-1024";
   const initialTab = searchParams.get("tab") || "asset";
 
-  const { ok, err } = useToast();
+  const { ok, err, warn } = useToast();
 
   const [activeTab, setActiveTab] = useState<"asset" | "weather">((initialTab as any) || "asset");
   const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset);
@@ -60,28 +61,57 @@ export default function SimulationPage() {
     queryFn: () => API.areas(),
   });
 
-  const runAssetSim = async (assetId: string) => {
+  // Opt-in Telegram push for a what-if run. Off by default and never
+  // remembered across runs, so a simulation cannot quietly start paging people.
+  const [notifyTelegram, setNotifyTelegram] = useState(false);
+
+  /** Report the delivery outcome truthfully: a simulation can succeed while its
+   *  notification fails, and the operator needs to know which happened. */
+  const reportDelivery = (res: { notification?: { status: string; error_message: string | null } }) => {
+    const n = res.notification;
+    if (!n) return;
+    if (n.status === "SENT") ok("Result sent to Telegram.");
+    else if (n.status === "SKIPPED") warn(n.error_message || "Duplicate — not re-sent.");
+    else err(n.error_message || "Telegram delivery failed.");
+  };
+
+  // One simulation at a time. React's StrictMode double-invokes mount effects
+  // in development, and the asset picker fires a run on change as well, so
+  // without this the same scenario ran twice and stacked two identical "Done"
+  // toasts. A ref rather than `isSimulating`, because state updates are async:
+  // two calls in the same tick would both read the stale `false`.
+  const inFlight = useRef(false);
+
+  const runAssetSim = async (assetId: string, notify = false) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setIsSimulating(true);
     try {
-      const res = await API.simulateAsset(assetId);
+      const res = await API.simulateAsset(assetId, notify);
       setAssetSimResult(res);
       ok(`N-1 Contingency simulation completed for ${assetId}`);
+      reportDelivery(res);
     } catch (e: any) {
       err(e.message || "Simulation failed");
     } finally {
+      inFlight.current = false;
       setIsSimulating(false);
     }
   };
 
-  const runWeatherSim = async (areaId: string, sev: string) => {
+  const runWeatherSim = async (areaId: string, sev: string, notify = false) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setIsSimulating(true);
     try {
-      const res = await API.simulateWeather(areaId, sev);
+      const res = await API.simulateWeather(areaId, sev, notify);
       setWeatherSimResult(res);
       ok(`Weather stress-test simulation completed for ${areaId}`);
+      reportDelivery(res);
     } catch (e: any) {
       err(e.message || "Simulation failed");
     } finally {
+      inFlight.current = false;
       setIsSimulating(false);
     }
   };
@@ -137,6 +167,7 @@ export default function SimulationPage() {
                 runWeatherSim(selectedArea, severity);
               }
             }}
+            className="switcher-compact"
           >
             <Switch name="asset" text="Asset trip (N-1)" />
             <Switch name="weather" text="Weather scenario" />
@@ -173,11 +204,18 @@ export default function SimulationPage() {
               </Select>
             </div>
 
+            <Checkbox
+              id="notify-telegram-asset"
+              labelText="Notify Telegram with the result"
+              checked={notifyTelegram}
+              onChange={(_, { checked }) => setNotifyTelegram(checked)}
+              className="mb-1"
+            />
             <Button
               size="sm"
               renderIcon={Play}
               disabled={isSimulating}
-              onClick={() => runAssetSim(selectedAsset)}
+              onClick={() => runAssetSim(selectedAsset, notifyTelegram)}
               className="cds--btn--block"
             >
               {isSimulating ? "Running\u2026" : "Run N-1 simulation"}
@@ -324,12 +362,19 @@ export default function SimulationPage() {
                 <SelectItem value="EXTREME" text="Extreme cyclone / gale (score >85)" />
               </Select>
             </div>
+            <Checkbox
+              id="notify-telegram-weather"
+              labelText="Notify Telegram with the result"
+              checked={notifyTelegram}
+              onChange={(_, { checked }) => setNotifyTelegram(checked)}
+              className="mb-1"
+            />
             <Button
               kind="danger"
               size="sm"
               renderIcon={Rain}
               disabled={isSimulating}
-              onClick={() => runWeatherSim(selectedArea, severity)}
+              onClick={() => runWeatherSim(selectedArea, severity, notifyTelegram)}
               className="cds--btn--block"
             >
               {isSimulating ? "Running\u2026" : "Simulate storm impact"}

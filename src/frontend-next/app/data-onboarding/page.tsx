@@ -292,7 +292,7 @@ export default function DataOnboardingPage() {
             size="md"
             selectedIndex={KINDS.indexOf(kind)}
             onChange={({ name }) => chooseKind((name as Kind) ?? "assets")}
-            className="self-start max-w-xs"
+            className="switcher-compact self-start"
           >
             {KINDS.map((k) => (
               <Switch key={k} name={k} text={KIND_SPEC[k].label} />
@@ -385,7 +385,9 @@ export default function DataOnboardingPage() {
               size="md"
               renderIcon={Reset}
               onClick={reset}
-              disabled={busy !== null}
+              // With no file staged there is nothing to clear, and a control
+              // that responds to a click by doing nothing reads as broken.
+              disabled={busy !== null || (!file && !report)}
             >
               Clear &amp; start over
             </Button>
