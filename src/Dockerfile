@@ -14,4 +14,6 @@ COPY . .
 RUN python -m scripts.seed
 
 EXPOSE 8000
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Serves IPv4 and IPv6 on one socket — see backend/serve.py for why that is
+# not the same as `uvicorn --host 0.0.0.0`.
+CMD ["python", "-m", "backend.serve", "--port", "8000"]
