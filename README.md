@@ -155,6 +155,99 @@ Or one command: `./run.sh --install`  ·  Or Docker: `docker compose up --build`
 
 ---
 
+## 📲 Telegram live alerts
+
+Free, optional, and **off by default** — the app starts and runs normally with none of
+this set. When enabled, `CRITICAL` and `HIGH` alerts are pushed to Telegram as they are
+generated, with the real model output behind each one.
+
+### Setup
+
+1. Open Telegram.
+2. Search for **@BotFather**.
+3. Run `/newbot`.
+4. Choose a bot name and username.
+5. Copy the bot token it gives you.
+6. Open your newly created bot.
+7. Press **Start** (or send it any message) — a bot cannot message you until you do.
+8. Get your chat id:
+   ```
+   https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+   ```
+   Read `result[0].message.chat.id` from the JSON.
+9. Add the values to `src/.env`:
+   ```bash
+   TELEGRAM_ENABLED=true
+   TELEGRAM_BOT_TOKEN=<your token>
+   TELEGRAM_DEFAULT_CHAT_ID=<your chat id>
+   PUBLIC_APP_URL=http://localhost:3000
+   ```
+10. Restart the backend.
+11. Send a test message:
+    ```bash
+    curl -X POST http://localhost:8000/api/notifications/telegram/test          -H "Authorization: Bearer $ACCESS_TOKEN"
+    ```
+    (or press **Send test notification** on the Notifications page)
+12. Confirm the message arrives in Telegram.
+
+> **Never commit `.env`.** It is git-ignored. The bot token is a bearer credential for
+> the entire bot: it is read by the server only, and is never returned by an API, stored
+> in the database, written to a log, or sent to the browser.
+
+### Settings
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TELEGRAM_ENABLED` | `false` | Master switch |
+| `TELEGRAM_BOT_TOKEN` | *(empty)* | From @BotFather — secret |
+| `TELEGRAM_DEFAULT_CHAT_ID` | *(empty)* | Where alerts go |
+| `TELEGRAM_API_BASE` | `https://api.telegram.org` | Override to point at a stub in tests |
+| `TELEGRAM_NOTIFY_PRIORITIES` | `CRITICAL,HIGH` | Which alerts are pushed |
+| `TELEGRAM_REQUEST_TIMEOUT_SECONDS` | `10` | Per-attempt HTTP timeout |
+| `TELEGRAM_MAX_RETRIES` | `3` | Bounded — never an infinite loop |
+| `TELEGRAM_RETRY_BASE_SECONDS` | `1` | Exponential backoff base |
+| `TELEGRAM_DEDUP_WINDOW_MINUTES` | `30` | Suppress repeats of the same condition |
+| `TELEGRAM_PARSE_MODE` | `HTML` | Telegram formatting mode |
+| `PUBLIC_APP_URL` | `FRONTEND_URL` | Deep link back into the console |
+
+### Why deduplication exists
+
+`generate_alerts()` deletes and recreates every alert row on each pipeline run, with a
+fresh `alert_id` each time. Keying on the id would therefore re-notify every transformer
+after every run. The key is a hash of the **condition** (kind + asset + area + priority),
+suppressed for `TELEGRAM_DEDUP_WINDOW_MINUTES`. An operator can override it per-send with
+`force=true`.
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `401 Unauthorized` | The bot token is wrong or was revoked. Re-copy it from @BotFather. Not retried — it would fail identically forever. |
+| `400 Bad Request: chat not found` | Wrong chat id, or you never pressed **Start** on the bot. Do step 7, then re-read the chat id. |
+| `403 Forbidden` | You blocked the bot, or it lacks permission to post in the target group/channel. Unblock it, or add it to the group as an administrator. |
+| `429 Too Many Requests` | Telegram is rate-limiting. Handled automatically: the `retry_after` it returns is honoured, up to `TELEGRAM_MAX_RETRIES`. |
+| Timeout / network error | Retried with exponential backoff. If every attempt fails the delivery is recorded `FAILED` with the error and can be retried from the Notifications page. |
+| Nothing arrives, no error | The bot cannot open a conversation. Press **Start** on the bot from your own account. |
+| Works for you, not for a group | Add the bot to the group and grant it permission to post. For channels it must be an administrator. |
+| Status shows `misconfigured` | `TELEGRAM_ENABLED=true` but the token or chat id is blank. `/api/notifications/status` names exactly which is missing (never the value). |
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/notifications/status` | Channel + config health (no secrets) |
+| `POST` | `/api/notifications/telegram/test` | Send a test message |
+| `POST` | `/api/notifications/telegram/send-alert/{alert_id}` | Send/resend one alert (`{"force": false}`) |
+| `POST` | `/api/notifications/deliveries/{delivery_id}/retry` | Retry a `FAILED` delivery |
+| `GET` | `/api/notifications/deliveries` | History — filter by `status`, `channel`, `priority`, `alert_id`, `limit` |
+| `GET` | `/api/notifications/deliveries/{delivery_id}` | One delivery |
+| `POST` | `/api/notifications/briefing/send` | Push the current operations briefing |
+
+What-if simulations are opt-in: `POST /api/simulation` accepts `"notify_telegram": true`.
+Omitting it preserves the previous behaviour exactly.
+
+---
+
 ## 🖥️ Demo
 
 | Artifact | Link |

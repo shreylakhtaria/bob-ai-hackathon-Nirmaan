@@ -1,11 +1,20 @@
 """Intelligent alert generation from model outputs + weather."""
+import logging
 import uuid
 from datetime import datetime
 
 from .. import config, db
 
+log = logging.getLogger("grid.alerts")
 
-def generate_alerts():
+
+def generate_alerts(notify: bool = True):
+    """Rebuild the alert set from current model output, then push the urgent ones.
+
+    `notify` exists so the seed pipeline and tests can rebuild alerts without
+    sending anything. Notification is strictly a side effect: alerts are
+    committed first and a Telegram outage can never roll them back.
+    """
     now = db.get_meta("now")
     alerts = []
 
@@ -65,4 +74,18 @@ def generate_alerts():
                    title,reason,recommended_action)
                    VALUES(:alert_id,:created_at,:priority,:asset_id,:area_id,
                    :title,:reason,:recommended_action)""", a)
-    return {"alerts": len(alerts)}
+
+    result = {"alerts": len(alerts)}
+
+    # Alerts are durable at this point. Everything below is best-effort: the
+    # notification layer already swallows its own errors, and this guard is the
+    # backstop so an unexpected one still cannot fail alert generation.
+    if notify:
+        try:
+            from . import telegram_notifications as telegram
+            result["notifications"] = telegram.notify_alerts(alerts)
+        except Exception as exc:
+            log.warning("alert notification dispatch failed: %s", exc)
+            result["notifications"] = {"error": str(exc)}
+
+    return result

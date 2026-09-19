@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@carbon/react";
-import { ChevronRight, Renew, Send, SettingsAdjust } from "@carbon/icons-react";
+import { ChevronRight, Copy, Renew, Send, SettingsAdjust } from "@carbon/icons-react";
 
 const PAGE_SIZE = 12;
 
@@ -91,6 +91,40 @@ export default function AssetsPage() {
 
   const totalPages = Math.ceil(filteredAssets.length / PAGE_SIZE) || 1;
   const paginatedAssets = filteredAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  /** Copy a real diagnostic summary of the selected asset to the clipboard.
+   *  Reports failure honestly: the Clipboard API is blocked outside a secure
+   *  context and in some browsers, and silently "succeeding" there is how an
+   *  operator ends up pasting nothing. */
+  const handleCopyDiagnostics = async () => {
+    if (!assetDetail) return;
+    const a: any = assetDetail.asset ?? {};
+    const p: any = assetDetail.prediction ?? {};
+    const drivers: any[] = Array.isArray(p.top_risk_factors) ? p.top_risk_factors : [];
+
+    const lines = [
+      `Asset ${a.asset_id ?? selectedAssetId}`,
+      a.asset_type && `Type: ${a.asset_type}`,
+      a.geographic_area && `Area: ${a.geographic_area}`,
+      a.substation_id && `Substation: ${a.substation_id}`,
+      p.failure_probability != null &&
+        `Failure probability: ${(p.failure_probability * 100).toFixed(0)}%`,
+      p.grid_impact_score != null && `Grid impact: ${p.grid_impact_score.toFixed(0)}/100`,
+      p.priority && `Priority: ${p.priority}`,
+      a.customers_served != null && `Customers served: ${F.num(a.customers_served)}`,
+      drivers.length > 0 &&
+        `Drivers: ${drivers.slice(0, 4).map((d) => d.label || d.feature).join(", ")}`,
+      p.recommended_action && `Recommended: ${p.recommended_action}`,
+      `Exported: ${new Date().toISOString()}`,
+    ].filter(Boolean);
+
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      ok(`Diagnostics for ${selectedAssetId} copied to clipboard`);
+    } catch {
+      err("Clipboard unavailable — copying needs a secure (https) context.");
+    }
+  };
 
   const handleDispatch = async (assetId: string) => {
     try {
@@ -352,12 +386,17 @@ export default function AssetsPage() {
                 >
                   Simulate
                 </Button>
+                {/* Actually writes to the clipboard. This used to only show a
+                    toast claiming it had copied, which meant an operator could
+                    paste nothing into an incident report and not find out
+                    until it mattered. */}
                 <Button
                   kind="tertiary"
                   size="sm"
-                  onClick={() => ok(`Diagnostics for ${selectedAssetId} copied to clipboard`)}
+                  renderIcon={Copy}
+                  onClick={handleCopyDiagnostics}
                 >
-                  Export log
+                  Copy diagnostics
                 </Button>
               </div>
 

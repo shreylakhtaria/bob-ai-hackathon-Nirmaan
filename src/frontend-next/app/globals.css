@@ -157,24 +157,19 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .driver-strip > span + span { border-left: 1px solid rgba(255, 255, 255, 0.85); }
 
 /* ── Copilot anchor ──
-   Bottom-left, because the bottom-right corner is where the metrics drawer and
-   the table action buttons live. Two constraints the utility classes could not
-   express:
-     * it has to sit beside the rail, not under it, so the offset follows
-       --spacing-rail on desktop and collapses with it;
-     * Carbon's UI Shell uses z-index 8000 for the header and side nav, so a
-       z-index in the 60s put the panel behind the nav it is floating over. */
+   Carbon's UI Shell uses z-index 8000 for the header and side nav, so a z-index
+   in the 60s put the panel behind the nav it floats over — hence 8500. */
 .copilot-anchor {
   position: fixed;
   bottom: 1.25rem;
-  left: 1.25rem;
+  /* Bottom-RIGHT, not bottom-left. It used to sit on the left and overlapped
+     the rail's own footer controls — "Metrics & health" and, worse, the
+     Collapse button, which made the sidebar impossible to collapse because the
+     launcher swallowed the click. Offsetting it by the rail width only worked
+     while the rail was expanded and still fought the drawer on small screens.
+     The right edge has no fixed furniture, so there is nothing to collide with. */
+  right: 1.25rem;
   z-index: 8500;
-}
-@media (min-width: 1024px) {
-  .copilot-anchor {
-    left: calc(var(--spacing-rail) + 1.25rem);
-    transition: left 0.18s ease;
-  }
 }
 
 /* ── Toasts ──
@@ -224,11 +219,21 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background-size: 200% 100%;
 }
 
+/* No `forwards`, and that is the whole point.
+   Every page root carries this class. While an animation's fill is in effect
+   the element keeps a computed transform — even `transform: none` resolves to
+   the identity matrix during interpolation — and ANY transform makes the
+   element a containing block for `position: fixed` descendants. That silently
+   re-anchored Carbon's modals to the page column, so they rendered clipped
+   behind the sidebar instead of centred on the viewport.
+   Without `forwards` the element reverts to its own styles once the animation
+   ends: opacity is already 1 by default, so nothing flashes, and the transform
+   genuinely goes away. */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
-.animate-fade-in { animation: fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fade-in 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
 
 /* ── Leaflet ── */
 .leaflet-container {

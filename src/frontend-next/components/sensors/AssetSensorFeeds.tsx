@@ -36,10 +36,10 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
   const sensors: any[] = Array.isArray(data) ? data : [];
 
   const RANGES = [
-    { label: "1h", value: 1 },
-    { label: "6h", value: 6 },
-    { label: "24h", value: 24 },
-    { label: "7d", value: 168 },
+    { label: "1H", value: 1 },
+    { label: "6H", value: 6 },
+    { label: "24H", value: 24 },
+    { label: "7D", value: 168 },
   ];
 
   const metrics = [
@@ -58,11 +58,14 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
           <Activity size={16} className="fill-current text-brand-ink" />
           <span className="font-bold text-ink text-lede">Real-Time Sensor Feeds</span>
         </div>
+        {/* No max-width: Carbon divides the container evenly between switches
+            and truncates each label to fit, so a 12rem cap turned "24H" into
+            "2..". Sized to its content instead. */}
         <ContentSwitcher
           size="sm"
           selectedIndex={RANGES.findIndex((r) => r.value === hours)}
           onChange={({ index }) => setHours(RANGES[index ?? 0].value)}
-          className="max-w-48"
+          className="switcher-compact shrink-0"
         >
           {RANGES.map((r) => (
             <Switch key={r.value} name={String(r.value)} text={r.label} />

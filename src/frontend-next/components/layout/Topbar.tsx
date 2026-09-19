@@ -16,6 +16,7 @@ import {
 import {
   Checkmark,
   Download,
+  Send,
   Logout,
   Notification,
   User,
@@ -126,6 +127,37 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
       fetchAlerts();
     } catch (e: any) {
       err(e.message || "Emergency dispatch failed");
+    }
+  };
+
+  // Per-alert Telegram push. Disabled while the channel is off so the button
+  // cannot promise a delivery that would only be recorded as DISABLED.
+  const [telegramReady, setTelegramReady] = useState(false);
+  const [sendingAlert, setSendingAlert] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    API.notificationStatus()
+      .then((s) => setTelegramReady(!!s.telegram.enabled && !!s.telegram.configured))
+      .catch(() => setTelegramReady(false));
+  }, [isAuthenticated]);
+
+  const handleSendTelegram = async (alertId: string) => {
+    setSendingAlert(alertId);
+    try {
+      const res = await API.telegramSendAlert(alertId, false);
+      if (res.success) {
+        ok(`Sent to Telegram (id ${res.delivery.provider_message_id}).`);
+      } else if (res.delivery.status === "SKIPPED") {
+        // Not an error: the same condition already went out recently.
+        warn(res.delivery.error_message || "Already sent recently — not re-sent.");
+      } else {
+        err(res.delivery.error_message || "Telegram did not accept the message.");
+      }
+    } catch (e: any) {
+      err(e.message || "Could not send to Telegram");
+    } finally {
+      setSendingAlert(null);
     }
   };
 
@@ -325,7 +357,21 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                         </span>
                       </div>
                       <p className="text-micro text-ink-2 leading-snug">{a.reason}</p>
-                      <div className="flex justify-end mt-1">
+                      <div className="flex justify-end items-center gap-1 mt-1">
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          renderIcon={Send}
+                          disabled={!telegramReady || sendingAlert !== null}
+                          title={
+                            telegramReady
+                              ? "Send this alert to Telegram"
+                              : "Telegram notifications are not configured"
+                          }
+                          onClick={() => handleSendTelegram(a.alert_id)}
+                        >
+                          {sendingAlert === a.alert_id ? "Sending…" : "Telegram"}
+                        </Button>
                         {!a.acknowledged ? (
                           <Button
                             kind="ghost"

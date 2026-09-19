@@ -14,6 +14,9 @@ import type {
   BriefResponse,
   ModelMetrics,
   PublicStats,
+  NotificationStatus,
+  NotificationDelivery,
+  DeliveryResult,
 } from "@/types/grid";
 import type { AuthResponse, LoginRequest, SignupRequest, User } from "@/types/auth";
 
@@ -180,21 +183,48 @@ export const API = {
   emergency: (limit = 5) =>
     apiRequest<{ message: string; skipped: any[] }>(`/dispatch/emergency?limit=${limit}`, { method: "POST" }),
 
+  // Notifications (Telegram). The browser never handles the bot token: these
+  // only report configuration state and delivery history.
+  notificationStatus: () => apiRequest<NotificationStatus>("/notifications/status"),
+  telegramTest: () =>
+    apiRequest<DeliveryResult>("/notifications/telegram/test", { method: "POST" }),
+  telegramSendAlert: (alertId: string, force = false) =>
+    apiRequest<DeliveryResult>(`/notifications/telegram/send-alert/${alertId}`, {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
+  retryDelivery: (deliveryId: string) =>
+    apiRequest<DeliveryResult>(`/notifications/deliveries/${deliveryId}/retry`, {
+      method: "POST",
+    }),
+  deliveries: (limit = 50, status?: string) =>
+    apiRequest<{ count: number; deliveries: NotificationDelivery[] }>(
+      `/notifications/deliveries?limit=${limit}${status ? `&status=${status}` : ""}`),
+  sendBriefing: () =>
+    apiRequest<DeliveryResult>("/notifications/briefing/send", { method: "POST" }),
+
   // Alerts
   alerts: () => apiRequest<AlertItem[]>("/alerts"),
   ackAlert: (id: string) => apiRequest<{ message: string }>(`/alerts/${id}/ack`, { method: "POST" }),
 
   // Simulation & Map
   map: () => apiRequest<{ assets: Asset[]; areas: AreaRisk[]; crews: any[] }>("/map"),
-  simulateAsset: (assetId: string) =>
+  // notifyTelegram is opt-in and defaults to false: a what-if run must never
+  // push to anyone's phone unless the operator ticked the box.
+  simulateAsset: (assetId: string, notifyTelegram = false) =>
     apiRequest<SimulationResponse>("/simulation", {
       method: "POST",
-      body: JSON.stringify({ type: "asset_failure", asset_id: assetId }),
+      body: JSON.stringify({
+        type: "asset_failure", asset_id: assetId, notify_telegram: notifyTelegram,
+      }),
     }),
-  simulateWeather: (areaId: string, severity = "SEVERE") =>
+  simulateWeather: (areaId: string, severity = "SEVERE", notifyTelegram = false) =>
     apiRequest<WeatherSimResponse>("/simulation", {
       method: "POST",
-      body: JSON.stringify({ type: "weather_event", area_id: areaId, event: severity }),
+      body: JSON.stringify({
+        type: "weather_event", area_id: areaId, event: severity,
+        notify_telegram: notifyTelegram,
+      }),
     }),
 
   // AI Copilot & Brief

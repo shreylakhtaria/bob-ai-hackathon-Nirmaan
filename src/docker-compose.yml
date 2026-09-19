@@ -9,6 +9,14 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - BOB_API_KEY=${BOB_API_KEY:-}
+      # Telegram live alerts. Values come from the host environment / .env —
+      # never baked into the image.
+      - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-false}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_DEFAULT_CHAT_ID=${TELEGRAM_DEFAULT_CHAT_ID:-}
+      - TELEGRAM_NOTIFY_PRIORITIES=${TELEGRAM_NOTIFY_PRIORITIES:-CRITICAL,HIGH}
+      - TELEGRAM_DEDUP_WINDOW_MINUTES=${TELEGRAM_DEDUP_WINDOW_MINUTES:-30}
+      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-http://localhost:3000}
     volumes:
       - ./data:/app/data
       - ./models:/app/models

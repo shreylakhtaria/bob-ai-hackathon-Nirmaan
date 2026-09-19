@@ -203,6 +203,8 @@ export interface SimulationResponse {
   nearest_crew: { crew_id: string; response_min: number; skill: string } | null;
   recommended_mitigation: string[];
   is_simulation: boolean;
+  /** Present only when the request set notify_telegram=true. */
+  notification?: { delivery_id: string; status: string; error_message: string | null };
 }
 
 /** Mirrors backend/services/simulation.py `simulate_weather_event()`. */
@@ -225,6 +227,8 @@ export interface WeatherSimResponse {
   }>;
   recommended_actions: string[];
   is_simulation: boolean;
+  /** Present only when the request set notify_telegram=true. */
+  notification?: { delivery_id: string; status: string; error_message: string | null };
 }
 
 export interface CopilotResponse {
@@ -275,4 +279,60 @@ export interface PublicStats {
   roc_auc?: number | null;
   prediction_horizon_hours?: number;
   as_of?: string | null;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Outbound notifications (Telegram).
+   Mirrors backend/routers/notification_routes.py. Note what is NOT here: the
+   bot token has no representation in the frontend at all — the browser only
+   ever learns whether the channel is enabled and configured.
+   ────────────────────────────────────────────────────────────────────────── */
+export type DeliveryStatus =
+  | "PENDING" | "SENDING" | "SENT" | "FAILED" | "SKIPPED" | "DISABLED";
+
+export interface NotificationDelivery {
+  delivery_id: string;
+  alert_id: string | null;
+  channel: string;
+  /** Masked at write time on the server (e.g. "***4821"). */
+  destination: string | null;
+  priority: string | null;
+  status: DeliveryStatus;
+  attempt_count: number;
+  provider_message_id: string | null;
+  provider_response_code: number | null;
+  error_message: string | null;
+  kind: string | null;
+  summary: string | null;
+  created_at: string;
+  last_attempt_at: string | null;
+  sent_at: string | null;
+}
+
+export interface TelegramChannelStatus {
+  enabled: boolean;
+  configured: boolean;
+  /** "disabled" | "misconfigured" | "ready" */
+  state: string;
+  missing: string[];
+  notify_priorities: string[];
+  timeout_seconds: number;
+  max_retries: number;
+  retry_base_seconds: number;
+  dedup_window_minutes: number;
+  parse_mode: string;
+  api_base: string;
+  public_app_url: string;
+}
+
+export interface NotificationStatus {
+  channels: { telegram: TelegramChannelStatus };
+  telegram: TelegramChannelStatus;
+  deliveries: { total: number; sent: number; failed: number };
+}
+
+export interface DeliveryResult {
+  success: boolean;
+  delivery: NotificationDelivery;
 }

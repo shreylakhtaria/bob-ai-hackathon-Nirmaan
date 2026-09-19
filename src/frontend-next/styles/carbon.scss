@@ -329,9 +329,10 @@ $grid-console-components: (
 // The header's brand block has a fixed width in Carbon and never shrinks, so
 // on a phone the product name plus the global actions were 625px wide in a
 // 375px viewport and the whole page scrolled sideways.
-.cds--header.shell-header {
-  overflow: hidden;
-}
+// No `overflow: hidden` here: it clipped the unacknowledged-alert count, which
+// is deliberately offset outside its 48px action button. The brand block below
+// is what actually needed constraining.
+
 .cds--header.shell-header .cds--header__name {
   min-inline-size: 0;
   flex: 0 1 auto;
@@ -388,6 +389,26 @@ $grid-console-components: (
 // same reason the rest of the app does it: digits must not jitter in place.
 .cds--data-table td {
   font-variant-numeric: tabular-nums;
+}
+
+// A content switcher used as a compact range picker (1H / 6H / 24H / 7D) sits in
+// a header row, not across a form. Carbon gives every switch `flex: 1 1 0` and
+// clips the overflow, so a constrained container silently truncated the labels
+// to "1.." and "2..". Let the labels decide the width instead.
+.cds--content-switcher.switcher-compact {
+  inline-size: auto;
+  max-inline-size: none;
+
+  .cds--content-switcher-btn {
+    // Both parts matter: `flex: 0 0 auto` stops Carbon dividing the row into
+    // equal slices, and `inline-size: auto` overrides its own `100%`, which
+    // otherwise makes every switch as wide as the whole control and stacks
+    // them on top of each other.
+    flex: 0 0 auto;
+    inline-size: auto;
+    padding-inline: 0.75rem;
+    white-space: nowrap;
+  }
 }
 
 // A Carbon data table sizes to its content. A nine-column asset table inside a

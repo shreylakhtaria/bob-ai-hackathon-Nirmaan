@@ -14,6 +14,7 @@ const CRUMB_TITLES: Record<string, string> = {
   "grid-map": "Interactive Grid Map",
   simulation: "What-If Simulation",
   "data-onboarding": "Data Onboarding",
+  notifications: "Alert Notifications",
   "operator-brief": "Operator Brief",
 };
 
