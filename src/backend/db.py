@@ -228,6 +228,16 @@ def init_db():
         _ensure_column(conn, "alerts", "acknowledged", "acknowledged INTEGER DEFAULT 0")
         _ensure_column(conn, "alerts", "acknowledged_at", "acknowledged_at TEXT")
         _ensure_column(conn, "users", "display_name", "display_name TEXT")
+        # Jira / Field-crew proof-of-work columns (additive migration)
+        _ensure_column(conn, "work_orders", "jira_key", "jira_key TEXT")
+        _ensure_column(conn, "work_orders", "jira_url", "jira_url TEXT")
+        _ensure_column(conn, "work_orders", "field_status",
+                       "field_status TEXT DEFAULT 'DISPATCHED'")
+        _ensure_column(conn, "work_orders", "proof_attachments",
+                       "proof_attachments TEXT")          # JSON array
+        _ensure_column(conn, "work_orders", "technician_signature",
+                       "technician_signature TEXT")
+        _ensure_column(conn, "work_orders", "completed_at", "completed_at TEXT")
 
 
 def reset_db():

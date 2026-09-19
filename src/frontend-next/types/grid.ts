@@ -276,3 +276,91 @@ export interface PublicStats {
   prediction_horizon_hours?: number;
   as_of?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Jira / Enterprise Work Management & Field Crew Proof-of-Work
+// ---------------------------------------------------------------------------
+
+export type FieldStatus =
+  | 'DISPATCHED'
+  | 'EN_ROUTE'
+  | 'ON_SITE'
+  | 'RESOLVING'
+  | 'COMPLETED';
+
+export interface ProofAttachment {
+  name: string;
+  type: string;
+  size: number;
+  uploaded_at: string;
+  url_or_data?: string;
+}
+
+export interface WorkOrder {
+  wo_id: string;
+  created_at: string;
+  asset_id?: string | null;
+  area_id?: string | null;
+  crew_id?: string | null;
+  wo_type: 'DISPATCH' | 'SCHEDULED' | 'DEFERRED' | 'PRE_POSITION' | 'EMERGENCY';
+  status: 'OPEN' | 'DEFERRED' | 'CLOSED';
+  priority?: string | null;
+  scheduled_for?: string | null;
+  eta_min?: number | null;
+  notes?: string | null;
+  // Jira integration fields
+  jira_key?: string | null;
+  jira_url?: string | null;
+  field_status?: FieldStatus | null;
+  proof_attachments?: ProofAttachment[] | null;
+  technician_signature?: string | null;
+  completed_at?: string | null;
+}
+
+export interface JiraTicket {
+  key: string;
+  url: string;
+  title: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  work_order_id?: string;
+  asset_id?: string;
+  crew_id?: string | null;
+  mode?: 'real' | 'simulated';
+}
+
+export interface JiraStatusResponse {
+  ok: boolean;
+  mode: 'real' | 'simulated';
+  message: string;
+}
+
+export interface JiraTicketsResponse {
+  tickets: JiraTicket[];
+  mode: 'real' | 'simulated';
+}
+
+export interface ProofOfWorkPayload {
+  action_taken?: string;
+  parts_replaced?: string;
+  notes?: string;
+  result?: 'COMPLETED' | 'PARTIAL' | 'NO_FAULT_FOUND';
+  proof_attachments?: ProofAttachment[];
+  technician_signature?: string;
+  field_status?: FieldStatus;
+}
+
+export interface ResolutionResponse {
+  work_order: string;
+  asset_id?: string | null;
+  maintenance_id: string;
+  result: string;
+  completed_at: string;
+  crew_id?: string | null;
+  crew_released: boolean;
+  risk_before?: { grid_impact_score?: number; failure_probability?: number; priority?: string } | null;
+  risk_after?: { grid_impact_score?: number; failure_probability?: number; priority?: string } | null;
+  recalculation?: Record<string, unknown> | null;
+  jira?: { ok?: boolean; jira_key?: string; new_status?: string; mode?: string } | null;
+}

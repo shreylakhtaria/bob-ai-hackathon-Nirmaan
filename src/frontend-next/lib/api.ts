@@ -14,6 +14,11 @@ import type {
   BriefResponse,
   ModelMetrics,
   PublicStats,
+  JiraStatusResponse,
+  JiraTicketsResponse,
+  ProofOfWorkPayload,
+  ResolutionResponse,
+  WorkOrder,
 } from "@/types/grid";
 import type { AuthResponse, LoginRequest, SignupRequest, User } from "@/types/auth";
 
@@ -206,4 +211,40 @@ export const API = {
   brief: () => apiRequest<BriefResponse>("/brief"),
   briefText: () => apiTextRequest("/brief/text"),
   exportUrl: (kind: string) => `/api/export/${kind}`,
+
+  // ── Work Order field-crew status update ───────────────────────────────────
+  updateWorkOrderStatus: (woId: string, fieldStatus: string) =>
+    apiRequest<{ ok: boolean; jira_key?: string; new_status?: string; mode?: string }>(
+      `/work-orders/${woId}/status`,
+      { method: "POST", body: JSON.stringify({ field_status: fieldStatus }) },
+    ),
+
+  // ── Proof-of-work evidence upload (multipart) ─────────────────────────────
+  uploadProof: async (woId: string, files: File[]): Promise<{ ok: boolean; total_attachments: number }> => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
+    const res = await fetch(`${API_BASE}/work-orders/${woId}/proof`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...csrfHeaders(),
+      },
+      body: fd,
+    });
+    if (!res.ok) throw await toError(res);
+    return res.json();
+  },
+
+  // ── Full resolution with proof payload ────────────────────────────────────
+  resolveWorkOrder: (woId: string, payload: ProofOfWorkPayload) =>
+    apiRequest<ResolutionResponse>(
+      `/work-orders/${woId}/resolve`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+
+  // ── Jira integration ──────────────────────────────────────────────────────
+  jiraStatus: () => apiRequest<JiraStatusResponse>("/jira/status"),
+  jiraTickets: (limit = 50) =>
+    apiRequest<JiraTicketsResponse>(`/jira/tickets?limit=${limit}`),
 };
