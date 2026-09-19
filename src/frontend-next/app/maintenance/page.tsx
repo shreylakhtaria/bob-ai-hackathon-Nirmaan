@@ -246,18 +246,21 @@ export default function MaintenancePage() {
                       {item.recommended_action || "Immediate diagnostic inspection"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5 justify-end flex-nowrap whitespace-nowrap min-w-max" onClick={(e) => e.stopPropagation()}>
                         <Button
-                          kind="danger--tertiary"
+                          kind="primary"
                           size="sm"
                           onClick={() => handleDispatch(item.asset_id)}
                         >
                           Dispatch
                         </Button>
-                        <Button size="sm" onClick={() => handleSchedule(item.asset_id)}>
+                        <Button
+                          kind="tertiary"
+                          size="sm"
+                          onClick={() => handleSchedule(item.asset_id)}
+                        >
                           Schedule
                         </Button>
-                        {/* Field PoW button — only shown when a work order exists */}
                         {wo && (
                           <Button
                             kind="ghost"

@@ -37,7 +37,28 @@ const queryClient = new QueryClient({
 export function Providers({ children }: { children: React.ReactNode }) {
   const [metricsOpen, setMetricsOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const pathname = usePathname();
+
+  // Hydrate collapsed state from localStorage
+  React.useEffect(() => {
+    const saved = localStorage.getItem("grid_rail_collapsed") === "1";
+    setNavCollapsed(saved);
+    document.documentElement.dataset.rail = saved ? "collapsed" : "expanded";
+  }, []);
+
+  const handleToggleNav = () => {
+    if (window.innerWidth < 1024) {
+      setNavOpen((v) => !v);
+    } else {
+      setNavCollapsed((prev) => {
+        const next = !prev;
+        document.documentElement.dataset.rail = next ? "collapsed" : "expanded";
+        localStorage.setItem("grid_rail_collapsed", next ? "1" : "0");
+        return next;
+      });
+    }
+  };
 
   // The landing page is fully self-contained (own header/main/footer, no client
   // hooks, no auth/query/toast needs). Routing it through the auth frame nested
@@ -70,11 +91,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
               >
                 Skip to content
               </a>
-              <Topbar onToggleNav={() => setNavOpen((v) => !v)} navOpen={navOpen} />
+              <Topbar onToggleNav={handleToggleNav} navOpen={navOpen} navCollapsed={navCollapsed} />
               <Sidebar
                 onOpenMetrics={() => setMetricsOpen(true)}
                 open={navOpen}
                 onClose={() => setNavOpen(false)}
+                collapsed={navCollapsed}
               />
               <div className="lg:pl-[var(--spacing-rail)] flex flex-col min-h-screen rail-anim">
                 <Breadcrumb />

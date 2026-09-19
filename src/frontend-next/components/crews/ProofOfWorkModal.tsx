@@ -196,15 +196,18 @@ export const ProofOfWorkModal: React.FC<Props> = ({
       }
 
       // 2. Close the work order: write maintenance history, release crew, re-score
-      const proofAttachments = evidenceFiles.map((e) => ({
-        name:        e.file.name,
-        type:        e.file.type || "application/octet-stream",
-        size:        e.file.size,
-        uploaded_at: new Date().toISOString(),
-        // Real deployments should store the blob URL returned by the upload
-        // endpoint. For now we record the filename so the audit trail is
-        // meaningful even without a blob store.
-        url_or_data: `upload://${e.file.name}`,
+      const proofAttachments = await Promise.all(evidenceFiles.map(async (e) => {
+        const buffer = await e.file.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        return {
+          name:        e.file.name,
+          type:        e.file.type || "application/octet-stream",
+          size:        e.file.size,
+          uploaded_at: new Date().toISOString(),
+          url_or_data: `data:${e.file.type || "application/octet-stream"};base64,${base64}`,
+        };
       }));
 
       const res = await API.resolveWorkOrder(workOrder.wo_id, {
@@ -228,6 +231,74 @@ export const ProofOfWorkModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const isCompleted = workOrder.field_status === "COMPLETED";
+
+  if (isCompleted) {
+    return (
+      <Modal
+        open={isOpen}
+        onRequestClose={onClose}
+        modalHeading="Completed Work Order Evidence"
+        modalLabel={`${workOrder.wo_id} · ${workOrder.asset_id}`}
+        primaryButtonText="Close"
+        onRequestSubmit={onClose}
+        size="lg"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-line">
+            <span className="text-label font-semibold text-ink">Final status:</span>
+            <Tag type="green" size="sm">COMPLETED</Tag>
+            {workOrder.jira_key && (
+              <a
+                href={workOrder.jira_url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-micro text-brand-ink hover:underline ml-auto"
+                title={`Open ${workOrder.jira_key} in enterprise tracker`}
+              >
+                🎫 {workOrder.jira_key}
+              </a>
+            )}
+          </div>
+          <div className="mt-2 text-label text-ink-2">
+            The following evidence was submitted by the field crew upon resolution:
+          </div>
+          {workOrder.proof_attachments && workOrder.proof_attachments.length > 0 ? (
+            <div className="border border-line rounded-lg overflow-hidden mt-2">
+              {workOrder.proof_attachments.map((file, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-3 py-2.5 border-b border-line last:border-b-0 bg-panel"
+                >
+                  <Attachment size={16} className="text-brand-ink shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-label font-semibold text-ink truncate">{file.name}</span>
+                    <span className="font-mono text-micro text-ink-3">
+                      {sizeLabel(file.size)} &middot; {new Date(file.uploaded_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <Button kind="ghost" size="sm" renderIcon={Download} iconDescription="Download">
+                    Download
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 border border-line bg-sunken rounded text-center text-ink-3 text-micro mt-2">
+              No evidence files were attached to this work order.
+            </div>
+          )}
+          {workOrder.technician_signature && (
+            <div className="mt-4 p-3 bg-[#f0f4f8] rounded border border-line">
+              <span className="text-micro font-bold text-ink-2 uppercase tracking-wider block mb-1">Signed Off By</span>
+              <span className="font-mono text-brand-ink font-semibold">{workOrder.technician_signature}</span>
+            </div>
+          )}
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       open={isOpen}

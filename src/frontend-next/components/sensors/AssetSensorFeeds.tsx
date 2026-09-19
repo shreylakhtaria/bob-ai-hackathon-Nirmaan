@@ -92,9 +92,12 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
 
             const summary = sensorsSummary[m.key] || {};
             const isUp = pct > 0;
-            const statusStr = (summary.status || 'NORMAL').toUpperCase();
-            const isAlert = !['NOMINAL', 'NORMAL'].includes(statusStr);
-            const color = summary.color || (isAlert ? "#ba1a1a" : "#0f5132");
+            
+            // If it's oil quality, decreasing is bad. For everything else, increasing is bad.
+            const isWorsening = m.key === "oil_quality" ? pct < 0 : pct > 0;
+            
+            // Force red if the trend is bad, otherwise green. (Ignore backend color overrides so we see the real trend)
+            const color = isWorsening ? "#ba1a1a" : "#0f5132";
 
             const data = {
               labels: sensors.map((_: any, i: number) => i),
@@ -126,7 +129,7 @@ export const AssetSensorFeeds: React.FC<AssetSensorFeedsProps> = ({ assetId, sen
                   label: summary.label || m.title,
                   latest: latest,
                   unit: m.unit,
-                  status: summary.status || (isAlert ? "CRITICAL" : "NORMAL"),
+                  status: summary.status || (isWorsening ? "CRITICAL" : "NORMAL"),
                   threshold: summary.threshold || "--",
                   trend: vals 
                 })}

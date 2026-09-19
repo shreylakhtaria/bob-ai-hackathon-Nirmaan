@@ -25,6 +25,7 @@ import {
   SidePanelClose,
   SidePanelOpen,
   Tools,
+  UserAdmin,
 } from "@carbon/icons-react";
 import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
@@ -58,6 +59,12 @@ const NAV_GROUPS = [
       { id: "operator-brief", href: "/operator-brief", label: "Operator Brief", icon: Document },
     ],
   },
+  {
+    heading: "Admin",
+    items: [
+      { id: "admin-pow", href: "/admin", label: "Proof of Work", icon: UserAdmin },
+    ],
+  },
 ];
 
 /**
@@ -78,30 +85,11 @@ export const Sidebar: React.FC<{
    *  narrow to read. */
   open?: boolean;
   onClose?: () => void;
-}> = ({ onOpenMetrics, open = false, onClose }) => {
+  collapsed?: boolean;
+}> = ({ onOpenMetrics, open = false, onClose, collapsed = false }) => {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  // Collapsed to an icon rail. Persisted because it is a workspace preference:
-  // an operator who wants the map wide should not re-collapse it every visit.
-  const [collapsed, setCollapsed] = useState(false);
   const [stats, setStats] = useState<{ telemetryRows?: number; activeOutages?: number }>({});
-
-  useEffect(() => {
-    const saved = localStorage.getItem("grid_rail_collapsed") === "1";
-    setCollapsed(saved);
-    document.documentElement.dataset.rail = saved ? "collapsed" : "expanded";
-  }, []);
-
-  const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      // The width lives in a CSS variable on <html>, so the breadcrumb, main
-      // column and metrics drawer follow without each tracking this state.
-      document.documentElement.dataset.rail = next ? "collapsed" : "expanded";
-      localStorage.setItem("grid_rail_collapsed", next ? "1" : "0");
-      return next;
-    });
-  };
 
   // Route changed: the drawer has done its job.
   useEffect(() => {
@@ -223,21 +211,6 @@ export const Sidebar: React.FC<{
               <span className={collapsed ? "sr-only" : undefined}>Metrics &amp; health</span>
             </Button>
           )}
-
-          {/* Collapse control. Desktop only: under lg the rail is already a
-              dismissible drawer, so a second collapsed state would just be a
-              confusing third mode. */}
-          <Button
-            kind="ghost"
-            size="sm"
-            renderIcon={collapsed ? SidePanelOpen : SidePanelClose}
-            onClick={toggleCollapsed}
-            aria-pressed={collapsed}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="cds--btn--block mt-1 !hidden lg:!flex"
-          >
-            <span className={collapsed ? "sr-only" : undefined}>Collapse</span>
-          </Button>
         </div>
       </SideNav>
     </>

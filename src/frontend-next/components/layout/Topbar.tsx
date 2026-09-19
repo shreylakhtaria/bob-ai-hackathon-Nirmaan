@@ -36,9 +36,10 @@ import { API } from "@/lib/api";
  * Tag, the icons — and the trigger is a Carbon HeaderGlobalAction, so the
  * shell's keyboard and focus behaviour is Carbon's.
  */
-export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> = ({
+export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean; navCollapsed?: boolean }> = ({
   onToggleNav,
   navOpen = false,
+  navCollapsed = false,
 }) => {
   const router = useRouter();
   const { ok, warn, err } = useToast();
@@ -171,15 +172,24 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
     }
   };
 
-  const downloadCsv = (kind: string) => {
+  const downloadCsv = async (kind: string) => {
     ok(`Exporting ${kind.replace("_", " ")} CSV…`);
-    const a = document.createElement("a");
-    a.href = API.exportUrl(kind);
-    a.download = `${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setExportOpen(false);
+    try {
+      const csvText = await API.exportCsv(kind);
+      const blob = new Blob([csvText], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      err(e.message || "Export failed");
+    } finally {
+      setExportOpen(false);
+    }
   };
 
   const menuItem =
@@ -187,11 +197,10 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
 
   return (
     <Header aria-label="Grid Risk Advisor" className="shell-header">
-      {/* Below lg the nav is a drawer, so it needs a way in. */}
       <HeaderMenuButton
-        aria-label={navOpen ? "Close navigation" : "Open navigation"}
+        aria-label={navOpen || !navCollapsed ? "Close navigation" : "Open navigation"}
         isCollapsible
-        isActive={navOpen}
+        isActive={navOpen || !navCollapsed}
         onClick={onToggleNav}
       />
 
@@ -223,16 +232,8 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
         </Tag>
       </div>
 
-      <div className="hidden md:block flex-1 min-w-0 max-w-lg mx-3">
-        <Search
-          size="sm"
-          labelText="Search assets, substations, areas and crews"
-          placeholder="Search Asset ID, Substation, Area, or Crew…"
-          closeButtonLabelText="Clear search"
-          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === "Enter") handleGlobalSearch((e.target as HTMLInputElement).value);
-          }}
-        />
+      <div className="hidden md:block flex-1 min-w-0 mx-3">
+        {/* Search removed by request */}
       </div>
 
       <HeaderGlobalBar>
@@ -424,10 +425,21 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                 )}
               </div>
               {user && (
-                <button
-                  role="menuitem"
-                  className={`${menuItem} text-sev-critical flex items-center gap-2 font-medium`}
-                  onClick={async () => {
+                <>
+                  <button
+                    role="menuitem"
+                    className={`${menuItem} flex items-center gap-2`}
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/profile");
+                    }}
+                  >
+                    <User size={16} /> Profile
+                  </button>
+                  <button
+                    role="menuitem"
+                    className={`${menuItem} text-sev-critical flex items-center gap-2 font-medium`}
+                    onClick={async () => {
                     setUserMenuOpen(false);
                     // Awaited so the server-side revocation completes before we
                     // navigate; otherwise the request can be cancelled mid-flight
@@ -439,9 +451,10 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                 >
                   <Logout size={16} /> Sign out
                 </button>
-              )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
+        )}
         </div>
       </HeaderGlobalBar>
     </Header>

@@ -237,7 +237,11 @@ export const API = {
     }),
   brief: () => apiRequest<BriefResponse>("/brief"),
   briefText: () => apiTextRequest("/brief/text"),
-  exportUrl: (kind: string) => `/api/export/${kind}`,
+  exportCsv: (kind: string) => apiTextRequest(`/export/${kind}`),
+
+  // ── Work Orders ──────────────────────────────────────────────────────────
+  getWorkOrders: (status?: string) =>
+    apiRequest<WorkOrder[]>(`/work-orders${status ? `?status=${status}` : ""}`),
 
   // ── Work Order field-crew status update ───────────────────────────────────
   updateWorkOrderStatus: (woId: string, fieldStatus: string) =>

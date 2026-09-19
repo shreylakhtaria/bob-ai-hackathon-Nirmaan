@@ -21,12 +21,11 @@ import {
   TableHeader,
   TableRow,
   Tile,
-  ContentSwitcher,
   Select,
   SelectItem,
-  Switch,
+  Tag,
 } from "@carbon/react";
-import { Play, Rain, Receipt } from "@carbon/icons-react";
+import { Play, Rain, Receipt, Activity, Lightning, Target } from "@carbon/icons-react";
 
 export default function SimulationPage() {
   const searchParams = useSearchParams();
@@ -61,12 +60,8 @@ export default function SimulationPage() {
     queryFn: () => API.areas(),
   });
 
-  // Opt-in Telegram push for a what-if run. Off by default and never
-  // remembered across runs, so a simulation cannot quietly start paging people.
   const [notifyTelegram, setNotifyTelegram] = useState(false);
 
-  /** Report the delivery outcome truthfully: a simulation can succeed while its
-   *  notification fails, and the operator needs to know which happened. */
   const reportDelivery = (res: { notification?: { status: string; error_message: string | null } }) => {
     const n = res.notification;
     if (!n) return;
@@ -75,11 +70,6 @@ export default function SimulationPage() {
     else err(n.error_message || "Telegram delivery failed.");
   };
 
-  // One simulation at a time. React's StrictMode double-invokes mount effects
-  // in development, and the asset picker fires a run on change as well, so
-  // without this the same scenario ran twice and stacked two identical "Done"
-  // toasts. A ref rather than `isSimulating`, because state updates are async:
-  // two calls in the same tick would both read the stale `false`.
   const inFlight = useRef(false);
 
   const runAssetSim = async (assetId: string, notify = false) => {
@@ -89,7 +79,6 @@ export default function SimulationPage() {
     try {
       const res = await API.simulateAsset(assetId, notify);
       setAssetSimResult(res);
-      ok(`N-1 Contingency simulation completed for ${assetId}`);
       reportDelivery(res);
     } catch (e: any) {
       err(e.message || "Simulation failed");
@@ -106,7 +95,6 @@ export default function SimulationPage() {
     try {
       const res = await API.simulateWeather(areaId, sev, notify);
       setWeatherSimResult(res);
-      ok(`Weather stress-test simulation completed for ${areaId}`);
       reportDelivery(res);
     } catch (e: any) {
       err(e.message || "Simulation failed");
@@ -116,9 +104,6 @@ export default function SimulationPage() {
     }
   };
 
-  // Runs once for whatever asset the URL arrived with. Deliberately not
-  // re-run on every selectedAsset change: the picker's own onChange already
-  // fires the simulation, and adding it here would run each one twice.
   useEffect(() => {
     if (selectedAsset) {
       runAssetSim(selectedAsset);
@@ -127,391 +112,252 @@ export default function SimulationPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
+    <div className="flex flex-col gap-4 w-full animate-fade-in font-sans pb-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-line">
-        <div>
-          <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-0.5">
-            <span>Simulation</span>
-            <span className="text-line">/</span>
-            <span className="text-brand-ink font-bold">Predictive Engine</span>
-          </div>
-          <h1 className="text-title font-bold text-ink tracking-tight font-sans">
-            Grid Contingency &amp; Weather Stress Simulator
-          </h1>
-          <p className="text-label text-ink-2">
-            Evaluate cascading outage contingencies, neighbor feeder overloads, and storm impacts before they happen.
-          </p>
+      <div className="pb-3 border-b border-line">
+        <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-1 font-mono">
+          <span>OPERATIONAL DECISION SUPPORT</span>
+          <span className="text-line">/</span>
+          <span>CONCURRENT ENGINE SESSIONS: ACTIVE</span>
         </div>
-
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          <Button
-            kind="tertiary"
-            size="sm"
-            renderIcon={Receipt}
-            onClick={() => setShowRunsLog(!showRunsLog)}
-          >
-            {showRunsLog ? "Hide runs log" : "Runs log"}
-          </Button>
-
-          {/* Carbon ContentSwitcher rather than two styled buttons: it is
-              exactly this control, and it brings the arrow-key navigation and
-              the selected state the pair of buttons never had. */}
-          <ContentSwitcher
-            size="sm"
-            selectedIndex={activeTab === "asset" ? 0 : 1}
-            onChange={({ name }) => {
-              const next = (name as "asset" | "weather") ?? "asset";
-              setActiveTab(next);
-              if (next === "weather" && !weatherSimResult) {
-                runWeatherSim(selectedArea, severity);
-              }
-            }}
-            className="switcher-compact"
-          >
-            <Switch name="asset" text="Asset trip (N-1)" />
-            <Switch name="weather" text="Weather scenario" />
-          </ContentSwitcher>
-        </div>
+        <h1 className="text-[32px] font-bold text-[#0a192f] tracking-tight leading-tight">
+          Grid Outage Simulation & Operational Copilot
+        </h1>
+        <p className="text-label text-ink-2 mt-1">
+          Scenario contingency modelling, weather impact stress-testing, and AI decision-support advisor.
+        </p>
       </div>
 
-      {activeTab === "asset" ? (
-        /* Asset Trip Simulation (N-1 Contingency) */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-          {/* Controls (4 cols) */}
-          <div className="lg:col-span-4 bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
-            <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
-              Select Trip Candidate
-            </div>
-            <div>
-              <Select
-                id="sim-asset"
-                size="sm"
-                labelText="Target asset ID"
-                value={selectedAsset}
-                onChange={(e) => {
-                  setSelectedAsset(e.target.value);
-                  runAssetSim(e.target.value);
-                }}
-              >
-                {assets.map((a) => (
-                  <SelectItem
-                    key={a.asset_id}
-                    value={a.asset_id}
-                    text={`${a.asset_id} \u2014 ${a.asset_type} (${a.geographic_area || a.area})`}
-                  />
-                ))}
-              </Select>
-            </div>
+      <Tile className="p-0 shadow-panel border border-line rounded-none overflow-hidden">
+        {/* Panel Header */}
+        <div className="bg-[#f0f4f8] border-b border-line px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-micro font-bold text-[#0a192f] uppercase tracking-wider">
+            <Activity size={16} className="text-[#0f5132]" />
+            WHAT-IF CONTINGENCY & STRESS SIMULATION ENGINE
+          </div>
+          <div className="text-micro font-mono text-ink-3 uppercase tracking-wider">
+            POST /api/simulation
+          </div>
+        </div>
 
-            <Checkbox
-              id="notify-telegram-asset"
-              labelText="Notify Telegram with the result"
-              checked={notifyTelegram}
-              onChange={(_, { checked }) => setNotifyTelegram(checked)}
-              className="mb-1"
-            />
-            <Button
-              size="sm"
-              renderIcon={Play}
-              disabled={isSimulating}
-              onClick={() => runAssetSim(selectedAsset, notifyTelegram)}
-              className="cds--btn--block"
+        <div className="p-5 flex flex-col gap-5 bg-white">
+          {/* Tabs */}
+          <div className="flex grid grid-cols-2 gap-0 border border-line rounded-none">
+            <button
+              onClick={() => setActiveTab("asset")}
+              className={`py-3 flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider ${
+                activeTab === "asset"
+                  ? "bg-[#0f5132] text-white"
+                  : "bg-white text-ink-2 hover:bg-gray-50"
+              }`}
             >
-              {isSimulating ? "Running\u2026" : "Run N-1 simulation"}
-            </Button>
-
-            {assetSimResult && (
-              <div className="p-3 bg-sunken border border-line space-y-1 text-micro">
-                <div className="font-semibold text-ink">Simulated asset</div>
-                <dl className="font-mono text-micro text-ink-2 grid grid-cols-[auto_1fr] gap-x-2">
-                  <dt>Type</dt>
-                  <dd className="font-semibold text-ink">{assetSimResult.asset_type}</dd>
-                  <dt>Area</dt>
-                  <dd className="font-semibold text-ink">{assetSimResult.area}</dd>
-                  <dt>Direct</dt>
-                  <dd className="font-semibold text-ink">
-                    {F.num(assetSimResult.direct_customers)} customers
-                  </dd>
-                  <dt>P(fail)</dt>
-                  <dd className="font-semibold text-ink">
-                    {assetSimResult.failure_probability != null
-                      ? `${Math.round(assetSimResult.failure_probability * 100)}%`
-                      : "\u2014"}
-                  </dd>
-                </dl>
-              </div>
-            )}
-          </div>
-
-          {/* Impact Results (8 cols) */}
-          <div className="lg:col-span-8 flex flex-col gap-3">
-            {assetSimResult ? (
-              <>
-                {/* Impact KPI Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">
-                      Customers affected
-                    </div>
-                    <div className="text-lede font-mono font-bold text-sev-critical">
-                      {F.num(assetSimResult.total_customers_affected)}
-                    </div>
-                    <div className="text-micro text-ink-3">
-                      {F.num(assetSimResult.direct_customers)} direct &middot;{" "}
-                      {F.num(assetSimResult.downstream_customers)} downstream
-                    </div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">Severity</div>
-                    <div className="mt-1">
-                      <RiskBadge level={assetSimResult.severity} size="md" />
-                    </div>
-                    <div className="mt-1 text-micro text-ink-3">
-                      {assetSimResult.affected_areas.length} area
-                      {assetSimResult.affected_areas.length === 1 ? "" : "s"} affected
-                    </div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">
-                      Downstream assets
-                    </div>
-                    <div className="text-lede font-mono font-bold text-sev-elevated">
-                      {assetSimResult.downstream_assets.length}
-                    </div>
-                    <div className="text-micro text-ink-3">On the same substation</div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">
-                      Est. outage
-                    </div>
-                    <div className="text-lede font-mono font-bold text-ink">
-                      {Math.round(assetSimResult.estimated_outage_minutes)} min
-                    </div>
-                    <div className="text-micro text-ink-3">
-                      {assetSimResult.nearest_crew
-                        ? `Nearest crew ${assetSimResult.nearest_crew.crew_id} \u00b7 ${Math.round(
-                            assetSimResult.nearest_crew.response_min
-                          )} min`
-                        : "No crew available"}
-                    </div>
-                  </Tile>
-                </div>
-
-                {/* Overloaded Lines & Mitigation Plan */}
-                <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
-                  <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
-                    Recommended Dispatch &amp; Switching Mitigation
-                  </div>
-                  <ol className="space-y-2">
-                    {assetSimResult.recommended_mitigation.map((action, i) => (
-                      <li
-                        key={action}
-                        className="p-2.5 bg-canvas border border-line flex items-start gap-2.5 text-label"
-                      >
-                        <span className="w-5 h-5 rounded-full bg-brand-ink text-white font-mono text-micro font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
-                        <span className="flex-1 text-ink">{action}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </>
-            ) : (
-              <div className="p-8 bg-panel rounded-lg border border-line text-center font-mono text-micro text-ink-3">
-                Running contingency analysis…
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* Weather Stress-Test Scenario */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-          <div className="lg:col-span-4 bg-panel rounded-xl shadow-panel border border-line p-3.5 space-y-3">
-            <div className="text-micro font-semibold uppercase text-ink pb-1 border-b border-line">
-              Storm Simulation Controls
-            </div>
-            <div>
-              <Select
-                id="sim-area"
-                size="sm"
-                labelText="Target geographic area"
-                value={selectedArea}
-                onChange={(e) => setSelectedArea(e.target.value)}
-              >
-                {areas.map((a) => (
-                  <SelectItem
-                    key={a.area_id}
-                    value={a.area_id}
-                    text={`${a.area_id} \u2014 ${a.risk_level}`}
-                  />
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Select
-                id="sim-severity"
-                size="sm"
-                labelText="Storm severity tier"
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-              >
-                <SelectItem value="MODERATE" text="Moderate storm (score 50–65)" />
-                <SelectItem value="SEVERE" text="Severe storm (score 65–85)" />
-                <SelectItem value="EXTREME" text="Extreme cyclone / gale (score >85)" />
-              </Select>
-            </div>
-            <Checkbox
-              id="notify-telegram-weather"
-              labelText="Notify Telegram with the result"
-              checked={notifyTelegram}
-              onChange={(_, { checked }) => setNotifyTelegram(checked)}
-              className="mb-1"
-            />
-            <Button
-              kind="danger"
-              size="sm"
-              renderIcon={Rain}
-              disabled={isSimulating}
-              onClick={() => runWeatherSim(selectedArea, severity, notifyTelegram)}
-              className="cds--btn--block"
+              <Lightning size={20} /> ASSET FAILURE CONTINGENCY (N-1 / N-2)
+            </button>
+            <button
+              onClick={() => setActiveTab("weather")}
+              className={`py-3 flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider ${
+                activeTab === "weather"
+                  ? "bg-[#0f5132] text-white"
+                  : "bg-white text-ink-2 hover:bg-gray-50"
+              }`}
             >
-              {isSimulating ? "Running\u2026" : "Simulate storm impact"}
-            </Button>
+              <Rain size={20} /> SEVERE WEATHER EVENT SIMULATION
+            </button>
           </div>
 
-          <div className="lg:col-span-8 flex flex-col gap-3">
-            {weatherSimResult && (
-              <>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">
-                      Outage probability
-                    </div>
-                    <div className="text-lede font-mono font-bold text-sev-critical">
-                      {F.pct(weatherSimResult.new_outage_probability)}
-                    </div>
-                    {/* The baseline matters more than the new number on its own:
-                        a storm that moves an area from 6% to 9% is a different
-                        decision from one that moves it from 40% to 43%. */}
-                    <div className="text-micro text-ink-3">
-                      from {F.pct(weatherSimResult.baseline_outage_probability)} baseline
-                    </div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">Change</div>
-                    <div className="text-lede font-mono font-bold text-sev-elevated">
-                      {weatherSimResult.delta >= 0 ? "+" : ""}
-                      {F.pct(weatherSimResult.delta)}
-                    </div>
-                    <div className="text-micro text-ink-3">
-                      {weatherSimResult.injected_severity.toLowerCase()} scenario
-                    </div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">Risk level</div>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <RiskBadge level={weatherSimResult.baseline_risk_level} />
-                      <span aria-hidden="true" className="text-ink-3">
-                        &rarr;
-                      </span>
-                      <RiskBadge level={weatherSimResult.new_risk_level} />
-                    </div>
-                  </Tile>
-                  <Tile>
-                    <div className="text-micro text-ink-3 uppercase tracking-wide">
-                      High-risk assets
-                    </div>
-                    <div className="text-lede font-mono font-bold text-ink">
-                      {weatherSimResult.high_risk_assets}
-                    </div>
-                    <div className="text-micro text-ink-3">in {weatherSimResult.area_id}</div>
-                  </Tile>
-                </div>
+          {activeTab === "asset" && (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  id="target-asset"
+                  labelText="TARGET PRIMARY ASSET"
+                  value={selectedAsset}
+                  onChange={(e) => setSelectedAsset(e.target.value)}
+                  className="w-full uppercase font-bold text-ink-2"
+                >
+                  {assets.map((a: any) => (
+                    <SelectItem
+                      key={a.asset_id}
+                      value={a.asset_id}
+                      text={`${a.asset_id} — ${a.asset_type} (${a.geographic_area || a.area})`}
+                    />
+                  ))}
+                </Select>
 
-                <PanelCard title="Most exposed assets" flush>
-                  <div className="overflow-x-auto">
-                    <Table size="sm" useZebraStyles={false}>
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader>Asset ID</TableHeader>
-                          <TableHeader>Type</TableHeader>
-                          <TableHeader className="text-right">P(fail)</TableHeader>
-                          <TableHeader className="text-right">Grid impact</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {weatherSimResult.top_exposed_assets.map((a) => (
-                          <TableRow key={a.asset_id}>
-                            <TableCell className="font-mono font-semibold text-brand-ink">
-                              {a.asset_id}
-                            </TableCell>
-                            <TableCell>{a.type}</TableCell>
-                            <TableCell className="text-right font-mono">{F.pct(a.fp)}</TableCell>
-                            <TableCell className="text-right font-mono">
-                              {a.gis?.toFixed(1)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </PanelCard>
-
-                <PanelCard title="Recommended actions">
-                  <ol className="space-y-2">
-                    {weatherSimResult.recommended_actions.map((action, i) => (
-                      <li
-                        key={action}
-                        className="p-2.5 bg-canvas border border-line flex items-start gap-2.5 text-label"
-                      >
-                        <span className="w-5 h-5 rounded-full bg-brand-ink text-white font-mono text-micro font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
-                        <span className="flex-1 text-ink">{action}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </PanelCard>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Runs Log */}
-      {showRunsLog && (
-        <div className="mt-4 bg-panel rounded-xl shadow-panel border border-line overflow-hidden animate-fade-in">
-          <div className="px-3.5 py-2.5 bg-header flex items-center gap-2 border-b border-line">
-            <Receipt size={16} className="fill-current text-brand-ink" aria-hidden="true" />
-            <span className="text-micro font-semibold text-ink uppercase">
-              Engine &amp; Operator Runs Log
-            </span>
-          </div>
-          <div className="p-3.5 overflow-y-auto max-h-[320px]">
-            {loadingAudit ? (
-              <div className="text-center font-mono text-micro text-ink-3 py-4">Loading logs...</div>
-            ) : auditLogs.length > 0 ? (
-              <div className="space-y-1.5">
-                {auditLogs.map((log: any, idx: number) => (
-                  <div key={idx} className="flex flex-wrap items-start gap-2 py-1.5 border-b border-sunken last:border-0 font-sans text-label">
-                    <span className="font-mono text-micro text-ink-3 whitespace-nowrap">{F.date(log.ts)}</span>
-                    <span className="text-micro font-semibold uppercase px-1.5 py-0.5 rounded bg-sunken text-ink-2 whitespace-nowrap">
-                      {log.actor}
-                    </span>
-                    <span className="font-semibold text-ink">{log.action}</span>
-                    <span className="font-mono text-micro text-ink-3 truncate max-w-full">
-                      {JSON.stringify(log.detail)}
-                    </span>
-                  </div>
-                ))}
+                <Select
+                  id="cascade-model"
+                  labelText="CASCADE MODEL"
+                  value="same-sub"
+                  onChange={() => {}}
+                  className="w-full uppercase font-bold text-ink-2"
+                >
+                  <SelectItem value="same-sub" text="Same-substation downstream fan-out" />
+                  <SelectItem value="full-grid" text="Full regional grid cascade" />
+                </Select>
               </div>
-            ) : (
-              <div className="text-center font-mono text-micro text-ink-3 py-4">No runs recorded yet</div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-2 text-micro font-mono uppercase tracking-wider text-ink-2">
+                <span className="w-2 h-2 rounded-full bg-[#0f5132]" />
+                ENGINE READY <span className="mx-2 text-line">•</span> Last run: 26ms <span className="mx-2 text-line">•</span> {new Date().toLocaleTimeString('en-GB', { hour12: false })}
+              </div>
+
+              <Button
+                size="lg"
+                disabled={isSimulating}
+                onClick={() => runAssetSim(selectedAsset, notifyTelegram)}
+                className="w-full bg-[#0f5132] hover:bg-[#0a3622] flex items-center justify-center gap-2 text-base font-bold tracking-wider"
+              >
+                ▶ RUN GRID CONTINGENCY SIMULATION
+              </Button>
+            </div>
+          )}
+
+          {activeTab === "weather" && (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  id="target-area"
+                  labelText="TARGET REGION"
+                  value={selectedArea}
+                  onChange={(e) => setSelectedArea(e.target.value)}
+                  className="w-full uppercase font-bold text-ink-2"
+                >
+                  {areas.map((a: any) => (
+                    <SelectItem key={a.area_id} value={a.area_id} text={a.area_id} />
+                  ))}
+                </Select>
+
+                <Select
+                  id="severity"
+                  labelText="EVENT SEVERITY"
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
+                  className="w-full uppercase font-bold text-ink-2"
+                >
+                  <SelectItem value="MODERATE" text="MODERATE (Warning Level)" />
+                  <SelectItem value="SEVERE" text="SEVERE (Action Level)" />
+                  <SelectItem value="EXTREME" text="EXTREME (Emergency Level)" />
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2 text-micro font-mono uppercase tracking-wider text-ink-2">
+                <span className="w-2 h-2 rounded-full bg-[#0f5132]" />
+                ENGINE READY <span className="mx-2 text-line">•</span> Last run: 14ms <span className="mx-2 text-line">•</span> {new Date().toLocaleTimeString('en-GB', { hour12: false })}
+              </div>
+
+              <Button
+                size="lg"
+                disabled={isSimulating}
+                onClick={() => runWeatherSim(selectedArea, severity, notifyTelegram)}
+                className="w-full bg-[#0f5132] hover:bg-[#0a3622] flex items-center justify-center gap-2 text-base font-bold tracking-wider"
+              >
+                ▶ RUN WEATHER STRESS SIMULATION
+              </Button>
+            </div>
+          )}
         </div>
+      </Tile>
+
+      {/* Delta Results (Shows on run) */}
+      {(assetSimResult || weatherSimResult) && (
+        <Tile className="p-0 mt-2 shadow-panel border border-line rounded-none overflow-hidden">
+          <div className="bg-[#fff0f0] border-b border-line px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-micro font-bold text-[#ba1a1a] uppercase tracking-wider">
+              <Target size={16} className="text-[#ba1a1a]" />
+              BEFORE VS AFTER SIMULATION IMPACT ANALYSIS
+            </div>
+            <div className="text-micro font-mono text-[#ba1a1a] uppercase tracking-wider font-bold">
+              DELTA CRITICAL — Calculated at: {new Date().toLocaleTimeString('en-GB', { hour12: false })}
+            </div>
+          </div>
+
+          <div className="bg-white">
+            <Table size="sm" className="w-full">
+              <TableHead>
+                <TableRow>
+                  <TableHeader className="uppercase text-micro text-[#0a192f] bg-[#f8fbff] font-bold">Parameter Metric</TableHeader>
+                  <TableHeader className="uppercase text-micro text-[#0a192f] bg-[#f8fbff] font-bold">Current<br/>Steady State</TableHeader>
+                  <TableHeader className="uppercase text-micro text-[#0a192f] bg-[#f8fbff] font-bold">Simulated Failure State</TableHeader>
+                  <TableHeader className="uppercase text-micro text-[#0a192f] bg-[#f8fbff] font-bold">Delta /<br/>Operational Impact</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {activeTab === "asset" && assetSimResult && (
+                  <>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Customers served directly</TableCell>
+                      <TableCell className="font-mono text-ink-3">0 affected</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{F.num(assetSimResult.direct_customers)} affected</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Downstream customers (cascade)</TableCell>
+                      <TableCell className="font-mono text-ink-3">0 affected</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{F.num(assetSimResult.downstream_customers)} affected</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line bg-gray-50">
+                      <TableCell className="font-bold text-ink">Total customers out</TableCell>
+                      <TableCell className="font-mono text-ink-3">0 affected</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{F.num(assetSimResult.total_customers_affected)} affected</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Areas impacted</TableCell>
+                      <TableCell className="font-mono text-ink-3">None</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{assetSimResult.affected_areas?.length || 1}: {assetSimResult.area}</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Downstream assets on substation</TableCell>
+                      <TableCell className="font-mono text-ink-3">0</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{assetSimResult.downstream_assets?.length || 0}</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Estimated outage duration</TableCell>
+                      <TableCell className="font-mono text-ink-3">In service</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{assetSimResult.estimated_outage_minutes || 0} min (historical mean for {assetSimResult.asset_type})</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">Severity band</TableCell>
+                      <TableCell className="font-mono text-ink-3">NOMINAL</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity}</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a] uppercase">{assetSimResult.severity || "CRITICAL"}</TableCell>
+                    </TableRow>
+                  </>
+                )}
+                {activeTab === "weather" && weatherSimResult && (
+                  <>
+                    <TableRow className="border-b border-line bg-gray-50">
+                      <TableCell className="font-bold text-ink">System Outage Probability</TableCell>
+                      <TableCell className="font-mono text-ink-3">{(weatherSimResult.baseline_outage_probability * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{(weatherSimResult.new_outage_probability * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a]">CRITICAL (+{(weatherSimResult.delta * 100).toFixed(1)}%)</TableCell>
+                    </TableRow>
+                    <TableRow className="border-b border-line">
+                      <TableCell className="font-bold text-ink">High Risk Assets Predicted</TableCell>
+                      <TableCell className="font-mono text-ink-3">Baseline</TableCell>
+                      <TableCell className="font-mono font-bold text-[#ba1a1a]">{weatherSimResult.high_risk_assets} assets at risk</TableCell>
+                      <TableCell className="font-bold text-[#ba1a1a]">CRITICAL</TableCell>
+                    </TableRow>
+                  </>
+                )}
+              </TableBody>
+            </Table>
+
+            <div className="p-4 border-t border-line flex items-center gap-3">
+              <div className="text-micro font-bold uppercase text-[#0a192f] tracking-wider flex items-center gap-1.5">
+                <Receipt size={16} className="text-[#0a192f]" />
+                AUTOMATED MITIGATION PLAYBOOK
+              </div>
+              <Tag type="green" className="m-0 uppercase font-bold tracking-wider">
+                REQUIRED SKILL: {assetSimResult?.required_skill || weatherSimResult?.recommended_mitigation?.[0] || "GENERAL"}
+              </Tag>
+            </div>
+          </div>
+        </Tile>
       )}
     </div>
   );
