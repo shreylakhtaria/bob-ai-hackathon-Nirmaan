@@ -73,18 +73,20 @@ export const GridMapClient: React.FC = () => {
         (data.assets || []).forEach((asset) => {
           if (asset.latitude == null || asset.longitude == null) return;
           const lvl = asset.priority || "LOW";
+          const isDispatched = !!asset.crew_id || asset.dispatch_status === "OPEN";
           const radius = lvl === "CRITICAL" ? 8 : lvl === "HIGH" ? 6 : lvl === "MEDIUM" ? 5 : 4;
 
           const marker = L.circleMarker([asset.latitude, asset.longitude], {
             radius,
-            color: F.riskColor(lvl),
+            color: isDispatched ? "#0f62fe" : F.riskColor(lvl),
             weight: 1.5,
-            fillColor: F.riskColor(lvl),
+            fillColor: isDispatched ? "#0f62fe" : F.riskColor(lvl),
             fillOpacity: 0.85,
           })
             .addTo(map)
             .bindPopup(
               `<b>${asset.asset_id}</b> &mdash; ${asset.asset_type}<br>${asset.geographic_area || asset.area}<br>
+               ${isDispatched ? `<div style="color:#0043ce;font-weight:bold;margin:2px 0;">⛑ Crew ${asset.crew_id || 'Dispatched'} En Route</div>` : ''}
                P(Fail): ${F.pct(asset.failure_probability)} &bull; Impact: ${F.score(
                 asset.grid_impact_score
               )}<br>

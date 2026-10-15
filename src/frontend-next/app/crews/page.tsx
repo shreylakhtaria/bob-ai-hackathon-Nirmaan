@@ -4,11 +4,13 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 import { ProofOfWorkModal } from "@/components/crews/ProofOfWorkModal";
 import type { ResolutionResponse, WorkOrder } from "@/types/grid";
 import {
   Button,
+  Modal,
   Tag,
   Table,
   TableBody,
@@ -16,11 +18,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TextInput,
 } from "@carbon/react";
-import { Certificate, CheckmarkOutline, Compass, Delivery, Renew } from "@carbon/icons-react";
+import { Certificate, CheckmarkOutline, Compass, Delivery, Edit, Email, Renew } from "@carbon/icons-react";
 
 export default function CrewsPage() {
   const { ok, err } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
 
   const { data: crewData, isLoading: isRosterLoading, refetch: refetchRoster } = useQuery({
     queryKey: ["crews-roster"],
@@ -72,6 +77,25 @@ export default function CrewsPage() {
       err(e.message || "Failed to complete the job");
     } finally {
       setCompleting(null);
+    }
+  };
+
+  // ── Dispatch email editing state ───────────────────────────────────────────
+  const [editingCrew, setEditingCrew] = React.useState<{ id: string; email: string } | null>(null);
+  const [isSavingEmail, setIsSavingEmail] = React.useState(false);
+
+  const handleSaveEmail = async () => {
+    if (!editingCrew) return;
+    setIsSavingEmail(true);
+    try {
+      await API.updateCrew(editingCrew.id, { email: editingCrew.email });
+      ok(`Updated dispatch email for ${editingCrew.id} to ${editingCrew.email || "none"}`);
+      setEditingCrew(null);
+      refetchRoster();
+    } catch (e: any) {
+      err(e.message || "Failed to update crew email");
+    } finally {
+      setIsSavingEmail(false);
     }
   };
 
@@ -127,15 +151,25 @@ export default function CrewsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2 border-b border-line">
         <div>
           <div className="flex items-center gap-1 text-micro text-ink-3 uppercase tracking-wider mb-0.5">
-            <span>Logistics</span>
+            <span>{isOperatorOrAdmin ? "Logistics" : "Field Operations"}</span>
             <span className="text-line">/</span>
-            <span className="text-brand-ink font-bold">Field Crews &amp; Pre-Positioning</span>
+            <span className="text-brand-ink font-bold">
+              {isOperatorOrAdmin ? "Field Crews & Pre-Positioning" : "My Crew Terminal"}
+            </span>
           </div>
           <h1 className="text-title font-bold text-ink tracking-tight font-sans">
-            Field Crews &amp; AI Response Optimization
+            {isOperatorOrAdmin
+              ? "Field Crews & AI Response Optimization"
+              : crews.length > 0
+              ? `Field Crew Terminal · Unit ${crews[0].crew_id}`
+              : "Field Crew Terminal"}
           </h1>
           <p className="text-label text-ink-2">
-            Optimizes repair crew placements to minimize outage travel times ahead of storm events.
+            {isOperatorOrAdmin
+              ? "Optimizes repair crew placements to minimize outage travel times ahead of storm events."
+              : crews.length > 0
+              ? `Assigned Sector: ${crews[0].current_area} · Technician Contact: ${user?.email}`
+              : `Technician Contact: ${user?.email} · Direct on-site work orders & proof-of-work.`}
           </p>
         </div>
         <Button
@@ -153,18 +187,27 @@ export default function CrewsPage() {
         </Button>
       </div>
 
-      {/* Main Grid: Roster (7 cols) + AI Recommendations (5 cols) */}
+      {/* Main Grid: Roster (8 cols) + AI Recommendations (4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
         {/* Roster Table */}
-        <div className="lg:col-span-7 bg-panel rounded-xl shadow-panel border border-line overflow-hidden">
+        <div className="lg:col-span-8 bg-panel rounded-xl shadow-panel border border-line overflow-hidden">
           <div className="px-3.5 py-2.5 bg-header flex items-center justify-between border-b border-line">
             <div className="flex items-center gap-2">
               <Delivery size={16} className="fill-current text-brand-ink" />
               <span className="text-micro font-semibold text-ink uppercase">
-                Active Crew Roster ({crews.length} Crews)
+                {isOperatorOrAdmin
+                  ? `Active Crew Roster (${crews.length} Crews)`
+                  : `Assigned Unit (${crews[0]?.crew_id || "Unlinked"})`}
               </span>
             </div>
             <span className="font-mono text-micro text-ink-3">GPS Telemetry Sync</span>
+          </div>
+
+          <div className="px-3.5 py-2 bg-sunken border-b border-line flex items-center gap-2 text-micro text-ink-2">
+            <Email size={14} className="text-brand-ink shrink-0" />
+            <span>
+              <strong>Targeted Field Dispatch:</strong> When an asset is assigned, direct field orders with GPS coordinates and a 1-click Google Maps route are emailed directly to that crew's linked address.
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -173,13 +216,26 @@ export default function CrewsPage() {
                 <TableRow className="text-micro">
                   <TableHeader>Crew ID</TableHeader>
                   <TableHeader>Specialization</TableHeader>
-                  <TableHeader>Current Area</TableHeader>
+                  <TableHeader>Area</TableHeader>
+                  <TableHeader>Linked Email</TableHeader>
                   <TableHeader>Status</TableHeader>
                   <TableHeader>Ticket</TableHeader>
                   <TableHeader className="text-right">Assignment / Action</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
+                {crews.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="p-4 text-center">
+                      <div className="text-ink text-label font-semibold">
+                        No field crew unit is linked to {user?.email}
+                      </div>
+                      <div className="text-micro text-ink-3 mt-1">
+                        Please notify a Control Room operator to assign your email address to your crew unit in the roster.
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
                 {crews.map((c) => {
                   const wo = crewWOMap[c.crew_id];
                   return (
@@ -187,6 +243,24 @@ export default function CrewsPage() {
                       <TableCell className="font-mono font-bold text-brand-ink">{c.crew_id}</TableCell>
                       <TableCell className="text-ink">{c.skill_type}</TableCell>
                       <TableCell className="font-mono text-micro">{c.current_area}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 font-mono text-micro">
+                          <span className={c.email ? "text-ink font-medium" : "text-ink-3 italic"}>
+                            {c.email || "Default"}
+                          </span>
+                          {isOperatorOrAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingCrew({ id: c.crew_id, email: c.email || "" })}
+                              className="text-ink-3 hover:text-brand-ink p-0.5 rounded transition-colors inline-flex items-center"
+                              title={`Edit notification email for ${c.crew_id}`}
+                              aria-label={`Edit notification email for ${c.crew_id}`}
+                            >
+                              <Edit size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {/* Carbon tags, on the same remapped palette as every
                             other state chip in the console: available is the
@@ -237,19 +311,18 @@ export default function CrewsPage() {
                             >
                               Field PoW
                             </Button>
-                            <Button
-                              kind="ghost"
-                              size="sm"
-                              onClick={() => handleComplete(c.crew_id)}
-                              disabled={completing !== null}
-                              // The accessible name has to start with the visible
-                              // label, or voice control cannot address the button
-                              // by what it says.
-                              aria-label={`Complete ${c.active_assignment} — records maintenance, stamps the asset and re-derives risk`}
-                              title="Closes the work order: records maintenance, stamps the asset and re-derives risk"
-                            >
-                              {completing === c.crew_id ? "Completing…" : "Complete"}
-                            </Button>
+                            {isOperatorOrAdmin && (
+                              <Button
+                                kind="ghost"
+                                size="sm"
+                                onClick={() => handleComplete(c.crew_id)}
+                                disabled={completing !== null}
+                                aria-label={`Complete ${c.active_assignment} — records maintenance, stamps the asset and re-derives risk`}
+                                title="Closes the work order: records maintenance, stamps the asset and re-derives risk"
+                              >
+                                {completing === c.crew_id ? "Completing…" : "Complete"}
+                              </Button>
+                            )}
                           </div>
                         ) : (
                           <span className="font-mono text-micro text-ink-3">Ready for Dispatch</span>
@@ -264,7 +337,7 @@ export default function CrewsPage() {
         </div>
 
         {/* AI Pre-Positioning Recommendations */}
-        <div className="lg:col-span-5 flex flex-col gap-3">
+        <div className="lg:col-span-4 flex flex-col gap-3">
           <div className="bg-panel rounded-xl shadow-panel border border-line p-3.5">
             <div className="flex items-center justify-between mb-2.5 pb-1 border-b border-line">
               <div className="flex items-center gap-1.5">
@@ -279,7 +352,9 @@ export default function CrewsPage() {
             <div className="space-y-3">
               {recs.length === 0 ? (
                 <div className="text-center py-6 font-mono text-micro text-ink-3">
-                  All high-risk areas are currently covered by active crews.
+                  {isOperatorOrAdmin
+                    ? "All high-risk areas are currently covered by active crews."
+                    : `Unit ${crews[0]?.crew_id || "active"} is optimally positioned. No relocation required.`}
                 </div>
               ) : (
                 recs.map((r) => (
@@ -312,14 +387,21 @@ export default function CrewsPage() {
 
                     <p className="text-micro text-ink-3">{r.rationale}</p>
 
-                    <Button
-                      size="sm"
-                      renderIcon={CheckmarkOutline}
-                      onClick={() => handleAuthorize(r.crew_id, r.recommended_area)}
-                      className="cds--btn--block mt-1"
-                    >
-                      Authorize pre-positioning order
-                    </Button>
+                    {isOperatorOrAdmin ? (
+                      <Button
+                        size="sm"
+                        renderIcon={CheckmarkOutline}
+                        onClick={() => handleAuthorize(r.crew_id, r.recommended_area)}
+                        className="cds--btn--block mt-1"
+                      >
+                        Authorize pre-positioning order
+                      </Button>
+                    ) : (
+                      <div className="mt-1 flex items-center justify-between text-micro font-mono bg-sunken px-2.5 py-1.5 rounded border border-line text-ink-3">
+                        <span>Fleet Movement</span>
+                        <span className="text-brand-ink font-semibold">Operator Auth Required</span>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -327,6 +409,34 @@ export default function CrewsPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Crew Dispatch Email Modal */}
+      {editingCrew && (
+        <Modal
+          open={!!editingCrew}
+          modalHeading={`Crew Dispatch Email · ${editingCrew.id}`}
+          primaryButtonText={isSavingEmail ? "Saving..." : "Save Email"}
+          secondaryButtonText="Cancel"
+          onRequestSubmit={handleSaveEmail}
+          onRequestClose={() => setEditingCrew(null)}
+          primaryButtonDisabled={isSavingEmail}
+          size="sm"
+        >
+          <div className="py-2 flex flex-col gap-3 font-sans">
+            <p className="text-label text-ink-2">
+              Turn-by-turn Google Maps navigation, asset GPS coordinates, substation details, and telemetry failure reasons will be delivered directly to this address whenever <strong>{editingCrew.id}</strong> is dispatched.
+            </p>
+            <TextInput
+              id="crew-email-input"
+              labelText="Field Crew Notification Email"
+              helperText="Field work order directives will be sent here upon dispatch"
+              value={editingCrew.email}
+              onChange={(e) => setEditingCrew({ ...editingCrew, email: e.target.value })}
+              placeholder="e.g. padhloop@gmail.com"
+            />
+          </div>
+        </Modal>
+      )}
 
       {/* Proof-of-Work Modal */}
       {powModalWO && (

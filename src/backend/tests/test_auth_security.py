@@ -31,7 +31,7 @@ def _mk_user(role="operator"):
     """Create a throwaway account with a known role, returning its credentials."""
     email = f"t-{uuid.uuid4().hex[:10]}@example.com"
     password = "password123"
-    auth_svc.signup(f"Test {role}", email, password)
+    auth_svc.signup(f"Test {role}", email, password, status="approved")
     if role != config.DEFAULT_ROLE:
         with db.session() as conn:
             conn.execute("UPDATE users SET role=? WHERE email=?", (role, email))
@@ -109,6 +109,16 @@ def test_signup_cannot_self_assign_admin():
                           "password": "password123", "role": "admin"})
     assert r.status_code == 200
     assert r.json()["user"]["role"] == "operator"
+
+
+def test_signup_can_register_crew():
+    """Crew member role can be requested at signup."""
+    email = f"crew-{uuid.uuid4().hex[:8]}@example.com"
+    r = client.post("/api/auth/signup",
+                    json={"display_name": "Field Tech", "email": email,
+                          "password": "password123", "role": "crew"})
+    assert r.status_code == 200
+    assert r.json()["user"]["role"] == "crew"
 
 
 def test_malformed_and_missing_tokens_rejected():

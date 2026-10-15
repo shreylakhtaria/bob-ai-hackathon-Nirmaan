@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Request Operator Access",
+  title: "Register Account",
   description:
-    "Request an operator account for the Grid Risk Command Center console.",
+    "Register for an Operator or Field Crew account on the Grid Risk Command Center console.",
   alternates: { canonical: "/signup" },
 };
 

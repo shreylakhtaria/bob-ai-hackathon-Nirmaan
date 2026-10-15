@@ -61,6 +61,8 @@ def _dispatch_fresh():
     """Dispatch to a fresh asset → returns (wo_id, crew_id, asset_id)."""
     _free_crew()
     asset = db.query_one("SELECT asset_id FROM assets LIMIT 1")
+    with db.session() as conn:
+        conn.execute("UPDATE work_orders SET status='CLOSED' WHERE asset_id=? AND status='OPEN'", (asset["asset_id"],))
     res = ops.dispatch_crew(asset["asset_id"])
     assert "error" not in res, res
     return res["work_order"]["wo_id"], res["crew_id"], asset["asset_id"]
@@ -413,6 +415,8 @@ class TestWorkOrderColumns:
     def test_new_columns_default_to_null(self):
         _free_crew()
         asset = db.query_one("SELECT asset_id FROM assets LIMIT 1")
+        with db.session() as conn:
+            conn.execute("UPDATE work_orders SET status='CLOSED' WHERE asset_id=? AND status='OPEN'", (asset["asset_id"],))
         res = ops.dispatch_crew(asset["asset_id"])
         # jira_key should be auto-populated by dispatch, others null initially
         wo = db.query_one(

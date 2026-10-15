@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from . import config, db, errors
-from .deps import require_admin, require_any_role, require_operator
+from .deps import require_admin, require_any_role, require_operator, require_authenticated_user
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
                        operations as ops_svc, auth as auth_svc, ingest as ingest_svc,
@@ -22,6 +22,7 @@ from .services import (impact as impact_svc, crew as crew_svc, simulation as sim
                        mcp as mcp_svc, jira as jira_svc)
 from .routers.ingest import router as ingest_router
 from .routers.notification_routes import router as notification_router
+from .routers.admin import router as admin_router
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
 
@@ -40,6 +41,7 @@ app.include_router(ingest_router, prefix="/api/ingest", tags=["ingest"])
 # never be shadowed by a SPA fallback added later.
 app.include_router(notification_router, prefix="/api/notifications",
                    tags=["notifications"])
+app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
 errors.register(app)
 
@@ -91,6 +93,7 @@ class SimulationRequest(BaseModel):
     # Opt-in only. Existing clients that omit it keep the previous behaviour,
     # and a what-if run never pushes to anyone's phone unless asked.
     notify_telegram: bool = False
+    notify_email: bool = False
 
 
 class CopilotRequest(BaseModel):
@@ -121,6 +124,7 @@ class SignupRequest(BaseModel):
     display_name: str = Field(default="Operator", min_length=2, max_length=80)
     email: str
     password: str = Field(min_length=8)
+    role: Optional[str] = Field(default="operator")
 
 
 class LoginRequest(BaseModel):
@@ -153,6 +157,10 @@ class WorkOrderStatusRequest(BaseModel):
 
 class ProofOfWorkRequest(BaseModel):
     attachments: list  # [{name, type, size, url_or_data, uploaded_at}]
+
+
+class UpdateCrewRequest(BaseModel):
+    email: Optional[str] = None
 
 
 def _require_seeded():
@@ -207,7 +215,7 @@ def public_stats():
 @app.post("/api/auth/signup")
 @limiter.limit(config.RATE_LIMIT_SIGNUP)
 def auth_signup(request: Request, req: SignupRequest, response: FastAPIResponse):
-    user = auth_svc.signup(req.display_name, req.email, req.password)
+    user = auth_svc.signup(req.display_name, req.email, req.password, getattr(req, "role", "operator"), status="pending")
     return _auth_response(user, response)
 
 
@@ -267,7 +275,20 @@ def auth_logout_all(request: Request, response: FastAPIResponse,
 
 
 @app.get("/api/auth/me")
-def auth_me(current=Depends(require_any_role)):
+def auth_me(current=Depends(require_authenticated_user)):
+    row = db.query_one(
+        "SELECT id, display_name, email, role, COALESCE(status, 'approved') as status, created_at FROM users WHERE id=?",
+        (current["id"],),
+    )
+    if row:
+        return {
+            "id": row["id"],
+            "email": row["email"],
+            "display_name": row["display_name"] or row["email"],
+            "role": row["role"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+        }
     return current
 
 
@@ -291,9 +312,17 @@ def dashboard_summary(current=Depends(require_any_role)):
             COUNT(*) total
            FROM predictions""", (config.RISK_BANDS["MEDIUM"],))
     top = db.query(
-        """SELECT p.asset_id, a.asset_type, a.geographic_area area, p.failure_probability,
-                  p.grid_impact_score, p.priority, p.weather_risk, a.customers_served
+        """SELECT p.asset_id, a.asset_type, a.geographic_area area, a.substation_id,
+                  p.failure_probability, p.grid_impact_score, p.priority, p.weather_risk,
+                  a.customers_served, p.recommended_action,
+                  wo.wo_id, wo.crew_id, wo.dispatch_status, wo.eta_min
            FROM predictions p JOIN assets a ON a.asset_id=p.asset_id
+           LEFT JOIN (
+               SELECT asset_id, wo_id, crew_id, status AS dispatch_status, eta_min
+               FROM work_orders
+               WHERE status='OPEN'
+               GROUP BY asset_id
+           ) wo ON wo.asset_id=p.asset_id
            ORDER BY p.grid_impact_score DESC LIMIT 10""")
     alerts = db.query("SELECT * FROM alerts ORDER BY "
                       "CASE priority WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 ELSE 2 END LIMIT 8")
@@ -322,8 +351,17 @@ def list_assets(area: Optional[str] = None, asset_type: Optional[str] = None,
     _require_seeded()
     sql = """SELECT a.*, p.failure_probability, p.risk_level, p.grid_impact_score,
                     p.priority, p.weather_risk, p.predicted_failure_window,
-                    p.recommended_action, p.anomaly_score
-             FROM assets a LEFT JOIN predictions p ON p.asset_id=a.asset_id WHERE 1=1"""
+                    p.recommended_action, p.anomaly_score,
+                    wo.wo_id, wo.crew_id, wo.dispatch_status, wo.eta_min
+             FROM assets a
+             LEFT JOIN predictions p ON p.asset_id=a.asset_id
+             LEFT JOIN (
+                 SELECT asset_id, wo_id, crew_id, status AS dispatch_status, eta_min
+                 FROM work_orders
+                 WHERE status='OPEN'
+                 GROUP BY asset_id
+             ) wo ON wo.asset_id=a.asset_id
+             WHERE 1=1"""
     params = []
     if area:
         sql += " AND a.geographic_area=?"; params.append(area)
@@ -341,11 +379,18 @@ def asset_detail(asset_id: str, current=Depends(require_any_role)):
     if not a:
         raise HTTPException(404, f"Asset {asset_id} not found")
     p = db.query_one("SELECT * FROM predictions WHERE asset_id=?", (asset_id,))
+    active_wo = db.query_one("SELECT * FROM work_orders WHERE asset_id=? AND status='OPEN'", (asset_id,))
+    if active_wo:
+        a["wo_id"] = active_wo["wo_id"]
+        a["crew_id"] = active_wo["crew_id"]
+        a["dispatch_status"] = active_wo["status"]
+        a["eta_min"] = active_wo["eta_min"]
     incidents = db.query("SELECT * FROM incidents WHERE asset_id=? ORDER BY incident_timestamp DESC",
                          (asset_id,))
     maint = db.query("SELECT * FROM maintenance_history WHERE asset_id=? ORDER BY date DESC",
                      (asset_id,))
     return {"asset": a, "prediction": p, "incidents": incidents, "maintenance": maint,
+            "active_work_order": active_wo,
             "weather": impact_svc.area_weather_risk().get(a["geographic_area"])}
 
 
@@ -441,13 +486,48 @@ def maintenance_priorities(area: Optional[str] = None, asset_type: Optional[str]
 
 @app.get("/api/crews")
 def crews(current=Depends(require_any_role)):
+    if current.get("role") == "crew":
+        user_email = (current.get("email") or "").strip().lower()
+        rows = db.query("SELECT * FROM crews WHERE LOWER(COALESCE(email, '')) = ?", (user_email,))
+        if rows:
+            return [dict(r) for r in rows]
+        return []
     return db.query("SELECT * FROM crews")
+
+
+@app.patch("/api/crews/{crew_id}")
+def update_crew(crew_id: str, req: UpdateCrewRequest, current=Depends(require_operator)):
+    crew = db.query_one("SELECT * FROM crews WHERE crew_id=?", (crew_id,))
+    if not crew:
+        raise HTTPException(404, f"Crew {crew_id} not found")
+    if req.email is not None:
+        clean_email = req.email.strip().lower()
+        with db.session() as conn:
+            conn.execute("UPDATE crews SET email=? WHERE crew_id=?", (clean_email, crew_id))
+            if clean_email:
+                conn.execute(
+                    "UPDATE users SET role='crew' WHERE LOWER(email)=? AND role != 'admin'",
+                    (clean_email,)
+                )
+    return db.query_one("SELECT * FROM crews WHERE crew_id=?", (crew_id,))
 
 
 @app.get("/api/crews/recommendations")
 def crew_recommendations(current=Depends(require_any_role)):
     _require_seeded()
-    return crew_svc.recommend_crews()
+    res = crew_svc.recommend_crews()
+    if current.get("role") == "crew":
+        user_email = (current.get("email") or "").strip().lower()
+        my_crew = db.query_one(
+            "SELECT crew_id FROM crews WHERE LOWER(COALESCE(email, '')) = ?",
+            (user_email,)
+        )
+        if my_crew:
+            raw_recs = res.get("recommendations", [])
+            filtered = [r for r in raw_recs if r.get("crew_id") == my_crew["crew_id"]]
+            return {"recommendations": filtered}
+        return {"recommendations": []}
+    return res
 
 
 # Note: crew dispatch and pre-positioning are handled by the work-orders API
@@ -464,9 +544,17 @@ def map_data(current=Depends(require_any_role)):
     _require_seeded()
     assets = db.query(
         """SELECT a.asset_id, a.asset_type, a.geographic_area area, a.latitude, a.longitude,
-                  a.customers_served, p.failure_probability, p.priority, p.grid_impact_score,
-                  p.weather_risk
-           FROM assets a LEFT JOIN predictions p ON p.asset_id=a.asset_id""")
+                  a.customers_served, a.substation_id, p.failure_probability, p.priority,
+                  p.grid_impact_score, p.weather_risk,
+                  wo.wo_id, wo.crew_id, wo.dispatch_status, wo.eta_min
+           FROM assets a
+           LEFT JOIN predictions p ON p.asset_id=a.asset_id
+           LEFT JOIN (
+               SELECT asset_id, wo_id, crew_id, status AS dispatch_status, eta_min
+               FROM work_orders
+               WHERE status='OPEN'
+               GROUP BY asset_id
+           ) wo ON wo.asset_id=a.asset_id""")
     crews = db.query("SELECT crew_id, current_area, latitude, longitude, skill_type, availability FROM crews")
     areas = db.query("SELECT * FROM area_risk")
     centroids = {g["area_id"]: g for g in config.GEO_AREAS}
@@ -496,11 +584,11 @@ def run_simulation(req: SimulationRequest, current=Depends(require_operator)):
     if isinstance(r, dict) and r.get("error"):
         raise HTTPException(404, r["error"])
 
-    # Opt-in Telegram push. Attached to the response rather than replacing it,
+    # Opt-in direct notification push. Attached to the response rather than replacing it,
     # so a notification failure never costs the operator their simulation.
-    if req.notify_telegram:
-        from .services import telegram_notifications as telegram
-        delivery = telegram.send_simulation(r)
+    if req.notify_email or req.notify_telegram:
+        from .services import email_notifications as email_notif
+        delivery = email_notif.send_simulation(r)
         r = dict(r)
         r["notification"] = {
             "delivery_id": delivery.get("delivery_id"),
@@ -559,7 +647,18 @@ def wo_defer(req: DeferRequest, current=Depends(require_operator)):
 
 @app.get("/api/work-orders")
 def wo_list(limit: int = 100, status: Optional[str] = None, asset_id: Optional[str] = None, current=Depends(require_any_role)):
-    return ops_svc.list_work_orders(limit=limit, status=status, asset_id=asset_id)
+    crew_filter = None
+    if current.get("role") == "crew":
+        user_email = (current.get("email") or "").strip().lower()
+        my_crew = db.query_one(
+            "SELECT crew_id FROM crews WHERE LOWER(COALESCE(email, '')) = ?",
+            (user_email,)
+        )
+        if my_crew:
+            crew_filter = my_crew["crew_id"]
+        else:
+            return []
+    return ops_svc.list_work_orders(limit=limit, status=status, asset_id=asset_id, crew_id=crew_filter)
 
 
 @app.post("/api/crews/reposition")

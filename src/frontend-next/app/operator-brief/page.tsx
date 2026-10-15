@@ -13,17 +13,36 @@ import {
 } from "@carbon/react";
 import { Copy, Printer, Renew } from "@carbon/icons-react";
 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
 export default function OperatorBriefPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { ok, err, warn } = useToast();
+
+  React.useEffect(() => {
+    if (user?.role === "crew") {
+      warn("Operator Brief is restricted to Control Room Operators");
+      router.replace("/crews");
+    }
+  }, [user?.role, router, warn]);
+
   const { data: brief, isLoading, refetch } = useQuery({
     queryKey: ["operator-brief"],
     queryFn: () => API.brief(),
+    enabled: user?.role !== "crew",
   });
-  const { ok, err } = useToast();
 
   const { data: metrics } = useQuery({
     queryKey: ["model-metrics"],
     queryFn: () => API.metrics(),
+    enabled: user?.role !== "crew",
   });
+
+  if (user?.role === "crew") {
+    return null;
+  }
 
   if (isLoading || !brief) {
     return <ScadaSkeletonLoader />;

@@ -8,6 +8,7 @@ import { KpiTile } from "@/components/common/KpiTile";
 import { RiskBadge } from "@/components/common/RiskBadge";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import {
@@ -23,6 +24,8 @@ import {
 export default function OverviewPage() {
   const router = useRouter();
   const { ok, err } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
 
   const { data: summary, isLoading, refetch } = useQuery({
     queryKey: ["dashboard-summary"],
@@ -48,7 +51,10 @@ export default function OverviewPage() {
     return <ScadaSkeletonLoader />;
   }
 
-  const topAsset = summary.top_assets?.[0];
+  // Select top actionable asset: prioritize unassigned critical assets so the banner advances upon dispatch
+  const unassignedTop = summary.top_assets?.find((a) => !a.crew_id && a.dispatch_status !== "OPEN");
+  const topAsset = unassignedTop || summary.top_assets?.[0];
+  const isTopDispatched = !!topAsset?.crew_id || topAsset?.dispatch_status === "OPEN";
 
   return (
     <div className="flex flex-col gap-3.5 w-full animate-fade-in font-sans">
@@ -119,41 +125,67 @@ export default function OverviewPage() {
 
       {/* Top Recommended Action Banner */}
       {topAsset && (
-        <div className="bg-sunken border border-line rounded-lg p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-panel">
+        <div className={`border rounded-lg p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-panel ${
+          isTopDispatched ? "bg-sev-normal-tint/15 border-brand" : "bg-sunken border-line"
+        }`}>
           <div className="flex items-start gap-2.5">
-            <div className="p-1.5 bg-sev-critical-tint text-sev-critical rounded-lg mt-0.5">
-              <WarningAlt size={16} />
+            <div className={`p-1.5 rounded-lg mt-0.5 ${
+              isTopDispatched ? "bg-blue-600/10 text-brand-ink" : "bg-sev-critical-tint text-sev-critical"
+            }`}>
+              {isTopDispatched ? <Group size={16} /> : <WarningAlt size={16} />}
             </div>
             <div>
-              <div className="text-micro text-sev-critical font-semibold uppercase tracking-wider">
-                TOP RECOMMENDED ACTION
+              <div className={`text-micro font-semibold uppercase tracking-wider ${
+                isTopDispatched ? "text-brand-ink font-mono font-bold" : "text-sev-critical"
+              }`}>
+                {isTopDispatched ? `CREW ${topAsset.crew_id} EN ROUTE` : "TOP RECOMMENDED ACTION"}
               </div>
               <div className="text-label font-semibold text-ink">
-                Immediate insulation / partial-discharge inspection on{" "}
-                <span className="font-mono text-brand-ink font-bold">{topAsset.asset_id}</span> ({topAsset.area},{" "}
-                {F.num(topAsset.customers_served)} customers)
+                {isTopDispatched ? (
+                  <>
+                    Active response underway: Crew <span className="font-mono text-brand-ink font-bold">{topAsset.crew_id}</span> is dispatched to{" "}
+                    <span className="font-mono text-brand-ink font-bold">{topAsset.asset_id}</span> ({topAsset.area})
+                    {topAsset.eta_min ? ` · ETA ${topAsset.eta_min.toFixed(0)} min` : ""}.
+                  </>
+                ) : (
+                  <>
+                    Immediate inspection on{" "}
+                    <span className="font-mono text-brand-ink font-bold">{topAsset.asset_id}</span> ({topAsset.area},{" "}
+                    {F.num(topAsset.customers_served)} customers)
+                  </>
+                )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* The one irreversible action here is styled `danger`, and the
-                two that only navigate are `tertiary`, so the destructive one
-                does not look like its neighbours. */}
-            <Button
-              kind="danger"
-              size="sm"
-              renderIcon={Send}
-              onClick={() => handleDispatch(topAsset.asset_id)}
-            >
-              Dispatch crew now
-            </Button>
-            <Button
-              kind="tertiary"
-              size="sm"
-              onClick={() => router.push(`/simulation?asset=${topAsset.asset_id}`)}
-            >
-              Simulate failure
-            </Button>
+            {isTopDispatched ? (
+              <Button
+                kind="primary"
+                size="sm"
+                renderIcon={ArrowRight}
+                onClick={() => router.push("/crews")}
+              >
+                Track Crew ({topAsset.crew_id})
+              </Button>
+            ) : isOperatorOrAdmin ? (
+              <Button
+                kind="danger"
+                size="sm"
+                renderIcon={Send}
+                onClick={() => handleDispatch(topAsset.asset_id)}
+              >
+                Dispatch crew now
+              </Button>
+            ) : null}
+            {isOperatorOrAdmin && (
+              <Button
+                kind="tertiary"
+                size="sm"
+                onClick={() => router.push(`/simulation?asset=${topAsset.asset_id}`)}
+              >
+                Simulate failure
+              </Button>
+            )}
             <Button
               kind="tertiary"
               size="sm"
@@ -203,9 +235,14 @@ export default function OverviewPage() {
                       className="hover:bg-sunken cursor-pointer transition-colors"
                     >
                       <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-sev-critical" />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`w-1.5 h-1.5 rounded-full ${a.crew_id ? "bg-brand" : "bg-sev-critical"}`} />
                           <span className="font-mono font-bold text-brand-ink">{a.asset_id}</span>
+                          {a.crew_id && (
+                            <span className="font-mono text-2xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap">
+                              {a.crew_id} En Route
+                            </span>
+                          )}
                         </div>
                         <div className="text-micro text-ink-3">{a.asset_type}</div>
                       </TableCell>
@@ -230,17 +267,31 @@ export default function OverviewPage() {
                         {F.num(a.customers_served)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={ArrowRight}
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            router.push(`/assets?assetId=${a.asset_id}`);
-                          }}
-                        >
-                          Inspect
-                        </Button>
+                        {a.crew_id ? (
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={ArrowRight}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              router.push("/crews");
+                            }}
+                          >
+                            Crew {a.crew_id}
+                          </Button>
+                        ) : (
+                          <Button
+                            kind="ghost"
+                            size="sm"
+                            renderIcon={ArrowRight}
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              router.push(`/assets?assetId=${a.asset_id}`);
+                            }}
+                          >
+                            Inspect
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

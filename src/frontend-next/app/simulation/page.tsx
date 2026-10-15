@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { PanelCard } from "@/components/common/PanelCard";
 import { RiskBadge } from "@/components/common/RiskBadge";
 
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import type { SimulationResponse, WeatherSimResponse } from "@/types/grid";
@@ -29,11 +30,25 @@ import {
 import { Play, Rain, Receipt } from "@carbon/icons-react";
 
 export default function SimulationPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialAsset = searchParams.get("asset") || "T-1024";
   const initialTab = searchParams.get("tab") || "asset";
 
   const { ok, err, warn } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
+
+  useEffect(() => {
+    if (user?.role === "crew") {
+      warn("Contingency simulation is restricted to Control Room Operators");
+      router.replace("/crews");
+    }
+  }, [user?.role, router, warn]);
+
+  if (user?.role === "crew") {
+    return null;
+  }
 
   const [activeTab, setActiveTab] = useState<"asset" | "weather">((initialTab as any) || "asset");
   const [selectedAsset, setSelectedAsset] = useState<string>(initialAsset);
@@ -61,18 +76,18 @@ export default function SimulationPage() {
     queryFn: () => API.areas(),
   });
 
-  // Opt-in Telegram push for a what-if run. Off by default and never
+  // Opt-in email push for a what-if run. Off by default and never
   // remembered across runs, so a simulation cannot quietly start paging people.
-  const [notifyTelegram, setNotifyTelegram] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState(false);
 
   /** Report the delivery outcome truthfully: a simulation can succeed while its
    *  notification fails, and the operator needs to know which happened. */
   const reportDelivery = (res: { notification?: { status: string; error_message: string | null } }) => {
     const n = res.notification;
     if (!n) return;
-    if (n.status === "SENT") ok("Result sent to Telegram.");
+    if (n.status === "SENT") ok("Simulation outcome dispatched via email.");
     else if (n.status === "SKIPPED") warn(n.error_message || "Duplicate — not re-sent.");
-    else err(n.error_message || "Telegram delivery failed.");
+    else err(n.error_message || "Email notification delivery failed.");
   };
 
   // One simulation at a time. React's StrictMode double-invokes mount effects
@@ -145,14 +160,16 @@ export default function SimulationPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <Button
-            kind="tertiary"
-            size="sm"
-            renderIcon={Receipt}
-            onClick={() => setShowRunsLog(!showRunsLog)}
-          >
-            {showRunsLog ? "Hide runs log" : "Runs log"}
-          </Button>
+          {isOperatorOrAdmin && (
+            <Button
+              kind="tertiary"
+              size="sm"
+              renderIcon={Receipt}
+              onClick={() => setShowRunsLog(!showRunsLog)}
+            >
+              {showRunsLog ? "Hide runs log" : "Runs log"}
+            </Button>
+          )}
 
           {/* Carbon ContentSwitcher rather than two styled buttons: it is
               exactly this control, and it brings the arrow-key navigation and
@@ -205,21 +222,27 @@ export default function SimulationPage() {
             </div>
 
             <Checkbox
-              id="notify-telegram-asset"
-              labelText="Notify Telegram with the result"
-              checked={notifyTelegram}
-              onChange={(_, { checked }) => setNotifyTelegram(checked)}
+              id="notify-email-asset"
+              labelText="Send email notification with the result"
+              checked={notifyEmail}
+              onChange={(_, { checked }) => setNotifyEmail(checked)}
               className="mb-1"
             />
-            <Button
-              size="sm"
-              renderIcon={Play}
-              disabled={isSimulating}
-              onClick={() => runAssetSim(selectedAsset, notifyTelegram)}
-              className="cds--btn--block"
-            >
-              {isSimulating ? "Running\u2026" : "Run N-1 simulation"}
-            </Button>
+            {isOperatorOrAdmin ? (
+              <Button
+                size="sm"
+                renderIcon={Play}
+                disabled={isSimulating}
+                onClick={() => runAssetSim(selectedAsset, notifyEmail)}
+                className="cds--btn--block"
+              >
+                {isSimulating ? "Running…" : "Run N-1 simulation"}
+              </Button>
+            ) : (
+              <div className="p-2.5 bg-sunken rounded border border-line text-micro text-ink-3 text-center font-mono">
+                Simulation requires Grid Operator credentials
+              </div>
+            )}
 
             {assetSimResult && (
               <div className="p-3 bg-sunken border border-line space-y-1 text-micro">
@@ -363,22 +386,28 @@ export default function SimulationPage() {
               </Select>
             </div>
             <Checkbox
-              id="notify-telegram-weather"
-              labelText="Notify Telegram with the result"
-              checked={notifyTelegram}
-              onChange={(_, { checked }) => setNotifyTelegram(checked)}
+              id="notify-email-weather"
+              labelText="Send email notification with the result"
+              checked={notifyEmail}
+              onChange={(_, { checked }) => setNotifyEmail(checked)}
               className="mb-1"
             />
-            <Button
-              kind="danger"
-              size="sm"
-              renderIcon={Rain}
-              disabled={isSimulating}
-              onClick={() => runWeatherSim(selectedArea, severity, notifyTelegram)}
-              className="cds--btn--block"
-            >
-              {isSimulating ? "Running\u2026" : "Simulate storm impact"}
-            </Button>
+            {isOperatorOrAdmin ? (
+              <Button
+                kind="danger"
+                size="sm"
+                renderIcon={Rain}
+                disabled={isSimulating}
+                onClick={() => runWeatherSim(selectedArea, severity, notifyEmail)}
+                className="cds--btn--block"
+              >
+                {isSimulating ? "Running…" : "Simulate storm impact"}
+              </Button>
+            ) : (
+              <div className="p-2.5 bg-sunken rounded border border-line text-micro text-ink-3 text-center font-mono">
+                Scenario simulation requires Grid Operator credentials
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-8 flex flex-col gap-3">

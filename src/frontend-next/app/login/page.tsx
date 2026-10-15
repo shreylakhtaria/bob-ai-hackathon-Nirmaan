@@ -39,12 +39,18 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await login({ email, password });
+      const loggedUser = await login({ email, password });
       ok("Signed in successfully");
       // Return to whatever page sent us here, ignoring absolute URLs so this
-      // cannot be used as an open redirect.
+      // cannot be used as an open redirect. If no next parameter, send crew to /crews.
       const next = searchParams.get("next");
-      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/overview");
+      if (next && next.startsWith("/") && !next.startsWith("//")) {
+        router.push(next);
+      } else if (loggedUser?.role === "crew") {
+        router.push("/crews");
+      } else {
+        router.push("/overview");
+      }
     } catch (e: any) {
       setError(e.message || "Invalid credentials");
     } finally {

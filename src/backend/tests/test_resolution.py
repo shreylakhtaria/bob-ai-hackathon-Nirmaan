@@ -36,7 +36,9 @@ def _free_a_crew():
 
 def _dispatch():
     _free_a_crew()
-    asset = db.query_one("SELECT asset_id FROM assets LIMIT 1")
+    asset = db.query_one("SELECT asset_id FROM predictions LIMIT 1")
+    with db.session() as conn:
+        conn.execute("UPDATE work_orders SET status='CLOSED' WHERE asset_id=? AND status='OPEN'", (asset["asset_id"],))
     res = ops.dispatch_crew(asset["asset_id"])
     assert "error" not in res, res
     return res["work_order"]["wo_id"], res["crew_id"], asset["asset_id"]

@@ -8,8 +8,9 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  signup: (data: SignupRequest) => Promise<void>;
+  login: (data: LoginRequest) => Promise<User>;
+  signup: (data: SignupRequest) => Promise<User>;
+  refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
   logoutEverywhere: () => Promise<number>;
 }
@@ -39,16 +40,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { cancelled = true; };
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const me = await API.me();
+      setUser(me);
+      return me;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const login = useCallback(async (data: LoginRequest) => {
     const res = await API.login(data);
     setAccessToken(res.access_token);
     setUser(res.user);
+    return res.user;
   }, []);
 
   const signup = useCallback(async (data: SignupRequest) => {
     const res = await API.signup(data);
     setAccessToken(res.access_token);
     setUser(res.user);
+    return res.user;
   }, []);
 
   const logout = useCallback(async () => {
@@ -69,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAuthenticated: !!user, login, signup, logout, logoutEverywhere }}
+      value={{ user, isLoading, isAuthenticated: !!user, login, signup, refreshUser, logout, logoutEverywhere }}
     >
       {children}
     </AuthContext.Provider>

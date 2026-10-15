@@ -25,6 +25,7 @@ import {
   SidePanelClose,
   SidePanelOpen,
   Tools,
+  Security,
 } from "@carbon/icons-react";
 import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
@@ -80,11 +81,50 @@ export const Sidebar: React.FC<{
   onClose?: () => void;
 }> = ({ onOpenMetrics, open = false, onClose }) => {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // Collapsed to an icon rail. Persisted because it is a workspace preference:
   // an operator who wants the map wide should not re-collapse it every visit.
   const [collapsed, setCollapsed] = useState(false);
   const [stats, setStats] = useState<{ telemetryRows?: number; activeOutages?: number }>({});
+
+  const navGroups = React.useMemo(() => {
+    if (user?.status === "pending" && user?.role !== "admin") {
+      return [
+        {
+          heading: "Operator Status",
+          items: [
+            { id: "pending-approval", href: "#", label: "Pending Approval", icon: Security },
+          ],
+        },
+      ];
+    }
+    let groups = NAV_GROUPS;
+    if (user?.role === "crew") {
+      groups = groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter(
+            (item) =>
+              item.id !== "simulation" &&
+              item.id !== "operator-brief" &&
+              item.id !== "data-onboarding" &&
+              item.id !== "notifications"
+          ),
+        }))
+        .filter((g) => g.items.length > 0);
+    } else {
+      groups = [...groups];
+    }
+    if (user?.role === "admin") {
+      groups.push({
+        heading: "Administration",
+        items: [
+          { id: "admin", href: "/admin", label: "Admin Console", icon: Security },
+        ],
+      });
+    }
+    return groups;
+  }, [user?.role, user?.status]);
 
   useEffect(() => {
     const saved = localStorage.getItem("grid_rail_collapsed") === "1";
@@ -151,7 +191,7 @@ export const Sidebar: React.FC<{
         className={`shell-rail rail-anim ${collapsed ? "shell-rail--collapsed" : ""}`}
       >
         <SideNavItems>
-          {NAV_GROUPS.map((group, gi) => (
+          {navGroups.map((group, gi) => (
             <React.Fragment key={group.heading}>
               {gi > 0 && <SideNavDivider />}
               {!collapsed && (

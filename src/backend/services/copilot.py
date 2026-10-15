@@ -557,6 +557,13 @@ def _answer_llm(query: str):
 
 def answer(query: str):
     db.audit("copilot", "query", {"query": query, "llm": config.LLM_ENABLED})
+    if config.NEBIUS_API_KEY:
+        try:
+            return _answer_llm(query)
+        except Exception as e:
+            out = _answer_grounded(query)
+            out["llm_error"] = str(e)
+            return out
     if config.BOB_ENABLED:
         try:
             return _answer_bob_cli(query)

@@ -18,8 +18,9 @@ def generate_brief():
     critical_assets = db.query(
         """SELECT p.asset_id, a.asset_type, a.geographic_area area,
                   p.failure_probability, p.grid_impact_score, p.recommended_action,
-                  a.customers_served
+                  a.customers_served, wo.crew_id, wo.status AS dispatch_status, wo.eta_min
            FROM predictions p JOIN assets a ON a.asset_id=p.asset_id
+           LEFT JOIN work_orders wo ON wo.asset_id=p.asset_id AND wo.status='OPEN'
            WHERE p.priority='CRITICAL' ORDER BY p.grid_impact_score DESC""")
     high_assets = db.query("SELECT COUNT(*) c FROM predictions WHERE priority='HIGH'")[0]["c"]
     areas = db.query("SELECT * FROM area_risk ORDER BY outage_probability DESC")
@@ -29,11 +30,17 @@ def generate_brief():
     crew = crew_svc.recommend_crews()
     total_at_risk_customers = sum(c["customers_served"] for c in critical_assets)
 
-    # immediate actions (deduped, ordered)
+    # immediate actions (prioritize unstaffed equipment requiring dispatch, then active response monitoring)
     actions = []
-    for c in critical_assets[:3]:
+    unassigned = [c for c in critical_assets if not c.get("crew_id")]
+    assigned = [c for c in critical_assets if c.get("crew_id")]
+
+    for c in unassigned[:2]:
         actions.append(f"{c['recommended_action']} on {c['asset_id']} ({c['area']}, "
                        f"{c['customers_served']:,} customers)")
+    for c in assigned[:1]:
+        eta_str = f"ETA {c['eta_min']:.0f} min" if c.get("eta_min") else "En Route"
+        actions.append(f"Monitor active response on {c['asset_id']} (Crew {c['crew_id']} {eta_str})")
     for rec in crew["recommendations"][:2]:
         actions.append(f"Pre-position {rec['crew_id']} to {rec['recommended_area']} "
                        f"(-{rec['response_reduction_min']:.0f} min response)")

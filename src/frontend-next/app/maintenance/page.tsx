@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import { ProofOfWorkModal } from "@/components/crews/ProofOfWorkModal";
@@ -25,6 +26,8 @@ import { Certificate, Renew, Tools } from "@carbon/icons-react";
 export default function MaintenancePage() {
   const router = useRouter();
   const { ok, warn, err } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
 
   const { data: queue = [], isLoading, refetch } = useQuery({
     queryKey: ["maintenance-queue"],
@@ -85,6 +88,13 @@ export default function MaintenancePage() {
       }
     }
   }
+
+  const displayQueue = React.useMemo(() => {
+    if (!isOperatorOrAdmin) {
+      return queue.filter((item) => !!assetWOMap[item.asset_id]);
+    }
+    return queue;
+  }, [queue, isOperatorOrAdmin, assetWOMap]);
 
   const handleOpenPoW = (assetId: string) => {
     const wo = assetWOMap[assetId];
@@ -169,7 +179,7 @@ export default function MaintenancePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {queue.map((item, idx) => {
+              {displayQueue.map((item, idx) => {
                 const wo = assetWOMap[item.asset_id];
                 return (
                   <TableRow
@@ -247,16 +257,20 @@ export default function MaintenancePage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          kind="danger--tertiary"
-                          size="sm"
-                          onClick={() => handleDispatch(item.asset_id)}
-                        >
-                          Dispatch
-                        </Button>
-                        <Button size="sm" onClick={() => handleSchedule(item.asset_id)}>
-                          Schedule
-                        </Button>
+                        {isOperatorOrAdmin && (
+                          <>
+                            <Button
+                              kind="danger--tertiary"
+                              size="sm"
+                              onClick={() => handleDispatch(item.asset_id)}
+                            >
+                              Dispatch
+                            </Button>
+                            <Button size="sm" onClick={() => handleSchedule(item.asset_id)}>
+                              Schedule
+                            </Button>
+                          </>
+                        )}
                         {/* Field PoW button — only shown when a work order exists */}
                         {wo && (
                           <Button
@@ -270,9 +284,13 @@ export default function MaintenancePage() {
                             PoW
                           </Button>
                         )}
-                        <Button kind="ghost" size="sm" onClick={() => handleDefer(item.asset_id)}>
-                          Defer
-                        </Button>
+                        {isOperatorOrAdmin ? (
+                          <Button kind="ghost" size="sm" onClick={() => handleDefer(item.asset_id)}>
+                            Defer
+                          </Button>
+                        ) : (
+                          !wo && <span className="font-mono text-micro text-ink-3">Awaiting Order</span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -280,6 +298,16 @@ export default function MaintenancePage() {
               })}
             </TableBody>
           </Table>
+          {displayQueue.length === 0 && (
+            <div className="p-8 text-center">
+              <p className="text-label font-medium text-ink">
+                {!isOperatorOrAdmin ? "No active work orders assigned to your crew unit" : "No maintenance items in queue"}
+              </p>
+              <p className="text-micro text-ink-3 mt-1">
+                {!isOperatorOrAdmin ? "Standing by for SCADA dispatch notifications from the Control Room." : "All critical assets are currently operating within nominal risk thresholds."}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'operator',
+    status        TEXT NOT NULL DEFAULT 'approved',
     created_at    TEXT NOT NULL
 );
 
@@ -260,6 +261,7 @@ def init_db():
         _ensure_column(conn, "alerts", "acknowledged", "acknowledged INTEGER DEFAULT 0")
         _ensure_column(conn, "alerts", "acknowledged_at", "acknowledged_at TEXT")
         _ensure_column(conn, "users", "display_name", "display_name TEXT")
+        _ensure_column(conn, "users", "status", "status TEXT DEFAULT 'approved'")
         # Jira / Field-crew proof-of-work columns (additive migration)
         _ensure_column(conn, "work_orders", "jira_key", "jira_key TEXT")
         _ensure_column(conn, "work_orders", "jira_url", "jira_url TEXT")
@@ -270,6 +272,13 @@ def init_db():
         _ensure_column(conn, "work_orders", "technician_signature",
                        "technician_signature TEXT")
         _ensure_column(conn, "work_orders", "completed_at", "completed_at TEXT")
+        # Direct email notification audit and interactive preview columns
+        _ensure_column(conn, "notification_deliveries", "subject", "subject TEXT")
+        _ensure_column(conn, "notification_deliveries", "rendered_html", "rendered_html TEXT")
+        _ensure_column(conn, "notification_deliveries", "rendered_text", "rendered_text TEXT")
+        _ensure_column(conn, "notification_deliveries", "delivery_mode", "delivery_mode TEXT")
+        # Per-crew email assignment for targeted field dispatch notifications
+        _ensure_column(conn, "crews", "email", "email TEXT")
 
 
 def reset_db():

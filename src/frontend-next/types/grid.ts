@@ -22,6 +22,10 @@ export interface Asset {
   installation_date?: string;
   last_maintenance_date?: string;
   weather_risk?: number;
+  wo_id?: string | null;
+  crew_id?: string | null;
+  dispatch_status?: string | null;
+  eta_min?: number | null;
 }
 
 export interface ShapFactor {
@@ -93,6 +97,7 @@ export interface Crew {
   longitude?: number;
   active_assignment?: string;
   contact?: string;
+  email?: string | null;
   vehicle_type?: string;
 }
 
@@ -368,3 +373,69 @@ export interface ResolutionResponse {
   recalculation?: Record<string, unknown> | null;
   jira?: { ok?: boolean; jira_key?: string; new_status?: string; mode?: string } | null;
 }
+
+// ---------------------------------------------------------------------------
+// Notification & Delivery Types
+// ---------------------------------------------------------------------------
+
+export type DeliveryStatus = 'SENT' | 'FAILED' | 'PENDING' | 'SENDING' | 'SKIPPED' | 'DISABLED';
+
+export interface NotificationDelivery {
+  delivery_id: string;
+  alert_id?: string | null;
+  channel: string;
+  destination?: string | null;
+  destination_reference?: string | null;
+  priority?: string | null;
+  status: DeliveryStatus;
+  attempt_count: number;
+  provider_message_id?: string | null;
+  provider_response_code?: number | null;
+  error_message?: string | null;
+  kind?: string | null;
+  summary?: string | null;
+  payload_summary?: string | null;
+  subject?: string | null;
+  rendered_html?: string | null;
+  rendered_text?: string | null;
+  delivery_mode?: string | null;
+  created_at: string;
+  last_attempt_at?: string | null;
+  sent_at?: string | null;
+}
+
+export interface EmailConfigStatus {
+  enabled: boolean;
+  configured: boolean;
+  state: string;
+  channel?: string;
+  mode?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_from?: string;
+  recipients?: string[];
+  notify_priorities?: string[];
+  dedup_window_minutes?: number;
+  public_app_url?: string;
+  missing?: string[];
+}
+
+export type TelegramConfigStatus = EmailConfigStatus;
+
+export interface NotificationStatus {
+  channel?: string;
+  email?: EmailConfigStatus;
+  channels?: { email?: EmailConfigStatus; telegram?: EmailConfigStatus };
+  telegram?: EmailConfigStatus;
+  deliveries: {
+    total: number;
+    sent: number;
+    failed: number;
+  };
+}
+
+export interface DeliveryResult {
+  success: boolean;
+  delivery: NotificationDelivery;
+}
+

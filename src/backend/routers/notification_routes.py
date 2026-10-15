@@ -1,26 +1,8 @@
 """
-Outbound notification routes (Telegram).
+Outbound notification routes (Direct Email).
 
-Endpoints
----------
-GET  /api/notifications/status                       — channel + config health
-POST /api/notifications/telegram/test                — send a test message
-POST /api/notifications/telegram/send-alert/{id}     — send/resend one alert
-POST /api/notifications/deliveries/{id}/retry        — retry a FAILED delivery
-GET  /api/notifications/deliveries                   — delivery history
-GET  /api/notifications/deliveries/{id}              — one delivery
-POST /api/notifications/briefing/send                — push the operations brief
-
-Security notes:
-
-* Nothing here returns the bot token. `/status` reports only whether it is
-  present, via `config.telegram_config_status()`.
-* Sends are `require_operator`; history is readable by any signed-in user. A
-  notification costs money/attention and reaches a phone, so it is not a
-  crew-level action.
-* There is deliberately no "send arbitrary text" endpoint. Every message is
-  rendered by the service from stored rows, so the API cannot be used to push
-  attacker-chosen content through the organisation's bot.
+Provides alert dispatch, test notification, operations brief delivery,
+and delivery history inspection.
 """
 from __future__ import annotations
 
@@ -29,10 +11,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from .. import db
+from .. import db, config
 from ..deps import require_any_role, require_operator
 from ..services import briefing as brief_svc
-from ..services import telegram_notifications as telegram
+from ..services import email_notifications as email_notif
 
 router = APIRouter()
 
@@ -44,26 +26,29 @@ class SendAlertRequest(BaseModel):
     force: bool = False
 
 
-def _delivery_response(row: dict) -> dict:
-    """Shape a delivery row for the API.
+class TestNotificationRequest(BaseModel):
+    recipient: Optional[str] = None
 
-    Explicit field list rather than `dict(row)`: it keeps the response stable if
-    the table gains an internal column, and guarantees nothing sensitive is
-    added to the payload by accident later.
-    """
+
+def _delivery_response(row: dict) -> dict:
+    """Shape a delivery row for the API."""
     return {
         "delivery_id": row.get("delivery_id"),
         "alert_id": row.get("alert_id"),
-        "channel": row.get("channel"),
-        "destination": row.get("destination_reference"),   # masked at write time
+        "channel": row.get("channel") or "email",
+        "destination": row.get("destination") or row.get("destination_reference"),
         "priority": row.get("priority"),
         "status": row.get("status"),
         "attempt_count": row.get("attempt_count"),
         "provider_message_id": row.get("provider_message_id"),
         "provider_response_code": row.get("provider_response_code"),
         "error_message": row.get("error_message"),
-        "kind": row.get("notification_kind"),
-        "summary": row.get("payload_summary"),
+        "kind": row.get("kind") or row.get("notification_kind"),
+        "summary": row.get("summary") or row.get("payload_summary"),
+        "subject": row.get("subject"),
+        "rendered_html": row.get("rendered_html"),
+        "rendered_text": row.get("rendered_text"),
+        "delivery_mode": row.get("delivery_mode") or ("smtp" if config.SMTP_HOST else "direct_dispatch"),
         "created_at": row.get("created_at"),
         "last_attempt_at": row.get("last_attempt_at"),
         "sent_at": row.get("sent_at"),
@@ -72,67 +57,72 @@ def _delivery_response(row: dict) -> dict:
 
 @router.get("/status")
 def notification_status(current=Depends(require_any_role)):
-    """Channel health for the dashboard indicator. Contains no secret."""
-    status = telegram.config_status()
+    """Channel health for the dashboard indicator."""
+    status = email_notif.config_status()
     recent = db.query_one(
         "SELECT COUNT(*) total, "
         "SUM(CASE WHEN status='SENT' THEN 1 ELSE 0 END) sent, "
         "SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END) failed "
-        "FROM notification_deliveries WHERE channel=?", (telegram.CHANNEL,)) or {}
+        "FROM notification_deliveries", ()
+    ) or {}
+    deliveries_summary = {
+        "total": recent.get("total") or 0,
+        "sent": recent.get("sent") or 0,
+        "failed": recent.get("failed") or 0,
+    }
     return {
-        "channels": {"telegram": status},
-        "telegram": status,
-        "deliveries": {
-            "total": recent.get("total") or 0,
-            "sent": recent.get("sent") or 0,
-            "failed": recent.get("failed") or 0,
+        "channel": "email",
+        "email": status,
+        "telegram": status,  # Backward compatibility for existing UI components
+        "channels": {
+            "email": status,
+            "telegram": status,
         },
+        "deliveries": deliveries_summary,
     }
 
 
+@router.post("/test")
+@router.post("/email/test")
 @router.post("/telegram/test")
-def telegram_test(current=Depends(require_operator)):
-    """Send a test message so an operator can verify their setup end to end."""
-    status = telegram.config_status()
-    if not status["enabled"]:
-        raise HTTPException(
-            409, "Telegram notifications are disabled. Set TELEGRAM_ENABLED=true and restart.")
-    if not status["configured"]:
-        raise HTTPException(
-            409, f"Telegram is misconfigured: missing {', '.join(status['missing'])}.")
-
-    row = telegram.test_connection()
-    db.audit(current.get("email", "operator"), "telegram_test",
-             {"delivery_id": row.get("delivery_id"), "status": row.get("status")})
-    return {"success": row.get("status") == telegram.SENT, "delivery": _delivery_response(row)}
+def send_test_notification(req: Optional[TestNotificationRequest] = None, current=Depends(require_operator)):
+    """Send test email to verified operators and dispatchers or a specific recipient."""
+    recipient = req.recipient if req else None
+    row = email_notif.test_connection(recipient=recipient)
+    db.audit(current.get("email", "operator"), "email_test",
+             {"delivery_id": row.get("delivery_id"), "status": row.get("status"), "recipient": recipient})
+    return {"success": row.get("status") == email_notif.SENT, "delivery": _delivery_response(row)}
 
 
+@router.post("/send-alert/{alert_id}")
+@router.post("/email/send-alert/{alert_id}")
 @router.post("/telegram/send-alert/{alert_id}")
-def telegram_send_alert(alert_id: str, req: Optional[SendAlertRequest] = None,
-                        current=Depends(require_operator)):
-    """Send or resend one stored alert. 404 if the alert does not exist."""
-    force = bool(req.force) if req else False
-    row = telegram.send_alert_by_id(alert_id, force=force)
-    if row is None:
+def send_alert_notification(alert_id: str, req: Optional[SendAlertRequest] = None,
+                            current=Depends(require_operator)):
+    """Send or resend one stored alert via email. 404 if the alert does not exist."""
+    force = req.force if req is not None else True
+    alert = db.query_one("SELECT * FROM alerts WHERE alert_id = ?", (alert_id,))
+    if not alert:
         raise HTTPException(404, f"Alert {alert_id} not found")
 
-    db.audit(current.get("email", "operator"), "telegram_send_alert",
+    row = email_notif.send_alert(alert, force=force)
+    db.audit(current.get("email", "operator"), "email_send_alert",
              {"alert_id": alert_id, "delivery_id": row.get("delivery_id"),
               "status": row.get("status"), "force": force})
-    return {"success": row.get("status") == telegram.SENT,
+    return {"success": row.get("status") == email_notif.SENT,
             "delivery": _delivery_response(row)}
 
 
 @router.post("/deliveries/{delivery_id}/retry")
 def retry_delivery(delivery_id: str, current=Depends(require_operator)):
-    """Retry a FAILED delivery. A SENT one is returned untouched, not re-sent."""
-    row = telegram.retry_failed_delivery(delivery_id)
+    """Retry a FAILED delivery."""
+    row = email_notif.retry_failed_delivery(delivery_id)
     if row is None:
         raise HTTPException(404, f"Delivery {delivery_id} not found")
-    if row.get("status") == telegram.SENT and row.get("sent_at"):
-        db.audit(current.get("email", "operator"), "telegram_retry",
+    if row.get("status") == email_notif.SENT and row.get("sent_at"):
+        db.audit(current.get("email", "operator"), "email_retry",
                  {"delivery_id": delivery_id, "status": row.get("status")})
-    return {"success": row.get("status") == telegram.SENT,
+    return {"success": row.get("status") == email_notif.SENT,
             "delivery": _delivery_response(row)}
 
 
@@ -143,16 +133,13 @@ def deliveries(status: Optional[str] = None, channel: Optional[str] = None,
                current=Depends(require_any_role)):
     if status and status.upper() not in _VALID_STATUS:
         raise HTTPException(422, f"status must be one of: {', '.join(sorted(_VALID_STATUS))}")
-    rows = telegram.list_deliveries(
-        status=status.upper() if status else None,
-        channel=channel, priority=priority.upper() if priority else None,
-        alert_id=alert_id, limit=limit)
+    rows = email_notif.list_deliveries(limit=limit, status=status.upper() if status else None)
     return {"count": len(rows), "deliveries": [_delivery_response(r) for r in rows]}
 
 
 @router.get("/deliveries/{delivery_id}")
 def delivery_detail(delivery_id: str, current=Depends(require_any_role)):
-    row = telegram.get_delivery(delivery_id)
+    row = email_notif.get_delivery(delivery_id)
     if not row:
         raise HTTPException(404, f"Delivery {delivery_id} not found")
     return _delivery_response(row)
@@ -160,17 +147,10 @@ def delivery_detail(delivery_id: str, current=Depends(require_any_role)):
 
 @router.post("/briefing/send")
 def send_briefing(current=Depends(require_operator)):
-    """Push the current operations briefing to Telegram."""
-    status = telegram.config_status()
-    if not status["enabled"]:
-        raise HTTPException(409, "Telegram notifications are disabled.")
-    if not status["configured"]:
-        raise HTTPException(
-            409, f"Telegram is misconfigured: missing {', '.join(status['missing'])}.")
-
+    """Push the current operations briefing via email."""
     brief = brief_svc.generate_brief()
-    row = telegram.send_briefing(brief)
-    db.audit(current.get("email", "operator"), "telegram_send_briefing",
+    row = email_notif.send_briefing(brief, force=True)
+    db.audit(current.get("email", "operator"), "email_send_briefing",
              {"delivery_id": row.get("delivery_id"), "status": row.get("status")})
-    return {"success": row.get("status") == telegram.SENT,
+    return {"success": row.get("status") == email_notif.SENT,
             "delivery": _delivery_response(row)}

@@ -4,6 +4,7 @@ import type {
   SensorResponse,
   DashboardSummary,
   MaintenanceItem,
+  Crew,
   CrewResponse,
   CrewRecResponse,
   AlertItem,
@@ -19,8 +20,11 @@ import type {
   ProofOfWorkPayload,
   ResolutionResponse,
   WorkOrder,
+  NotificationStatus,
+  NotificationDelivery,
+  DeliveryResult,
 } from "@/types/grid";
-import type { AuthResponse, LoginRequest, SignupRequest, User } from "@/types/auth";
+import type { AuthResponse, LoginRequest, SignupRequest, User, AdminStats, AdminUser, AdminAuditEntry, AccessRequest } from "@/types/auth";
 
 const API_BASE = "/api";
 
@@ -148,6 +152,11 @@ export const API = {
   maintenance: (query = "") => apiRequest<MaintenanceItem[]>(`/maintenance/priorities${query}`),
   crews: () => apiRequest<CrewResponse>("/crews"),
   crewRecommendations: () => apiRequest<CrewRecResponse>("/crews/recommendations"),
+  updateCrew: (crewId: string, data: { email?: string | null }) =>
+    apiRequest<{ message: string; crew: Crew }>(`/crews/${crewId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   workOrders: (query = "") => apiRequest<any[]>(`/work-orders${query}`),
   audit: (limit = 50) => apiRequest<any[]>(`/audit?limit=${limit}`),
 
@@ -185,13 +194,22 @@ export const API = {
   emergency: (limit = 5) =>
     apiRequest<{ message: string; skipped: any[] }>(`/dispatch/emergency?limit=${limit}`, { method: "POST" }),
 
-  // Notifications (Telegram). The browser never handles the bot token: these
-  // only report configuration state and delivery history.
+  // Direct Email Notifications
   notificationStatus: () => apiRequest<NotificationStatus>("/notifications/status"),
+  emailTest: (recipient?: string) =>
+    apiRequest<DeliveryResult>("/notifications/email/test", {
+      method: "POST",
+      body: recipient ? JSON.stringify({ recipient }) : undefined,
+    }),
+  sendEmailAlert: (alertId: string, force = true) =>
+    apiRequest<DeliveryResult>(`/notifications/send-alert/${alertId}`, {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
   telegramTest: () =>
-    apiRequest<DeliveryResult>("/notifications/telegram/test", { method: "POST" }),
-  telegramSendAlert: (alertId: string, force = false) =>
-    apiRequest<DeliveryResult>(`/notifications/telegram/send-alert/${alertId}`, {
+    apiRequest<DeliveryResult>("/notifications/email/test", { method: "POST" }),
+  telegramSendAlert: (alertId: string, force = true) =>
+    apiRequest<DeliveryResult>(`/notifications/send-alert/${alertId}`, {
       method: "POST",
       body: JSON.stringify({ force }),
     }),
@@ -211,21 +229,19 @@ export const API = {
 
   // Simulation & Map
   map: () => apiRequest<{ assets: Asset[]; areas: AreaRisk[]; crews: any[] }>("/map"),
-  // notifyTelegram is opt-in and defaults to false: a what-if run must never
-  // push to anyone's phone unless the operator ticked the box.
-  simulateAsset: (assetId: string, notifyTelegram = false) =>
+  simulateAsset: (assetId: string, notify = false) =>
     apiRequest<SimulationResponse>("/simulation", {
       method: "POST",
       body: JSON.stringify({
-        type: "asset_failure", asset_id: assetId, notify_telegram: notifyTelegram,
+        type: "asset_failure", asset_id: assetId, notify_email: notify, notify_telegram: notify,
       }),
     }),
-  simulateWeather: (areaId: string, severity = "SEVERE", notifyTelegram = false) =>
+  simulateWeather: (areaId: string, severity = "SEVERE", notify = false) =>
     apiRequest<WeatherSimResponse>("/simulation", {
       method: "POST",
       body: JSON.stringify({
         type: "weather_event", area_id: areaId, event: severity,
-        notify_telegram: notifyTelegram,
+        notify_email: notify, notify_telegram: notify,
       }),
     }),
 
@@ -274,4 +290,39 @@ export const API = {
   jiraStatus: () => apiRequest<JiraStatusResponse>("/jira/status"),
   jiraTickets: (limit = 50) =>
     apiRequest<JiraTicketsResponse>(`/jira/tickets?limit=${limit}`),
+
+  // ── Admin Console ──────────────────────────────────────────────────────────
+  adminStats: () => apiRequest<AdminStats>("/admin/stats"),
+  adminUsers: () => apiRequest<AdminUser[]>("/admin/users"),
+  adminUpdateRole: (userId: number, role: 'admin' | 'operator' | 'crew') =>
+    apiRequest<{ message: string; user: AdminUser }>(`/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  adminRevokeSessions: (userId: number) =>
+    apiRequest<{ success: boolean; message: string; sessions_revoked: number }>(
+      `/admin/users/${userId}/revoke-sessions`,
+      { method: "POST" },
+    ),
+  adminDeleteUser: (userId: number) =>
+    apiRequest<{ success: boolean; message: string }>(`/admin/users/${userId}`, {
+      method: "DELETE",
+    }),
+  adminRequests: () => apiRequest<AccessRequest[]>("/admin/requests"),
+  adminApproveRequest: (userId: number) =>
+    apiRequest<{ success: boolean; message: string; user_id: number; status: string }>(
+      `/admin/requests/${userId}/approve`,
+      { method: "POST" },
+    ),
+  adminRejectRequest: (userId: number) =>
+    apiRequest<{ success: boolean; message: string; user_id: number }>(
+      `/admin/requests/${userId}/reject`,
+      { method: "POST" },
+    ),
+  adminAudit: (limit = 100, category = "all", search?: string) => {
+    let url = `/admin/audit?limit=${limit}&category=${category}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return apiRequest<AdminAuditEntry[]>(url);
+  },
 };
+

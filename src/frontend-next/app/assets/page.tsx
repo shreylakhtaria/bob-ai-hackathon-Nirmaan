@@ -10,6 +10,7 @@ import { SensorChartModal } from "@/components/sensors/SensorChartModal";
 import { AssetSensorFeeds } from "@/components/sensors/AssetSensorFeeds";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { API } from "@/lib/api";
 import { F } from "@/lib/utils";
 import type { AssetDetailResponse } from "@/types/grid";
@@ -36,6 +37,8 @@ export default function AssetsPage() {
   const initialQuery = searchParams.get("q") || "";
 
   const { ok, err } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [areaFilter, setAreaFilter] = useState("");
@@ -301,9 +304,15 @@ export default function AssetsPage() {
                         {F.score(asset.grid_impact_score)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-micro px-1.5 py-0.5 bg-sunken text-ink-2 rounded uppercase">
-                          {asset.current_status || "IN_SERVICE"}
-                        </span>
+                        {asset.crew_id ? (
+                          <span className="text-micro font-mono px-1.5 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded font-semibold uppercase">
+                            {asset.crew_id} En Route
+                          </span>
+                        ) : (
+                          <span className="text-micro px-1.5 py-0.5 bg-sunken text-ink-2 rounded uppercase">
+                            {asset.current_status || "IN_SERVICE"}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <ChevronRight size={16} className="fill-current text-ink-3 inline" />
@@ -352,9 +361,14 @@ export default function AssetsPage() {
               {/* Asset Identity Card */}
               <div className="flex items-start justify-between pb-2 border-b border-line">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lede font-bold text-brand-ink font-mono">{a?.asset_id}</h2>
                     <RiskBadge level={lvl} />
+                    {a?.crew_id && (
+                      <span className="font-mono text-2xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded font-bold">
+                        Crew {a.crew_id} Dispatched
+                      </span>
+                    )}
                   </div>
                   <div className="text-micro text-ink-2">
                     {a?.asset_type} &bull; {a?.geographic_area || a?.area} &bull; {F.num(a?.customers_served)} customers
@@ -370,22 +384,35 @@ export default function AssetsPage() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-micro">
-                <Button
-                  kind="danger"
-                  size="sm"
-                  renderIcon={Send}
-                  onClick={() => handleDispatch(selectedAssetId)}
-                >
-                  Dispatch
-                </Button>
-                <Button
-                  kind="tertiary"
-                  size="sm"
-                  renderIcon={SettingsAdjust}
-                  onClick={() => router.push(`/simulation?asset=${selectedAssetId}`)}
-                >
-                  Simulate
-                </Button>
+                {a?.crew_id ? (
+                  <Button
+                    kind="primary"
+                    size="sm"
+                    renderIcon={ChevronRight}
+                    onClick={() => router.push("/crews")}
+                  >
+                    Track Crew ({a.crew_id})
+                  </Button>
+                ) : isOperatorOrAdmin ? (
+                  <Button
+                    kind="danger"
+                    size="sm"
+                    renderIcon={Send}
+                    onClick={() => handleDispatch(selectedAssetId)}
+                  >
+                    Dispatch
+                  </Button>
+                ) : null}
+                {isOperatorOrAdmin && (
+                  <Button
+                    kind="tertiary"
+                    size="sm"
+                    renderIcon={SettingsAdjust}
+                    onClick={() => router.push(`/simulation?asset=${selectedAssetId}`)}
+                  >
+                    Simulate
+                  </Button>
+                )}
                 {/* Actually writes to the clipboard. This used to only show a
                     toast claiming it had copied, which meant an operator could
                     paste nothing into an incident report and not find out

@@ -82,8 +82,8 @@ def generate_alerts(notify: bool = True):
     # backstop so an unexpected one still cannot fail alert generation.
     if notify:
         try:
-            from . import telegram_notifications as telegram
-            result["notifications"] = telegram.notify_alerts(alerts)
+            from . import email_notifications as email_notif
+            result["notifications"] = email_notif.notify_alerts(alerts)
         except Exception as exc:
             log.warning("alert notification dispatch failed: %s", exc)
             result["notifications"] = {"error": str(exc)}

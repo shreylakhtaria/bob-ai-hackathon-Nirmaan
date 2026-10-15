@@ -7,14 +7,19 @@ these and derives the role from the signed access token.
 """
 from fastapi import Depends, HTTPException
 
-from . import config
+from . import config, db
 from .services import auth as auth_svc
 
 CurrentUser = Depends(auth_svc.get_current_user)
 
 
 def require_authenticated_user(user: dict = CurrentUser) -> dict:
-    """Any signed-in operator, whatever their role."""
+    """Any signed-in user, whatever their role or status."""
+    row = db.query_one("SELECT id, role, status FROM users WHERE id=?", (user["id"],))
+    if not row:
+        raise HTTPException(401, "Account no longer exists")
+    user["role"] = row["role"]
+    user["status"] = row.get("status") or "approved"
     return user
 
 
@@ -25,9 +30,25 @@ def require_role(*roles: str):
         raise ValueError(f"Unknown role(s) in require_role: {sorted(unknown)}")
 
     def _guard(user: dict = CurrentUser) -> dict:
+        row = db.query_one("SELECT id, role, status FROM users WHERE id=?", (user["id"],))
+        if not row:
+            raise HTTPException(401, "Account no longer exists")
+
+        # Synchronize live role and status from source of truth
+        user["role"] = row["role"]
+        user["status"] = row.get("status") or "approved"
+
+        if user["status"] == "pending" and user["role"] != "admin":
+            raise HTTPException(
+                403, "Your operator access is pending administrator approval.")
+        if user["status"] == "rejected":
+            raise HTTPException(
+                403, "Your access request has been rejected. Contact administrator.")
+
         if user["role"] not in roles:
             raise HTTPException(
                 403, f"This action requires one of: {', '.join(sorted(roles))}")
+
         return user
 
     return _guard

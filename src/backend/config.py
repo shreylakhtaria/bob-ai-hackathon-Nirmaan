@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 # over .env values, matching standard dotenv behavior.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -214,44 +215,68 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", FRONTEND_URL).split
 PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", FRONTEND_URL)
 
 # ---------------------------------------------------------------------------
-# Telegram live alert notifications (optional, free — Telegram Bot API)
+# Telegram live alert notifications (legacy / optional)
 # ---------------------------------------------------------------------------
-# Disabled by default and entirely optional: the app must start and run
-# normally with none of this set. The bot token is a bearer credential for the
-# whole bot, so it is read here and never returned by an API, written to the
-# database, logged in full, or shipped to the browser.
 TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_DEFAULT_CHAT_ID = os.getenv("TELEGRAM_DEFAULT_CHAT_ID", "")
 TELEGRAM_API_BASE = os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/")
-
-# Only these alert priorities are pushed. MEDIUM/LOW are dashboard-only noise on
-# a phone at 3am, so they are excluded unless an operator opts in.
 TELEGRAM_NOTIFY_PRIORITIES = tuple(
     p.strip().upper()
     for p in os.getenv("TELEGRAM_NOTIFY_PRIORITIES", "CRITICAL,HIGH").split(",")
     if p.strip()
 )
-
 TELEGRAM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("TELEGRAM_REQUEST_TIMEOUT_SECONDS", "10"))
 TELEGRAM_MAX_RETRIES = int(os.getenv("TELEGRAM_MAX_RETRIES", "3"))
 TELEGRAM_RETRY_BASE_SECONDS = float(os.getenv("TELEGRAM_RETRY_BASE_SECONDS", "1"))
-# Re-running the alert pipeline recreates every alert row with a new id, so the
-# same real-world condition would notify again on each run. Content-keyed
-# deduplication inside this window is what stops that.
 TELEGRAM_DEDUP_WINDOW_MINUTES = int(os.getenv("TELEGRAM_DEDUP_WINDOW_MINUTES", "30"))
 TELEGRAM_PARSE_MODE = os.getenv("TELEGRAM_PARSE_MODE", "HTML")
-
-# Telegram rejects messages over 4096 UTF-16 code units.
 TELEGRAM_MAX_MESSAGE_CHARS = int(os.getenv("TELEGRAM_MAX_MESSAGE_CHARS", "4096"))
 
 
-def telegram_config_status() -> dict:
-    """Configuration health, safe to return from an API and to log.
+# ---------------------------------------------------------------------------
+# Direct Email Alert Notifications (primary notification channel)
+# ---------------------------------------------------------------------------
+EMAIL_NOTIFICATIONS_ENABLED = os.getenv("EMAIL_NOTIFICATIONS_ENABLED", "true").lower() == "true"
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_TLS = os.getenv("SMTP_TLS", "true").lower() == "true"
+SMTP_FROM = os.getenv("SMTP_FROM", os.getenv("EMAIL_FROM", "alerts@gridrisk.internal"))
+EMAIL_NOTIFY_PRIORITIES = tuple(
+    p.strip().upper()
+    for p in os.getenv("EMAIL_NOTIFY_PRIORITIES", "CRITICAL,HIGH").split(",")
+    if p.strip()
+)
+EMAIL_RECIPIENTS = tuple(
+    e.strip().lower()
+    for e in os.getenv("EMAIL_RECIPIENTS", "").split(",")
+    if e.strip()
+)
+EMAIL_DEDUP_WINDOW_MINUTES = int(os.getenv("EMAIL_DEDUP_WINDOW_MINUTES", "30"))
 
-    Deliberately reports only *whether* the token and chat id are present —
-    never any part of their value.
-    """
+
+def email_config_status() -> dict:
+    """Email notification channel configuration health."""
+    mode = "smtp" if SMTP_HOST else "direct_dispatch"
+    return {
+        "enabled": EMAIL_NOTIFICATIONS_ENABLED,
+        "configured": True,
+        "state": "ready" if EMAIL_NOTIFICATIONS_ENABLED else "disabled",
+        "channel": "email",
+        "mode": mode,
+        "smtp_host": SMTP_HOST or "Direct Dispatch (Integrated Delivery Engine)",
+        "smtp_port": SMTP_PORT,
+        "smtp_from": SMTP_FROM,
+        "notify_priorities": list(EMAIL_NOTIFY_PRIORITIES),
+        "dedup_window_minutes": EMAIL_DEDUP_WINDOW_MINUTES,
+        "public_app_url": PUBLIC_APP_URL,
+    }
+
+
+def telegram_config_status() -> dict:
+    """Configuration health, safe to return from an API and to log."""
     missing = []
     if not TELEGRAM_BOT_TOKEN:
         missing.append("TELEGRAM_BOT_TOKEN")

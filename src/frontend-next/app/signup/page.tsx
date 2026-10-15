@@ -28,8 +28,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Validated as the operator types rather than only on submit, so the
-  // mismatch is visible while the second field is still in focus.
+  // Validated as user types rather than only on submit
   const nameTooShort = displayName.length > 0 && displayName.trim().length < 2;
   const passwordTooShort = password.length > 0 && password.length < 8;
   const mismatch = confirmPassword.length > 0 && password !== confirmPassword;
@@ -43,9 +42,20 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signup({ display_name: displayName, email, password });
-      ok("Operator account created successfully");
-      router.push("/overview");
+      const user = await signup({ display_name: displayName, email, password });
+      if (user?.role === "crew") {
+        ok("Field Crew technician account registered successfully");
+        router.push("/crews");
+      } else if (user?.role === "admin") {
+        ok("Administrator account registered successfully");
+        router.push("/admin");
+      } else if (user?.status === "pending") {
+        ok("Registration submitted. Operator access is pending administrator approval.");
+        router.push("/overview");
+      } else {
+        ok("Account registered successfully");
+        router.push("/overview");
+      }
     } catch (e: any) {
       setError(e.message || "Registration failed");
     } finally {
@@ -55,15 +65,15 @@ export default function SignupPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="text-center mb-7">
+      <div className="text-center mb-6">
         <div className="w-12 h-12 rounded-xl overflow-hidden mx-auto border border-line relative flex items-center justify-center">
           <Image src="/favicon.png" alt="" width={48} height={48} className="object-cover" />
         </div>
         <h1 className="mt-4 text-title font-semibold text-ink tracking-tight">
-          Register operator
+          Register account
         </h1>
         <p className="mt-1 text-label text-ink-3">
-          Create an account for grid command centre access
+          Grid Risk Advisor &amp; Operations Console
         </p>
       </div>
 
@@ -81,8 +91,8 @@ export default function SignupPage() {
 
           <TextInput
             id="displayName"
-            labelText="Operator name"
-            placeholder="e.g. Maya O&rsquo;Connell"
+            labelText="Full name"
+            placeholder="e.g. Maya O’Connell or Alex Mercer"
             autoComplete="name"
             required
             value={displayName}
@@ -95,7 +105,8 @@ export default function SignupPage() {
             id="email"
             type="email"
             labelText="Work email"
-            placeholder="new.operator@gridops.power"
+            placeholder="e.g. tech@gridops.power"
+            helperText="Emails assigned to field crews in the roster automatically receive Field Crew access."
             autoComplete="username"
             required
             value={email}
@@ -131,6 +142,7 @@ export default function SignupPage() {
 
           <Button
             type="submit"
+            id="signup-submit-btn"
             renderIcon={UserFollow}
             disabled={isLoading || !canSubmit}
             className="cds--btn--block"
@@ -147,11 +159,11 @@ export default function SignupPage() {
         </Link>
       </p>
 
-      {/* New accounts are operators. Admin is granted by ADMIN_EMAILS on the
-          server, never by anything this form can send. */}
-      <p className="mt-5 text-micro text-ink-3">
-        New accounts are created with the <strong className="font-semibold">operator</strong>{" "}
-        role. Administrator access is granted by the server, not requested here.
+      {/* Role explanation */}
+      <p className="mt-5 text-micro text-ink-3 text-center leading-relaxed">
+        Permissions are mapped automatically. Roster-assigned technician emails access the{" "}
+        <strong className="font-semibold text-ink">Field Crew</strong> terminal. Control room operators receive{" "}
+        <strong className="font-semibold text-ink">Operator</strong> access.
       </p>
     </div>
   );

@@ -21,6 +21,7 @@ import {
   Notification,
   User,
   WarningAlt,
+  Security,
 } from "@carbon/icons-react";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -43,6 +44,7 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
   const router = useRouter();
   const { ok, warn, err } = useToast();
   const { user, logout, isAuthenticated } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
 
   const [clock, setClock] = useState("--:--:--");
   const [exportOpen, setExportOpen] = useState(false);
@@ -77,11 +79,11 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
   // before the session had been restored from the refresh cookie: every cold
   // load spent a 401 and a retry on an alert list nobody could see yet.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || (user?.status === "pending" && user?.role !== "admin")) return;
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 20000);
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.status, user?.role]);
 
   // Dismiss menus on outside click, and on Escape — a menu that can only be
   // closed with the mouse is a keyboard trap.
@@ -132,30 +134,27 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
 
   // Per-alert Telegram push. Disabled while the channel is off so the button
   // cannot promise a delivery that would only be recorded as DISABLED.
-  const [telegramReady, setTelegramReady] = useState(false);
+  const [emailReady, setEmailReady] = useState(true);
   const [sendingAlert, setSendingAlert] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || (user?.status === "pending" && user?.role !== "admin")) return;
     API.notificationStatus()
-      .then((s) => setTelegramReady(!!s.telegram.enabled && !!s.telegram.configured))
-      .catch(() => setTelegramReady(false));
-  }, [isAuthenticated]);
+      .then((s) => setEmailReady(!!s.email?.enabled || !!s.telegram?.enabled))
+      .catch(() => setEmailReady(true));
+  }, [isAuthenticated, user?.status, user?.role]);
 
-  const handleSendTelegram = async (alertId: string) => {
+  const handleSendEmail = async (alertId: string) => {
     setSendingAlert(alertId);
     try {
-      const res = await API.telegramSendAlert(alertId, false);
+      const res = await API.sendEmailAlert(alertId, true);
       if (res.success) {
-        ok(`Sent to Telegram (id ${res.delivery.provider_message_id}).`);
-      } else if (res.delivery.status === "SKIPPED") {
-        // Not an error: the same condition already went out recently.
-        warn(res.delivery.error_message || "Already sent recently — not re-sent.");
+        ok(`Alert email dispatched to operators.`);
       } else {
-        err(res.delivery.error_message || "Telegram did not accept the message.");
+        err(res.delivery.error_message || "Could not deliver email alert.");
       }
     } catch (e: any) {
-      err(e.message || "Could not send to Telegram");
+      err(e.message || "Could not send email alert");
     } finally {
       setSendingAlert(null);
     }
@@ -236,27 +235,30 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
       </div>
 
       <HeaderGlobalBar>
-        <Button
-          kind="danger"
-          size="sm"
-          renderIcon={WarningAlt}
-          onClick={handleEmergencyDispatch}
-          className="!hidden sm:!inline-flex self-center mr-2"
-        >
-          Dispatch crews
-        </Button>
+        {isOperatorOrAdmin && (
+          <Button
+            kind="danger"
+            size="sm"
+            renderIcon={WarningAlt}
+            onClick={handleEmergencyDispatch}
+            className="!hidden sm:!inline-flex self-center mr-2"
+          >
+            Dispatch crews
+          </Button>
+        )}
 
         {/* Export menu */}
-        <div className="relative hidden sm:block" ref={exportRef}>
-          <HeaderGlobalAction
-            aria-label="Export"
-            aria-haspopup="menu"
-            aria-expanded={exportOpen}
-            isActive={exportOpen}
-            onClick={() => setExportOpen((v) => !v)}
-          >
-            <Download size={20} />
-          </HeaderGlobalAction>
+        {isOperatorOrAdmin && (
+          <div className="relative hidden sm:block" ref={exportRef}>
+            <HeaderGlobalAction
+              aria-label="Export"
+              aria-haspopup="menu"
+              aria-expanded={exportOpen}
+              isActive={exportOpen}
+              onClick={() => setExportOpen((v) => !v)}
+            >
+              <Download size={20} />
+            </HeaderGlobalAction>
           {exportOpen && (
             <div
               role="menu"
@@ -301,8 +303,10 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
             </div>
           )}
         </div>
+      )}
 
-        {/* Alerts */}
+        {/* Alerts (hidden when pending approval) */}
+        {!(user?.status === "pending" && user?.role !== "admin") && (
         <div className="relative" ref={notifRef}>
           <HeaderGlobalAction
             aria-label={
@@ -358,31 +362,35 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                       </div>
                       <p className="text-micro text-ink-2 leading-snug">{a.reason}</p>
                       <div className="flex justify-end items-center gap-1 mt-1">
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Send}
-                          disabled={!telegramReady || sendingAlert !== null}
-                          title={
-                            telegramReady
-                              ? "Send this alert to Telegram"
-                              : "Telegram notifications are not configured"
-                          }
-                          onClick={() => handleSendTelegram(a.alert_id)}
-                        >
-                          {sendingAlert === a.alert_id ? "Sending…" : "Telegram"}
-                        </Button>
-                        {!a.acknowledged ? (
-                          <Button
-                            kind="ghost"
-                            size="sm"
-                            renderIcon={Checkmark}
-                            onClick={() => handleAckAlert(a.alert_id)}
-                          >
-                            Acknowledge
-                          </Button>
+                        {isOperatorOrAdmin ? (
+                          <>
+                            <Button
+                              kind="ghost"
+                              size="sm"
+                              renderIcon={Send}
+                              disabled={!emailReady || sendingAlert !== null}
+                              title="Send this alert directly to operators via email"
+                              onClick={() => handleSendEmail(a.alert_id)}
+                            >
+                              {sendingAlert === a.alert_id ? "Sending…" : "Email"}
+                            </Button>
+                            {!a.acknowledged ? (
+                              <Button
+                                kind="ghost"
+                                size="sm"
+                                renderIcon={Checkmark}
+                                onClick={() => handleAckAlert(a.alert_id)}
+                              >
+                                Acknowledge
+                              </Button>
+                            ) : (
+                              <span className="text-micro text-ink-3">Acknowledged</span>
+                            )}
+                          </>
                         ) : (
-                          <span className="text-micro text-ink-3">Acknowledged</span>
+                          <span className="text-micro text-ink-3 font-mono">
+                            {a.acknowledged ? "Acknowledged" : "Active Alert"}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -392,6 +400,7 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
             </div>
           )}
         </div>
+        )}
 
         {/* Operator */}
         <div className="relative" ref={userRef}>
@@ -417,16 +426,31 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                   <>
                     Signed in as{" "}
                     <strong className="font-semibold text-ink">{user.email}</strong>
-                    <span className="block mt-0.5 capitalize">Role: {user.role}</span>
+                    <span className="block mt-0.5 capitalize">
+                      Role: {user.role} {user.status === "pending" && "(Pending Approval)"}
+                    </span>
                   </>
                 ) : (
                   "Not signed in"
                 )}
               </div>
               {user && (
-                <button
-                  role="menuitem"
-                  className={`${menuItem} text-sev-critical flex items-center gap-2 font-medium`}
+                <>
+                  {user.role === "admin" && (
+                    <button
+                      role="menuitem"
+                      className={`${menuItem} text-brand-ink flex items-center gap-2 font-medium border-b border-line mb-1`}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        router.push("/admin");
+                      }}
+                    >
+                      <Security size={16} /> Admin Console
+                    </button>
+                  )}
+                  <button
+                    role="menuitem"
+                    className={`${menuItem} text-sev-critical flex items-center gap-2 font-medium`}
                   onClick={async () => {
                     setUserMenuOpen(false);
                     // Awaited so the server-side revocation completes before we
@@ -439,7 +463,8 @@ export const Topbar: React.FC<{ onToggleNav?: () => void; navOpen?: boolean }> =
                 >
                   <Logout size={16} /> Sign out
                 </button>
-              )}
+              </>
+            )}
             </div>
           )}
         </div>

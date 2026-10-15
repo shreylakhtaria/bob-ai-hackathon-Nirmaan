@@ -7,6 +7,7 @@ and writes to the audit log, so no button in the UI has to fake its result.
 """
 import csv
 import io
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -14,6 +15,8 @@ from .. import config, db
 from . import briefing, maintenance, resolution
 from . import jira as jira_svc
 from .crew import SKILL_FOR_TYPE, _travel_min
+
+logger = logging.getLogger("gridrisk.operations")
 
 # How far ahead each priority band is scheduled when an operator books a job.
 SCHEDULE_HOURS = {"CRITICAL": 4, "HIGH": 24, "MEDIUM": 72, "LOW": 168}
@@ -83,6 +86,11 @@ def dispatch_crew(asset_id, crew_id=None):
     asset = _asset(asset_id)
     if not asset:
         return {"error": f"Asset {asset_id} not found"}
+
+    existing_wo = db.query_one("SELECT * FROM work_orders WHERE asset_id=? AND status='OPEN'", (asset_id,))
+    if existing_wo:
+        return {"error": f"Asset {asset_id} already has active work order {existing_wo['wo_id']} (assigned to {existing_wo.get('crew_id') or 'pending crew'})"}
+
     pred = db.query_one("SELECT * FROM predictions WHERE asset_id=?", (asset_id,))
 
     if crew_id:
@@ -141,9 +149,24 @@ def dispatch_crew(asset_id, crew_id=None):
     except Exception:
         pass  # Jira failure must never block an operational dispatch
 
+    # Dispatch targeted notification specifically to this assigned crew's email
+    email_delivery = None
+    try:
+        from . import email_notifications as email_notif
+        email_delivery = email_notif.send_crew_dispatch(
+            crew=dict(crew),
+            asset=dict(asset),
+            work_order=wo,
+            pred=pred,
+            eta_min=eta,
+        )
+    except Exception as exc:
+        logger.warning("Crew dispatch notification failed: %s", exc)
+
     return {"work_order": wo, "crew_id": crew["crew_id"], "crew_skill": crew["skill_type"],
             "from_area": crew["current_area"], "eta_min": eta, "asset_id": asset_id,
             "jira": jira_result,
+            "notification": email_delivery,
             "message": f"{crew['crew_id']} dispatched to {asset_id} — ETA {eta:.0f} min"}
 
 
@@ -274,7 +297,7 @@ def acknowledge_alert(alert_id):
     return {"alert_id": alert_id, "acknowledged": True, "message": f"{alert_id} acknowledged"}
 
 
-def list_work_orders(limit=100, status=None, asset_id=None):
+def list_work_orders(limit=100, status=None, asset_id=None, crew_id=None):
     sql = """SELECT w.*, a.asset_type, a.customers_served FROM work_orders w
              LEFT JOIN assets a ON a.asset_id=w.asset_id WHERE 1=1"""
     params = []
@@ -284,6 +307,9 @@ def list_work_orders(limit=100, status=None, asset_id=None):
     if asset_id:
         sql += " AND w.asset_id=?"
         params.append(asset_id)
+    if crew_id:
+        sql += " AND w.crew_id=?"
+        params.append(crew_id)
     sql += " ORDER BY w.created_at DESC, w.rowid DESC LIMIT ?"
     params.append(limit)
     return db.query(sql, tuple(params))

@@ -101,6 +101,7 @@ def issue_access_token(user: dict) -> str:
         "email": user["email"],
         "display_name": user.get("display_name") or user["email"],
         "role": user["role"],
+        "status": user.get("status") or "approved",
         "exp": int(time.time()) + config.ACCESS_TOKEN_TTL_MINUTES * 60,
     })
 
@@ -210,11 +211,11 @@ def clear_auth_cookies(response: Response) -> None:
 # ---------------------------------------------------------------------------
 # Accounts
 # ---------------------------------------------------------------------------
-def signup(display_name: str, email: str, password: str) -> dict:
+def signup(display_name: str, email: str, password: str, requested_role: str = "operator", status: str = "approved") -> dict:
     display_name = (display_name or "").strip()
     email = (email or "").strip().lower()
     if len(display_name) < 2:
-        raise HTTPException(422, "Operator name must be at least 2 characters")
+        raise HTTPException(422, "Name must be at least 2 characters")
     if not EMAIL_RE.match(email):
         raise HTTPException(422, "Invalid email address")
     if len(password or "") < MIN_PASSWORD_LENGTH:
@@ -222,16 +223,28 @@ def signup(display_name: str, email: str, password: str) -> dict:
     if db.query_one("SELECT 1 FROM users WHERE email=?", (email,)):
         raise HTTPException(409, "An account with this email already exists")
 
-    # Role is decided here, server-side, from configuration — never from the
-    # request body, or anyone could sign up as an admin.
-    role = "admin" if email in config.ADMIN_EMAILS else config.DEFAULT_ROLE
+    # Role and approval status assignment:
+    # 1. Admin emails are exclusively configured on server
+    if email in config.ADMIN_EMAILS:
+        role = "admin"
+        assigned_status = "approved"
+    else:
+        # 2. If email is assigned to an active field crew unit, automatically assign crew role
+        crew_row = db.query_one("SELECT crew_id FROM crews WHERE LOWER(COALESCE(email, '')) = ?", (email,))
+        if crew_row or (requested_role or "").strip().lower() == "crew":
+            role = "crew"
+            assigned_status = "approved"
+        else:
+            role = config.DEFAULT_ROLE
+            assigned_status = status or "approved"
+
     with db.session() as conn:
         conn.execute(
-            "INSERT INTO users(display_name,email,password_hash,role,created_at) VALUES(?,?,?,?,?)",
-            (display_name, email, _hash_password(password), role, _now().isoformat()),
+            "INSERT INTO users(display_name,email,password_hash,role,status,created_at) VALUES(?,?,?,?,?,?)",
+            (display_name, email, _hash_password(password), role, assigned_status, _now().isoformat()),
         )
     user = db.query_one("SELECT * FROM users WHERE email=?", (email,))
-    db.audit(email, "SIGNUP", {"role": role})
+    db.audit(email, "SIGNUP", {"role": role, "status": assigned_status})
     return user
 
 
@@ -246,7 +259,16 @@ def login(email: str, password: str) -> dict:
     if not _verify_password(password or "", user["password_hash"]):
         db.audit(email, "LOGIN_FAILED", {})
         raise HTTPException(401, "Incorrect email or password")
-    db.audit(email, "LOGIN", {"role": user["role"]})
+
+    # Dynamic synchronization: if user is not admin and email is linked to a crew, ensure role is crew
+    if user["role"] != "admin":
+        crew_row = db.query_one("SELECT crew_id FROM crews WHERE LOWER(COALESCE(email, '')) = ?", (email,))
+        if crew_row and user["role"] != "crew":
+            with db.session() as conn:
+                conn.execute("UPDATE users SET role='crew', status='approved' WHERE id=?", (user["id"],))
+            user = db.query_one("SELECT * FROM users WHERE id=?", (user["id"],))
+
+    db.audit(email, "LOGIN", {"role": user["role"], "status": user.get("status", "approved")})
     return user
 
 
@@ -255,6 +277,7 @@ def public_user(user: dict) -> dict:
     return {"id": user["id"],
             "display_name": user.get("display_name") or user["email"],
             "email": user["email"], "role": user["role"],
+            "status": user.get("status") or "approved",
             "created_at": user["created_at"]}
 
 
@@ -271,4 +294,5 @@ def get_current_user(authorization: str = Header(default=None)) -> dict:
     payload = _decode(authorization.split(" ", 1)[1].strip(), "access")
     return {"id": payload["uid"], "email": payload["email"],
             "display_name": payload.get("display_name") or payload["email"],
-            "role": payload.get("role", config.DEFAULT_ROLE)}
+            "role": payload.get("role", config.DEFAULT_ROLE),
+            "status": payload.get("status", "approved")}

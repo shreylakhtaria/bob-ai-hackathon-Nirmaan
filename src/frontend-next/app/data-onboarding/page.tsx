@@ -18,6 +18,7 @@ import {
 import { CheckmarkOutline, CloudUpload, DataBase, DocumentTasks, Idea, Reset, Rule, WarningAlt } from "@carbon/icons-react";
 import { PanelCard } from "@/components/common/PanelCard";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { getAccessToken, refreshAccessToken } from "@/lib/api";
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -158,10 +159,24 @@ function preCheck(file: File): string | null {
   return null;
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
+import { useRouter } from "next/navigation";
 
 export default function DataOnboardingPage() {
+  const router = useRouter();
   const { ok, err, warn } = useToast();
+  const { user } = useAuth();
+  const isOperatorOrAdmin = user?.role === "admin" || user?.role === "operator";
+
+  React.useEffect(() => {
+    if (user?.role === "crew") {
+      warn("Data Onboarding is restricted to Control Room Operators");
+      router.replace("/crews");
+    }
+  }, [user?.role, router, warn]);
+
+  if (user?.role === "crew") {
+    return null;
+  }
 
   const [kind, setKind] = useState<Kind>("assets");
   const [file, setFile] = useState<File | null>(null);
@@ -359,25 +374,31 @@ export default function DataOnboardingPage() {
 
             {/* `danger` because it writes rows the operator cannot undo from
                 this page — the dry run beside it is the safe default. */}
-            <Button
-              type="button"
-              kind="danger"
-              size="md"
-              renderIcon={busy === "commit" ? undefined : DataBase}
-              onClick={() => run("commit")}
-              disabled={!canImport || busy !== null}
-              title={
-                canImport
-                  ? undefined
-                  : "Validate the file first \u2014 an import needs at least one valid row."
-              }
-            >
-              {busy === "commit"
-                ? "Importing\u2026"
-                : report && !committed
-                  ? `Import ${report.valid} row${report.valid === 1 ? "" : "s"}`
-                  : "Import"}
-            </Button>
+            {isOperatorOrAdmin ? (
+              <Button
+                type="button"
+                kind="danger"
+                size="md"
+                renderIcon={busy === "commit" ? undefined : DataBase}
+                onClick={() => run("commit")}
+                disabled={!canImport || busy !== null}
+                title={
+                  canImport
+                    ? undefined
+                    : "Validate the file first — an import needs at least one valid row."
+                }
+              >
+                {busy === "commit"
+                  ? "Importing…"
+                  : report && !committed
+                    ? `Import ${report.valid} row${report.valid === 1 ? "" : "s"}`
+                    : "Import"}
+              </Button>
+            ) : (
+              <span className="text-micro text-ink-3 font-mono px-2 py-1 rounded bg-sunken border border-line">
+                Database commit requires Operator role
+              </span>
+            )}
 
             <Button
               type="button"
