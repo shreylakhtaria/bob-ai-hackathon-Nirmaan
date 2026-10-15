@@ -13,6 +13,11 @@ import type {
   CopilotResponse,
   BriefResponse,
   ModelMetrics,
+  IngestCsvResponse,
+  IngestSingleResponse,
+  RescoreResponse,
+  SeedTelemetryResponse,
+  AssetRecordInput,
 } from "@/types/grid";
 import type { AuthResponse, LoginRequest, ProfileUpdateRequest, SignupRequest, User } from "@/types/auth";
 
@@ -29,6 +34,27 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(errorData.detail || `Request failed with status ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function apiUpload<T>(endpoint: string, file: File): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("grid_auth_token") : null;
+  const form = new FormData();
+  form.append("file", file);
+
+  // No Content-Type header: the browser sets multipart/form-data with the
+  // correct boundary itself when the body is a FormData instance.
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
   });
 
   if (!res.ok) {
@@ -148,4 +174,26 @@ export const API = {
   brief: () => apiRequest<BriefResponse>("/brief"),
   briefText: () => apiTextRequest("/brief/text"),
   exportUrl: (kind: string) => `/api/export/${kind}`,
+
+  // Data Onboarding / SCADA ingestion
+  ingestTemplateUrl: () => "/api/ingest/template",
+  ingestAssetsCsv: (file: File) => apiUpload<IngestCsvResponse>("/ingest/assets/csv", file),
+  ingestAssetSingle: (record: AssetRecordInput) =>
+    apiRequest<IngestSingleResponse>("/ingest/assets/single", {
+      method: "POST",
+      body: JSON.stringify(record),
+    }),
+  reScore: () => apiRequest<RescoreResponse>("/ingest/re-score", { method: "POST" }),
+  seedTelemetry: (assetIds?: string[], historyHours?: number) =>
+    apiRequest<SeedTelemetryResponse>("/ingest/seed-telemetry", {
+      method: "POST",
+      body: JSON.stringify({ asset_ids: assetIds ?? null, history_hours: historyHours ?? 504 }),
+    }),
+
+  // Maintenance resolution
+  completeWorkOrder: (
+    woId: string,
+    data: { action_taken?: string; parts_replaced?: string; notes?: string; result?: string } = {}
+  ) => apiRequest<any>(`/work-orders/${woId}/complete`, { method: "POST", body: JSON.stringify(data) }),
+  recalculateRisk: () => apiRequest<any>("/risk/recalculate", { method: "POST" }),
 };

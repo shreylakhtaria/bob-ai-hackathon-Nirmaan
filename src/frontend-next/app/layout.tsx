@@ -9,6 +9,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { MetricsDrawer } from "@/components/layout/MetricsDrawer";
+import { FloatingCopilot } from "@/components/layout/FloatingCopilot";
 import "./globals.css";
 
 const queryClient = new QueryClient({
@@ -20,8 +21,11 @@ const queryClient = new QueryClient({
   },
 });
 
+const SIDEBAR_COLLAPSE_KEY = "grid_sidebar_collapsed";
+
 function AppShell({ children }: { children: React.ReactNode }) {
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { token, isLoading } = useAuth();
@@ -32,6 +36,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
     }
   }, [isLoading, token, isAuthPage, router]);
+
+  useEffect(() => {
+    setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1");
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSE_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   if (isAuthPage) {
     return <main className="min-h-screen bg-[#f8f9ff]">{children}</main>;
@@ -48,12 +64,21 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Topbar />
-      <Sidebar onOpenMetrics={() => setMetricsOpen(true)} />
-      <div className="pl-64 flex flex-col min-h-screen">
+      <Sidebar
+        onOpenMetrics={() => setMetricsOpen(true)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+      <div
+        className={`flex flex-col min-h-screen transition-[padding-left] duration-200 ${
+          sidebarCollapsed ? "pl-[68px]" : "pl-64"
+        }`}
+      >
         <Breadcrumb />
         <main className="w-full pt-24 px-4 pb-8 bg-[#f8f9ff] flex-1">{children}</main>
       </div>
       <MetricsDrawer isOpen={metricsOpen} onClose={() => setMetricsOpen(false)} />
+      <FloatingCopilot />
     </>
   );
 }

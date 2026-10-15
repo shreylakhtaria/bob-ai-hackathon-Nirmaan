@@ -231,3 +231,48 @@ export interface ModelMetrics {
   dataset_rows?: number;
   training_date?: string;
 }
+
+export interface IngestRowError {
+  row: number;
+  reason: string;
+}
+
+export interface IngestCsvResponse {
+  inserted: number;
+  updated: number;
+  errors: IngestRowError[];
+}
+
+export interface IngestSingleResponse {
+  status: string;
+  asset_id: string;
+  inserted: number;
+  updated: number;
+}
+
+export interface RescoreResponse {
+  scored: number;
+  areas_updated: number;
+  as_of: string;
+}
+
+export interface SeedTelemetryResponse {
+  seeded: number;
+  rows_inserted: number;
+  scored?: number;
+  message?: string;
+  rescore_error?: string;
+}
+
+export interface AssetRecordInput {
+  asset_id: string;
+  asset_type: string;
+  substation_id: string;
+  geographic_area: string;
+  latitude: number;
+  longitude: number;
+  customers_served: number;
+  criticality_score: number;
+  installation_year: number;
+  rated_capacity: number;
+}

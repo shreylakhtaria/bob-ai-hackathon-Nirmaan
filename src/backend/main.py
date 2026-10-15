@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field
 from . import config, db
 from .services import (impact as impact_svc, crew as crew_svc, simulation as sim_svc,
                        briefing as brief_svc, copilot as copilot_svc, maintenance as maint_svc,
-                       operations as ops_svc, auth as auth_svc)
+                       operations as ops_svc, auth as auth_svc,
+                       resolution as resolution_svc, risk as risk_svc)
 from .routers.ingest import router as ingest_router
 
 app = FastAPI(title=config.API_TITLE, version=config.API_VERSION)
@@ -60,6 +61,14 @@ class DeferRequest(BaseModel):
 class RepositionRequest(BaseModel):
     crew_id: str
     area_id: str
+
+
+class CompleteWorkOrderRequest(BaseModel):
+    action_taken: Optional[str] = Field(default=None, max_length=500)
+    parts_replaced: Optional[str] = Field(default=None, max_length=300)
+    notes: Optional[str] = Field(default=None, max_length=1000)
+    # Constrained rather than free text so the maintenance record stays queryable.
+    result: str = Field(default="COMPLETED", pattern="^(COMPLETED|PARTIAL|NO_FAULT_FOUND)$")
 
 
 class SignupRequest(BaseModel):
@@ -418,13 +427,42 @@ def crew_reposition(req: RepositionRequest):
 
 @app.post("/api/crews/{crew_id}/release")
 def crew_release(crew_id: str):
-    return _ok_or_409(ops_svc.release_crew(crew_id))
+    """Complete whatever the crew is on and free it. Runs the full resolution
+    loop — maintenance history, asset stamp, risk recalculation — so the map
+    reflects the repair rather than just showing the crew as available."""
+    return _ok_or_409(ops_svc.release_crew(crew_id, {"email": "operator"}))
 
 
 @app.post("/api/dispatch/emergency")
 def emergency_dispatch(limit: int = 5):
     _require_seeded()
     return ops_svc.emergency_dispatch(limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Resolution workflow (maintenance completion -> risk recalculation)
+# ---------------------------------------------------------------------------
+@app.post("/api/work-orders/{wo_id}/complete")
+def wo_complete(wo_id: str, req: CompleteWorkOrderRequest):
+    """Close the loop: complete the work, record it, release the crew, re-derive risk."""
+    _require_seeded()
+    return resolution_svc.complete_work_order(
+        wo_id, {"email": "operator"},
+        action_taken=req.action_taken, parts_replaced=req.parts_replaced,
+        notes=req.notes, result=req.result)
+
+
+@app.post("/api/risk/recalculate")
+def risk_recalculate():
+    """Force a full re-derivation of asset and area risk.
+
+    Rewrites every prediction row and takes several seconds — an explicit
+    operator action, not something polled automatically.
+    """
+    _require_seeded()
+    result = risk_svc.recalculate(reason="manual:operator")
+    db.audit("operator", "risk_recalculate", result)
+    return result
 
 
 @app.post("/api/alerts/{alert_id}/ack")

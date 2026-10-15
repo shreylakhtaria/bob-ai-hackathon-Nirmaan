@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -23,14 +23,15 @@ import { F } from "@/lib/utils";
 
 export default function OverviewPage() {
   const router = useRouter();
-  const { ok, err } = useToast();
+  const { ok, err, info } = useToast();
+  const [rescanning, setRescanning] = useState(false);
 
   const { data: summary, isLoading, refetch } = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: () => API.summary(),
   });
 
-  const { data: alerts } = useQuery({
+  const { data: alerts, refetch: refetchAlerts } = useQuery({
     queryKey: ["alerts"],
     queryFn: () => API.alerts(),
   });
@@ -42,6 +43,21 @@ export default function OverviewPage() {
       refetch();
     } catch (e: any) {
       err(e.message || "Dispatch failed");
+    }
+  };
+
+  const handleForceRescan = async () => {
+    setRescanning(true);
+    info("Re-running the ML pipeline (feature build → score → impact → area risk)…");
+    try {
+      const res = await API.reScore();
+      ok(`Rescan complete — ${res.scored} assets scored, ${res.areas_updated} areas updated`);
+      refetch();
+      refetchAlerts();
+    } catch (e: any) {
+      err(e.message || "Rescan failed");
+    } finally {
+      setRescanning(false);
     }
   };
 
@@ -69,10 +85,13 @@ export default function OverviewPage() {
           </p>
         </div>
         <button
-          onClick={() => refetch()}
-          className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 self-start md:self-auto shadow-sm"
+          onClick={handleForceRescan}
+          disabled={rescanning}
+          title="Re-run the full ML pipeline (feature build, scoring, impact, area risk) against current data"
+          className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 self-start md:self-auto shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Force Rescan
+          <RotateCw className={`w-3.5 h-3.5 text-[#003820] ${rescanning ? "animate-spin" : ""}`} />
+          {rescanning ? "Rescanning…" : "Force Rescan"}
         </button>
       </div>
 

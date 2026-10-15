@@ -1,14 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Truck, CheckCircle2, Clock, RotateCw, Navigation } from "lucide-react";
+import { Truck, CheckCircle2, Clock, RotateCw, Navigation, ListChecks } from "lucide-react";
 import { ScadaSkeletonLoader } from "@/components/common/ScadaSkeletonLoader";
 import { useToast } from "@/context/ToastContext";
 import { API } from "@/lib/api";
 
 export default function CrewsPage() {
-  const { ok, err } = useToast();
+  const { ok, warn, err } = useToast();
+  const [massReleasing, setMassReleasing] = useState(false);
 
   const { data: crewData, isLoading: isRosterLoading, refetch: refetchRoster } = useQuery({
     queryKey: ["crews-roster"],
@@ -42,11 +43,51 @@ export default function CrewsPage() {
     }
   };
 
+  const crews = Array.isArray(crewData) ? crewData : (crewData?.crews || []);
+  const busyCrews = crews.filter((c) => c.active_assignment || c.availability === "ON_JOB");
+
+  const handleMassRelease = async () => {
+    if (busyCrews.length === 0) return;
+    if (
+      !window.confirm(
+        `Release all ${busyCrews.length} crew(s) currently on a job? Each release completes its work order, records maintenance, and re-derives risk.`
+      )
+    ) {
+      return;
+    }
+
+    setMassReleasing(true);
+    warn(`Releasing ${busyCrews.length} crew(s) — this re-derives risk after each one, so it may take a moment…`);
+
+    let released = 0;
+    const failures: string[] = [];
+    // Sequential, not Promise.all: each release triggers a full risk
+    // recalculation pass, and firing them concurrently would have every
+    // request racing to rewrite the same `predictions` rows.
+    for (const c of busyCrews) {
+      try {
+        await API.releaseCrew(c.crew_id);
+        released += 1;
+      } catch (e: any) {
+        failures.push(`${c.crew_id}: ${e.message || "failed"}`);
+      }
+    }
+
+    setMassReleasing(false);
+    refetchRoster();
+    refetchRecs();
+
+    if (failures.length === 0) {
+      ok(`${released} crew(s) released and available — maintenance recorded, risk re-derived`);
+    } else {
+      err(`${released} released, ${failures.length} failed: ${failures.join("; ")}`);
+    }
+  };
+
   if (isRosterLoading || isRecLoading) {
     return <ScadaSkeletonLoader />;
   }
 
-  const crews = Array.isArray(crewData) ? crewData : (crewData?.crews || []);
   const recs = recData?.recommendations || [];
 
   return (
@@ -66,15 +107,26 @@ export default function CrewsPage() {
             Optimizes repair crew placements to minimize outage travel times ahead of storm events.
           </p>
         </div>
-        <button
-          onClick={() => {
-            refetchRoster();
-            refetchRecs();
-          }}
-          className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm self-start md:self-auto"
-        >
-          <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Refresh Roster
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <button
+            onClick={handleMassRelease}
+            disabled={busyCrews.length === 0 || massReleasing}
+            title={busyCrews.length === 0 ? "No crews are currently on a job" : undefined}
+            className="h-8 px-3.5 bg-[#ba1a1a] text-white border border-[#ba1a1a] rounded-md font-mono text-[11px] font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ListChecks className={`w-3.5 h-3.5 ${massReleasing ? "animate-pulse" : ""}`} />
+            {massReleasing ? "Releasing…" : `Release All${busyCrews.length ? ` (${busyCrews.length})` : ""}`}
+          </button>
+          <button
+            onClick={() => {
+              refetchRoster();
+              refetchRecs();
+            }}
+            className="h-8 px-3.5 bg-white text-[#0b1c30] border border-[#c0c9c0] rounded-md font-mono text-[11px] font-bold hover:bg-[#eff4ff] transition-colors flex items-center gap-1.5 shadow-sm"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-[#003820]" /> Refresh Roster
+          </button>
+        </div>
       </div>
 
       {/* Main Grid: Roster (7 cols) + AI Recommendations (5 cols) */}
